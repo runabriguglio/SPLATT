@@ -10,38 +10,40 @@ import numpy as np
 from numpy import array
 
 
-from SPLATT.splattsw.devices.utility import *
-from IPython.core.release import keywords
+from splattsw.devices.utility import *
+#from IPython.core.release import keywords
 
 
-def openwdd(fname):
-    hdr = {}
-    with open(fname,"rb") as wdf:
-        rawData = wdf.read(564)
-        hdr['version'] = int.from_bytes(rawData[0:4], 'little')
-        hdr['size'] = int.from_bytes(rawData[4:8], 'little')
-        hdr['nchannels']= int.from_bytes(rawData[8:12], 'little')
-        hdr['scan_rate']= int.from_bytes(rawData[12:20], 'little')
-        hdr['start_time']= int.from_bytes(rawData[20:28], 'little')
-        hdr['timezone']= rawData[28:44].decode("utf-8")
-        json_hdr_size =  int.from_bytes(rawData[560:564], 'little')
-        jsonRaw = wdf.read(json_hdr_size)
-        hdr['json_hdr']=json.loads(jsonRaw)
-        ndata = hdr['json_hdr']['jobDescriptor']['acquisition']['stopTrigger']['sampleCount']
-        data_it = struct.iter_unpack('<d', wdf.read(ndata*hdr['nchannels']*8)) #4 because double precision 64 bit\n",
-        tmp = np.asarray(list(data_it), dtype='double')
-        data=tmp.reshape(int(tmp.size/4), 4)
-        data = data.T
-    return data
-
+# def openwdd(fname):
+#     hdr = {}
+#     with open(fname,"rb") as wdf:
+#         rawData = wdf.read(564)
+#         hdr['version'] = int.from_bytes(rawData[0:4], 'little')
+#         hdr['size'] = int.from_bytes(rawData[4:8], 'little')
+#         hdr['nchannels']= int.from_bytes(rawData[8:12], 'little')
+#         hdr['scan_rate']= int.from_bytes(rawData[12:20], 'little')
+#         hdr['start_time']= int.from_bytes(rawData[20:28], 'little')
+#         hdr['timezone']= rawData[28:44].decode("utf-8")
+#         json_hdr_size =  int.from_bytes(rawData[560:564], 'little')
+#         jsonRaw = wdf.read(json_hdr_size)
+#         hdr['json_hdr']=json.loads(jsonRaw)
+#         ndata = hdr['json_hdr']['jobDescriptor']['acquisition']['stopTrigger']['sampleCount']
+#         data_it = struct.iter_unpack('<d', wdf.read(ndata*hdr['nchannels']*8)) #4 because double precision 64 bit\n",
+#         tmp = np.asarray(list(data_it), dtype='double')
+#         data=tmp.reshape(int(tmp.size/4), 4)
+#         data = data.T
+#     return data
+# 
 
 class WebDAQ(object):
     
-    def __init__(self, host_address="193.206.154.195", **keywords):
+    def __init__(self, host_address="193.206.154.195"): #, **keywords):
         # Start a session so the password (if any) will be used throughout
         self._s = Session()
-        user = keywords.pop('user','admin')
-        pword = keywords.pop('pwd','admin')
+        # user = keywords.pop('user','admin')
+        # pword = keywords.pop('pwd','admin')
+        user = 'admin'
+        pword = 'admin'
         self._s.auth = (user, pword)
         self._host_address = host_address
         
@@ -112,36 +114,43 @@ class WebDAQ(object):
             # leave the schedule the way we found it ... if it was already running, then do not stop it
             if initial_schedule_status_code != ScheduleStatus['running'] and \
                     initial_schedule_status_code != ScheduleStatus['waiting']:
-                s.post(base_url + '/schedule/status/', json={"run": False})
+                s.post(self._base_url + '/schedule/status/', json={"run": False})
 
 
     def get_schedule_status(self):
         schedule_status_json = get_schedule_status_json(self._s, self._base_url)
         print('Schedule status', ':',  get_job_status_key(schedule_status_json['statusCode']),sep='')
     
-    def start_schedule(self):
-        start_schedule_response = self._s.post(self._base_url + '/schedule/status/', json={"run": True})
-        start_schedule_response.raise_for_status()
-        schedule_status_json = get_schedule_status_json(self._s, self._base_url)
-        print('Schedule status', ':',  get_job_status_key(schedule_status_json['statusCode']),sep='')
-
     def get_jobs_status(self):
         number_of_jobs_in_schedule = len(self._jobs)
         for job_number in range(number_of_jobs_in_schedule):
             job_status_json = get_job_status_json(self._s, self._base_url, self._jobs[job_number])
             print('      ', job_number, ': ', self._jobs[job_number], ':',  get_job_status_key(job_status_json['statusCode']),sep='')
 
-    def stop_all_jobs(self):
-        jobs = self._schedule_descriptor_json['jobs']
-        number_of_jobs_in_schedule = len(jobs)
-        for job_number in range(number_of_jobs_in_schedule):
-            stop_res = self._s.post(base_url + '/jobs/'+jobname+'/', json={"stop":True})
-                        
+    # def stop_all_jobs(self):
+    #     jobs = schedule_descriptor_json['jobs'] # was self._
+    #     number_of_jobs_in_schedule = len(jobs)
+    #     for job_number in range(number_of_jobs_in_schedule):
+    #         stop_res = self._s.post(self._base_url + '/schedule/jobs/'+jobs[job_number]+'/status/', json={"stop":True})
+    
+    def start_schedule(self):
+        start_schedule_response = self._s.post(self._base_url + '/schedule/status/', json={"run": True})
+        start_schedule_response.raise_for_status()
+    
+    def stop_schedule(self):
+        stop_schedule_response = self._s.post(self._base_url + '/schedule/status/', json={"run": False})
+        stop_schedule_response.raise_for_status()
 
-    def start_job(self,jobname='All10Sec'):
-        start_job_response = self._s.post(self._base_url + '/schedule/jobs/'+jobname+'/', json={"run": True})
-        start_job_response.raise_for_status()
-        job_status_json = get_job_status_json(self._s, self._base_url, jobname)
+    # def start_job(self,jobname):
+    #     start_job_response = self._s.post(self._base_url + '/schedule/jobs/'+jobname+'/status/', json={"run": True})
+    #     start_job_response.raise_for_status()
+    #     job_status_json = get_job_status_json(self._s, self._base_url, jobname)
+        
+    def stop_job(self):
+        schedule_status_json = get_schedule_status_json(wd._s, wd._base_url)
+        jobname = schedule_status_json['currentJobName']
+        stop_res = self._s.post(self._base_url + '/schedule/jobs/'+jobname+'/status/', json={"stop":True})
+        stop_res.raise_for_status()
     
     def read_data_current_job(self, **keywords):
         
@@ -150,8 +159,8 @@ class WebDAQ(object):
         
         schedule_status_json = get_schedule_status_json(self._s, self._base_url)
         current_job_name = schedule_status_json['currentJobName']
-        if current_job_name == '':
-            current_job_name = 'All10Sec'
+        if current_job_name=='':
+            raise RuntimeError('No Job running')
         # Display the current job name.
         print(' Job: ', current_job_name, 'data')
 
@@ -232,10 +241,11 @@ class WebDAQ(object):
 
         return numpy_data
     
-    
+    @staticmethod
     def openwdd(fname):
+        filepath = '/mnt/jumbo/SPLATT/WebDaqData/'+fname
         hdr = {}
-        with open(fname,"rb") as wdf:
+        with open(filepath,"rb") as wdf:
             rawData = wdf.read(564)
             hdr['version'] = int.from_bytes(rawData[0:4], 'little')
             hdr['size'] = int.from_bytes(rawData[4:8], 'little')

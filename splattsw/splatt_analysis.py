@@ -4,7 +4,9 @@ import numpy as np
 #import jdcal
 from astropy.io import fits as pyfits
 from SPLATT.splattsw.devices import webDAQ as wd
-from M4.m4.mOTT_analysis import timehistory as th
+#from M4.m4.mOTT_analysis import timehistory as th
+from M4.m4.mini_OTT import timehistory as th
+
 from matplotlib.pyplot import *
 rcParams['image.cmap'] = 'hot'
 from SPLATT.splattsw import splatt_log as slog
@@ -19,7 +21,7 @@ logfile = '/mnt/jumbo/SPLATT/'
 basepathwebdaq= '/mnt/jumbo/SPLATT/WebDaqData/' #'/home/labot/ftp/'
 freqwebdaq = 1651.6129 #Hz; minimum sampling frequency
 
-ftpwebdacq = '/home/ftpuser/ftp/files/'
+ftpwebdacq = '/home/ftpuser/ftp/'
 
 basepathbuffer = '/mnt/jumbo/SPLATT/Buffer/'
 freqbuff = 118
@@ -422,8 +424,9 @@ def signal_unwrap(x, thr=632e-9/2, phase = 632e-9):
         dv = v[i]-v[i-1]
         if dv > thr:
             v[i] =v[i]-np.abs(phase * (round(dv/phase)))
-        else:
+        if dv < -thr:
             v[i] =v[i]+np.abs(phase * (round(dv/phase)))
+
     return v
 
 def sweep_analysis_sequence(tnlist):

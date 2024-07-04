@@ -1,6 +1,7 @@
 from SPLATT.splattsw import splatt_analysis as sp
 from astropy.io import fits as pyfits
-from M4.m4.mOTT_analysis import timehistory as th
+#from M4.m4.mOTT_analysis import timehistory as th
+from M4.m4.mini_OTT import timehistory as th
 
 from importlib  import reload #for reload
 wdlist0 = ['SPLATT_Test_2021-12-23T12-34-16-379.wdd','SPLATT_Test_2021-12-23T12-38-01-620.wdd','SPLATT_Test_2021-12-23T12-40-30-542.wdd','SPLATT_Test_2021-12-23T12-43-56-167.wdd','SPLATT_Test_2021-12-23T12-45-46-445.wdd','SPLATT_Test_2021-12-23T12-47-48-308.wdd','SPLATT_Test_2021-12-23T12-49-47-559.wdd']  #redpitaya
@@ -637,7 +638,7 @@ legend()
 #air
 tnlist0 = ['20220211_153030','20220211_153407','20220211_153635','20220211_153949','20220211_154116','20220211_154244']
 gaplist0= np.array([0,38,62,409,145,181])
-f0,v0=sp.sweep_analysis_sequence(tnlist0, gaplist0)
+f0,v0=sp.sweep_analysis_sequence(tnlist0)
 ntn0=size(tnlist0)
 lab0 = []
 for i in gaplist0:
@@ -690,6 +691,20 @@ legend()
 yscale('log')
 xlim(50,110)
 title('Test in Helium')
+
+#comparing air and helium result at small gap regime
+gapid =5
+clf()
+yscale('log')
+xlim(40,120)
+
+plot(sp.runningMean(f,nr),sp.runningMean(a0[1:,0],nr), 'k', label=lab0[0])
+plot(sp.runningMean(f,nr),sp.runningMean(a0[1:,gapid],nr), label='Air:'+lab0[gapid])
+plot(sp.runningMean(f,nr),sp.runningMean(a1[1:,gapid],nr), label='He:'+lab1[gapid])
+legend()
+yscale('log')
+xlim(40,120)
+
 
 
 #analysis of single frequency data
