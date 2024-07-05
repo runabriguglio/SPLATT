@@ -10,7 +10,7 @@ import numpy as np
 from numpy import array
 
 
-from splattsw.devices.utility import *
+from SPLATT.splattsw.devices.utility import *
 #from IPython.core.release import keywords
 
 
@@ -33,7 +33,6 @@ from splattsw.devices.utility import *
 #         data=tmp.reshape(int(tmp.size/4), 4)
 #         data = data.T
 #     return data
-# 
 
 class WebDAQ(object):
     
@@ -241,27 +240,5 @@ class WebDAQ(object):
 
         return numpy_data
     
-    @staticmethod
-    def openwdd(fname):
-        filepath = '/mnt/jumbo/SPLATT/WebDaqData/'+fname
-        hdr = {}
-        with open(filepath,"rb") as wdf:
-            rawData = wdf.read(564)
-            hdr['version'] = int.from_bytes(rawData[0:4], 'little')
-            hdr['size'] = int.from_bytes(rawData[4:8], 'little')
-            hdr['nchannels']= int.from_bytes(rawData[8:12], 'little')
-            hdr['scan_rate']= int.from_bytes(rawData[12:20], 'little')
-            hdr['start_time']= int.from_bytes(rawData[20:28], 'little')
-            hdr['timezone']= rawData[28:44].decode("utf-8")
-            json_hdr_size =  int.from_bytes(rawData[560:564], 'little')
-            jsonRaw = wdf.read(json_hdr_size)
-            hdr['json_hdr']=json.loads(jsonRaw)
-            ndata = hdr['json_hdr']['jobDescriptor']['acquisition']['stopTrigger']['sampleCount']
-            data_it = struct.iter_unpack('<d', wdf.read(ndata*hdr['nchannels']*8)) #4 because double precision 64 bit\n",
-            tmp = np.asarray(list(data_it), dtype='double')
-            data=tmp.reshape(int(tmp.size/4), 4)
-            data = data.T
-        return data
-
     
     

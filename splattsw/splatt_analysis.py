@@ -1,12 +1,14 @@
 import os
 import glob
+import json
+import struct
 import numpy as np
 #import jdcal
 from astropy.io import fits as pyfits
-from SPLATT.splattsw.devices import webDAQ as wd
+from SPLATT.splattsw.devices.webDAQ import WebDAQ
 #from M4.m4.mOTT_analysis import timehistory as th
 from M4.m4.mini_OTT import timehistory as th
-
+wd = WebDAQ()
 from matplotlib.pyplot import *
 rcParams['image.cmap'] = 'hot'
 from SPLATT.splattsw import splatt_log as slog
@@ -32,6 +34,7 @@ tn='tn0'
 z2fit = np.array([1,2,3])
 tiltselect = 1 #TBC
 
+
 def wdsync():
     os.system('rsync -av '+ftpwebdacq+' '+basepathwebdaq)
 
@@ -40,9 +43,9 @@ def get_freq4d(tn):
     f4d = w[0]    
     return f4d
 
-def accplot(v, f):
-    #plot(f, v)
-    bar(f,v)
+def accplot(f, v):
+    plot(f, v)
+    #bar(f,v)
     xlabel('Frequency [Hz]')
     ylabel('Acceleration [g]')
 
@@ -53,14 +56,17 @@ def ttplot(v,f):
 
 
 def openfile(name):
-    name = basepathwebdaq+name
-    data = wd.openwdd(name)
+    file_path = os.path.join(basepathwebdaq, name)
+    data = _openwdd(file_path)
     return data
 
-def lastwdfile():
+def lastwdfile(ext=None):
+    searchext = 'SPLATT_Test*'
+    if ext is not None:
+        searchext = ext+'*'
     #fl = th.fileList(basepathwebdaq)
     #fold1 = fold+'/'+tn+addfold   #to be re-checked at OTT!! 
-    fl = sorted(glob.glob(basepathwebdaq+'SPLATT_Test*'))#, key=lambda x: int(os.path.basepathwebdaq(x).split('/')[-1].split('.')[0]))
+    fl = sorted(glob.glob(basepathwebdaq+searchext))#, key=lambda x: int(os.path.basepathwebdaq(x).split('/')[-1].split('.')[0]))
 
     ffl = fl[-1]
     fname = ffl.split('/')[-1]
@@ -454,3 +460,22 @@ def sweep_analysis_sequence(tnlist):
     legend()
     return ff, vv
 
+def _openwdd(fname):
+    hdr = {}
+    with open(fname,"rb") as wdf:
+        rawData = wdf.read(564)
+        hdr['version'] = int.from_bytes(rawData[0:4], 'little')
+        hdr['size'] = int.from_bytes(rawData[4:8], 'little')
+        hdr['nchannels']= int.from_bytes(rawData[8:12], 'little')
+        hdr['scan_rate']= int.from_bytes(rawData[12:20], 'little')
+        hdr['start_time']= int.from_bytes(rawData[20:28], 'little')
+        hdr['timezone']= rawData[28:44].decode("utf-8")
+        json_hdr_size =  int.from_bytes(rawData[560:564], 'little')
+        jsonRaw = wdf.read(json_hdr_size)
+        hdr['json_hdr']=json.loads(jsonRaw)
+        ndata = hdr['json_hdr']['jobDescriptor']['acquisition']['stopTrigger']['sampleCount']
+        data_it = struct.iter_unpack('<d', wdf.read(ndata*hdr['nchannels']*8)) #4 because double precision 64 bit\n",
+        tmp = np.asarray(list(data_it), dtype='double')
+        data=tmp.reshape(int(tmp.size/4), 4)
+        data = data.T
+    return data

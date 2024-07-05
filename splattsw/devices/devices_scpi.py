@@ -2,31 +2,39 @@
 
 import socket
 
-__author__ = "Luka Golinar, Iztok Jeras"
-__copyright__ = "Copyright 2015, Red Pitaya"
 
 class scpi (object):
     """SCPI class used to access Red Pitaya over an IP network."""
     delimiter = '\r\n'
 
-    def __init__(self, host, timeout=None, port=5555):
+    def __init__(self, deviceName, timeout = None):
         """Initialize object and open IP connection.
         Host IP should be a string in parentheses, like '192.168.1.100'.
         """
-        self.host    = host
-        self.port    = port
+        self.name = deviceName
         self.timeout = timeout
-        
+        self._select_device()
+
         try:
             self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-            if timeout is not None:
-                self._socket.settimeout(timeout)
+            if self.timeout is not None:
+                self._socket.settimeout(self.timeout)
 
-            self._socket.connect((host, port))
+            self._socket.connect((self.cip, self.port))
 
         except socket.error as e:
-            print('SCPI >> connect({:s}:{:d}) failed: {:s}'.format(host, port, e))
+            print('SCPI >> connect({:s}:{:d}) failed: {:s}'.format(self.cip, self.port, e))
+
+    def _select_device(self):
+        if self.name == 'Rigol':
+            self.cip = '192.168.0.100'
+            self.port = 5555
+        elif self.name == 'RedPitaya':
+            self.cip = '193.206.155.193'
+            self.port = 5000
+        else:
+            raise ValueError("ERROR! No device with this name. Available devices are: 'RedPitaya' or 'Rigol'")
 
     def __del__(self):
         if self._socket is not None:

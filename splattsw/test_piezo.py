@@ -1,54 +1,59 @@
-#memo to run the SPLATT measurements in the laboratory
-#importing
 from SPLATT.splattsw import splatt_analysis as sp
-#from SPLATT.splattsw import splatt_acq as acq
-
-#from importlib  import reload #for reload
-#power on and connect the RedPitaya
-#start the redpitaya server
-#systemctl start redpitaya_scpi
 from SPLATT.splattsw.devices.webDAQ import WebDAQ as wbdq
-from SPLATT.splattsw.devices import redpitaya as rp
+from SPLATT.splattsw.devices import devices as wg
 
+import matlotlib.pyplot as plt
 import numpy as np
-import time
-#import os
+from time import sleep
 
+# Connect to WebDAQ
 webdaq = wbdq()
 webdaq.connect()
 
-# end of initialization commands
-#see cmdlog.py for the commands to be used
+freqV = np.arange(510,120,5)
+N = len(freqV)
+Nch = 4
+maxD = np.zeros([Nch,N],dtype=float)
+maxF = np.zeros([Nch,N],dtype=float)
 
-freqV = np.linspace(10,120,20)
-peaks = np.zeros([len(freqV),1],dtype=float)
+ampPI = 1
+ampGain = 1
 
-freqPI = 10
-ampPI = 2
-ampGain = 10
+# Select device ('Rigol' or 'RedPitaya')
+wg.update_device('Rigol')
 
-for i in range(len(freqV)):
+for i in range(N):
 
-   webdaq.start_schedule()
+    freqPI = freqV[i]
 
-    # INSERT TIME SLEEP?
-
-   rp.set_wave1(ampPi/ampGain,0,freqPi,'SQUARE')
-   time.sleep(6)
-   rp.clear_wave1()
-   webdaq.stop_schedule()
-   os.system('rsync -av '+ftpwebdacq+' '+basepathwebdaq)
-   wdfile = sp.lastwdfile()
+    wg.set_wave1(ampPI/ampGain,0,freqPI,'SINE')
+    time.sleep(2) # wait for piezo command
+    webdaq.start_schedule()
+    time.sleep(4) # wait for acquisition to end
 
     #accelerometer analysis
     #read file
+    sp.wdsync() # does os.system('rsync -av '+ftpwebdacq+' '+basepathwebdaq)
+    wdfile = sp.lastwdfile('Piezo')
+
     #spectrum
     spe, f = sp.acc_spectrum(wdfile)
-    p.accplot(f, spe[0,:])
+    # sp.accplot(f, spe[0,:])
 
-    peak, peakf = sp.find_peak(spe,f)
-    maxd = sp.acc_integrate(peak,peakf)
+    # Loop on all channels
+    for j in range(Nch):
+        peak, maxF[j,i]  = sp.find_peak(spe[j,:],f)
+        maxD[j,i] = sp.acc_integrate(peak,maxF[j,i])
 
-   peaks[i] = maxd
+#print(peaks)
+for chId in range(Nch):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(maxF[chId,:],maxD[chId,:])
+    ax.plot(maxF[chId,:],maxD[chId,:],"o")
+    ax.set_xlabel("Peak frequency [Hz]")
+    ax.set_ylabel("Peak oscillation [um]")
+    #ax.set_yscale("log")
 
-print(peaks)
+
+
