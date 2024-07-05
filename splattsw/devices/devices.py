@@ -53,6 +53,19 @@ def trigg4d_pulse(freq):
 
 def trigg4d(freq):
     set_wave2(ampTrigger4d/amplifierGain, offsetTrigger4d/amplifierGain, freq, 'SQUARE')    
+    
+def reset():
+    print("Avoid usage, corrupts following commmands")
+    #rp_s = scpi.scpi(name)
+    #rp_s.rst()
+    #rp_s.close()
+
+def state_on(ch):
+    rp_s = scpi.scpi(name)
+    #Enable output
+    rp_s.tx_txt('OUTPUT'+str(ch)+':STATE ON')
+    rp_s.close()
+
 
 def single_pulse(ch):
     pulseamp = 2
@@ -132,9 +145,9 @@ def set_wave2(ampl, offs, freq, wave_form):
 def clear_wave(ch):
     rp_s = scpi.scpi(name)
     rp_s.tx_txt('OUTPUT'+str(ch)+':STATE OFF')
-    rp_s.tx_txt('SOUR'+str(ch)+':FREQ:FIX 0')
-    rp_s.tx_txt('SOUR'+str(ch)+':VOLT 0')
-    rp_s.tx_txt('SOUR'+str(ch)+':VOLT:OFFS 0')
+    #rp_s.tx_txt('SOUR'+str(ch)+':FREQ:FIX 0')
+    #rp_s.tx_txt('SOUR'+str(ch)+':VOLT 0')
+    #rp_s.tx_txt('SOUR'+str(ch)+':VOLT:OFFS 0')
     rp_s.close()
 
 
@@ -142,9 +155,9 @@ def clear_wave1():
     rp_s = scpi.scpi(name)
     #Enable output
     rp_s.tx_txt('OUTPUT1:STATE OFF')
-    rp_s.tx_txt('SOUR1:FREQ:FIX 0')
-    rp_s.tx_txt('SOUR1:VOLT 0')
-    rp_s.tx_txt('SOUR1:VOLT:OFFS 0')
+    #rp_s.tx_txt('SOUR1:FREQ:FIX 0')
+    #rp_s.tx_txt('SOUR1:VOLT 0')
+    #rp_s.tx_txt('SOUR1:VOLT:OFFS 0')
     rp_s.close()
 
 
@@ -152,9 +165,9 @@ def clear_wave2():
     rp_s = scpi.scpi(name)
     #Enable output
     rp_s.tx_txt('OUTPUT2:STATE OFF')
-    rp_s.tx_txt('SOUR2:FREQ:FIX 0')
-    rp_s.tx_txt('SOUR2:VOLT 0')
-    rp_s.tx_txt('SOUR2:VOLT:OFFS 0')
+    #rp_s.tx_txt('SOUR2:FREQ:FIX 0')
+    #rp_s.tx_txt('SOUR2:VOLT 0')
+    #rp_s.tx_txt('SOUR2:VOLT:OFFS 0')
     #rp_s.tx_txt('OUTPUT2:STATE OFF')
     rp_s.close()
 
