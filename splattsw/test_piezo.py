@@ -10,18 +10,38 @@ import time
 # Connect to WebDAQ
 webdaq = wbdq()
 webdaq.connect()
-freq_vec = np.arange(20,100+5,5)
+freq_vec = np.arange(40,50+1,1)
+
+def find_peak(v, freq=None, bound=None):
+    #requires a monodimensional array
+    idf = range(len(v))
+    if freq is not None and bound is not None:
+        idf =     np.where(np.logical_and(freq>= bound[0], freq<=bound[1]))
+    peak = max(v[idf])
+    peakid = np.argmax(v[idf])
+    peakfreq = 0
+    if freq is not None:
+        idf1 = idf[0]
+        peakfreq = freq[idf1[peakid]]
+
+    return peak, peakfreq, idf1[peakid]
+
+def acc_integrate(spe, peak_freq, peak_id, delta_peak = 3):
+    #acc is the acceleration value in g
+    #print('Is the acceleration provided as [g]?')
+    spe_peak = spe[(peak_id-delta_peak):(peak_id+delta_peak+1)]
+    acc = np.sum(spe_peak)
+    acc = acc * 9.807#converts to m/s2
+    amp = acc/(4*np.pi**2*peak_freq**2)
+
+    return amp
 
 
-def analyse_latest_wdfile(doplot = False, chId = 0):
+def analyse_wdfile(wdfile, doplot = False, ch = 0):
     #accelerometer analysis
-    #read file
-    sp.wdsync() # does os.system('rsync -av '+ftpwebdacq+' '+basepathwebdaq)
-    wdfile = sp.lastwdfile('Piezo')
-
     #spectrum
     spe_4ch, f = sp.acc_spectrum(wdfile)
-    spe = spe_4ch[chId,:]
+    spe = spe_4ch[ch,:]*np.sqrt(2) # re-multiply by sqrt(2) to have amp=oscillation_amp
 
     if doplot == True:
         fig = plt.figure()
@@ -31,10 +51,11 @@ def analyse_latest_wdfile(doplot = False, chId = 0):
         ax.set_ylabel("Amplitude [g]")
         fig.show()
 
-    peak, peak_f = sp.find_peak(spe,freq=f,bound=[1.,f[-1]])
-    peak_d = sp.acc_integrate(peak,peak_f)
+    peak, peak_f, peakId = find_peak(spe,freq=f,bound=[1.,f[-1]])#sp.find_peak(spe,freq=f,bound=[1.,f[-1]])
+    peak_d = acc_integrate(spe,peak_f,peakId) #sp.acc_integrate(peak,peak_f)
 
     return peak_d, peak_f
+
 
 def test_single_freq(freq_val,amp=1):
     wg.set_wave1(amp,0,freq_val,'SINE')
@@ -42,6 +63,12 @@ def test_single_freq(freq_val,amp=1):
     webdaq.start_schedule()
     time.sleep(40) # wait for acquisition to end
     print('Done!')
+
+    #read file
+    sp.wdsync() # does os.system('rsync -av '+ftpwebdacq+' '+basepathwebdaq)
+    wdfile = sp.lastwdfile('Piezo')
+
+    return wdfile
 
 
 def start_cycle_on_freq(freqV = freq_vec):
@@ -57,8 +84,8 @@ def start_cycle_on_freq(freqV = freq_vec):
 
     for i in range(N):
         freqPI = freqV[i]
-        test_single_freq(freqPI) #ampPi/ampGain
-        maxD[i], maxF[i] = analyse_latest_wdfile()
+        wdf=test_single_freq(freqPI) #ampPi/ampGain
+        maxD[i], maxF[i] = analyse_wdfile(wdf)
 
     plt.figure()
     plt.plot(maxF, maxD)
@@ -68,6 +95,12 @@ def start_cycle_on_freq(freqV = freq_vec):
     plt.show()
 
     return maxD, maxF
+
+
+
+
+
+
 
 
 

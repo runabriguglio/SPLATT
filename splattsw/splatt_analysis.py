@@ -73,6 +73,19 @@ def lastwdfile(ext=None):
     print(fname)
     return fname
 
+def last_N_wdfiles(N, ext=None):
+    searchext = 'Piezo*'
+    if ext is not None:
+        searchext = ext+'*'
+    fl = sorted(glob.glob(basepathwebdaq+searchext))
+    file_list = []
+    for j in range(N):
+        ffl = fl[-j]
+        fname = ffl.split('/')[-1]
+        print(fname)
+        file_list.append(fname)
+    return file_list
+
 
 def acc_spectrum(v):
     mytype = type(v)
