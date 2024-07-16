@@ -10,7 +10,7 @@ import time
 # Connect to WebDAQ
 webdaq = wbdq()
 webdaq.connect()
-freq_vec = np.arange(40,50+1,1)
+freq_vec = np.arange(30,100+2.5,2.5)
 
 def find_peak(v, freq=None, bound=None):
     #requires a monodimensional array
@@ -61,7 +61,7 @@ def test_single_freq(freq_val,amp=1):
     wg.set_wave1(amp,0,freq_val,'SINE')
     time.sleep(2) # wait for piezo command
     webdaq.start_schedule()
-    time.sleep(40) # wait for acquisition to end
+    time.sleep(9) # wait for acquisition to end
     print('Done!')
 
     #read file
@@ -74,6 +74,8 @@ def test_single_freq(freq_val,amp=1):
 def start_cycle_on_freq(freqV = freq_vec):
     ampPI = 1
     ampGain = 1
+    scale_fact = ampPI
+    file_list = []
 
     # Select device ('Rigol' or 'RedPitaya')
     wg.update_device('Rigol')
@@ -84,8 +86,11 @@ def start_cycle_on_freq(freqV = freq_vec):
 
     for i in range(N):
         freqPI = freqV[i]
-        wdf=test_single_freq(freqPI) #ampPi/ampGain
+        wdf=test_single_freq(freqPI,ampPI) #ampPi/ampGain
         maxD[i], maxF[i] = analyse_wdfile(wdf)
+        file_list.append(wdf)
+
+    maxD = maxD/scale_fact
 
     plt.figure()
     plt.plot(maxF, maxD)
@@ -94,12 +99,46 @@ def start_cycle_on_freq(freqV = freq_vec):
     plt.ylabel("Peak oscillation [m]")
     plt.show()
 
-    return maxD, maxF
+    return file_list, maxD, maxF
 
+# vec = np.zeros(10)
+# vecF=np.zeros(10)
+#
+# for i in range(10):
+#     data = sp.openfile(fl[i])
+#     vec[i] = np.std(data[0])
+#     spe, f = sp.acc_spectrum(fl[i])
+#     peak, peak_f, pid = find_peak(spe[0],freq=f,bound=[1.,f[-1]])
+#     vec[i]=vec[i]/(4*np.pi**2*peak_f**2)
+#     vecF[i]=peak_f
+#     print(peak_f)
+#
+#
+# plt.figure()
+# plt.plot(vecF, vec)
+# plt.scatter(vecF, vec, marker='o', c='red', s=15)
+# plt.xlabel("Peak frequency [Hz]")
+# plt.ylabel("Peak oscillation [m]")
+# plt.show()
 
+dt = 1./1651
 
+def analyse_oscillation(wdfile,freq):
 
+    data = sp.openfile(wdfile)
+    acc = data[0]
 
+    amp = np.max(np.abs(acc))
+    phase = np.arcsin(acc[0]/amp)
+
+    L = len(acc)
+    tspan = np.arange(0,L*dt,dt)
+    sig = np.sin(2*np.pi*freq*tspan + phase)*amp
+
+    plt.figure()
+    plt.plot(acc)
+    plt.plot(sig)
+    plt.show()
 
 
 
