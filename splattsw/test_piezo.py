@@ -1,6 +1,6 @@
 from SPLATT.splattsw import splatt_analysis as sp
 from SPLATT.splattsw.devices.webDAQ import WebDAQ as wbdq
-from SPLATT.splattsw.devices import devices as wg
+from SPLATT.splattsw.devices import wavegenerators as wg
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,7 +10,10 @@ import time
 # Connect to WebDAQ
 webdaq = wbdq()
 webdaq.connect()
-freq_vec = np.arange(30,100+2.5,2.5)
+freq_vec = np.arange(10,50+1,1)
+
+time_for_acquisition = 9.
+file_string_initials = 'OBB'
 
 def find_peak(v, freq=None, bound=None):
     #requires a monodimensional array
@@ -37,7 +40,7 @@ def acc_integrate(spe, peak_freq, peak_id, delta_peak = 3):
     return amp
 
 
-def analyse_wdfile(wdfile, doplot = False, ch = 0):
+def analyse_wdfile(wdfile, exc_freq, doplot = False, ch = 0):
     #accelerometer analysis
     #spectrum
     spe_4ch, f = sp.acc_spectrum(wdfile)
@@ -51,22 +54,21 @@ def analyse_wdfile(wdfile, doplot = False, ch = 0):
         ax.set_ylabel("Amplitude [g]")
         fig.show()
 
-    peak, peak_f, peakId = find_peak(spe,freq=f,bound=[1.,f[-1]])#sp.find_peak(spe,freq=f,bound=[1.,f[-1]])
+    peak, peak_f, peakId = find_peak(spe,freq=f,bound=[exc_freq-2.,exc_freq+2.])#sp.find_peak(spe,freq=f,bound=[1.,f[-1]])
     peak_d = acc_integrate(spe,peak_f,peakId) #sp.acc_integrate(peak,peak_f)
 
     return peak_d, peak_f
 
 
 def test_single_freq(freq_val,amp=1):
-    wg.set_wave1(amp,0,freq_val,'SINE')
+    wg.set_wave1(amp,0,freq_val,'SIN')
     time.sleep(2) # wait for piezo command
     webdaq.start_schedule()
-    time.sleep(9) # wait for acquisition to end
-    print('Done!')
+    time.sleep(time_for_acquisition) # wait for acquisition to end
 
     #read file
     sp.wdsync() # does os.system('rsync -av '+ftpwebdacq+' '+basepathwebdaq)
-    wdfile = sp.lastwdfile('Piezo')
+    wdfile = sp.lastwdfile(file_string_initials)
 
     return wdfile
 
@@ -81,23 +83,28 @@ def start_cycle_on_freq(freqV = freq_vec):
     wg.update_device('Rigol')
 
     N = len(freqV)
-    maxD = np.zeros(N,dtype=float)
-    maxF = np.zeros(N,dtype=float)
+    Nch = 2
+    maxD = np.zeros([N,Nch])
+    maxF = np.zeros([N,Nch])
 
     for i in range(N):
         freqPI = freqV[i]
         wdf=test_single_freq(freqPI,ampPI) #ampPi/ampGain
-        maxD[i], maxF[i] = analyse_wdfile(wdf)
+        maxD[i,0], maxF[i,0] = analyse_wdfile(wdf,freqPI,False,0) # seismic acc channel
+        maxD[i,1], maxF[i,1] = analyse_wdfile(wdf,freqPI,False,1) # mass acc channel
         file_list.append(wdf)
 
-    maxD = maxD/scale_fact
+    wg.clear_wave1()
 
-    plt.figure()
-    plt.plot(maxF, maxD)
-    plt.scatter(maxF, maxD, marker='o', c='red', s=15)
-    plt.xlabel("Peak frequency [Hz]")
-    plt.ylabel("Peak oscillation [m]")
-    plt.show()
+    for j in range(Nch):
+        maxD[:,j] = maxD[:,j]/scale_fact
+        plt.figure()
+        plt.plot(maxF[:,j], maxD[:,j])
+        plt.scatter(maxF[:,j], maxD[:,j], marker='o', c='red', s=15)
+        plt.xlabel("Peak frequency [Hz]")
+        plt.ylabel("Peak oscillation [m]")
+        plt.title("Channel "+str(j+1))
+        plt.show()
 
     return file_list, maxD, maxF
 
@@ -121,24 +128,7 @@ def start_cycle_on_freq(freqV = freq_vec):
 # plt.ylabel("Peak oscillation [m]")
 # plt.show()
 
-dt = 1./1651
 
-def analyse_oscillation(wdfile,freq):
-
-    data = sp.openfile(wdfile)
-    acc = data[0]
-
-    amp = np.max(np.abs(acc))
-    phase = np.arcsin(acc[0]/amp)
-
-    L = len(acc)
-    tspan = np.arange(0,L*dt,dt)
-    sig = np.sin(2*np.pi*freq*tspan + phase)*amp
-
-    plt.figure()
-    plt.plot(acc)
-    plt.plot(sig)
-    plt.show()
 
 
 
