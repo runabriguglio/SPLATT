@@ -1,10 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-def plot_splatt_data(values):
-    # These variables, togheter with folders, should be initialized differently...
-    nActs = 19
+def get_splatt_act_coord():
     coordAct = np.array([[0,0],
     [0.0000,-0.0925],
     [-0.0801,-0.0463],
@@ -24,6 +21,14 @@ def plot_splatt_data(values):
     [0.1855,0.0000],
     [0.1606,-0.0927],
     [0.0928,-0.1606]])
+
+    return coordAct
+
+
+def plot_splatt_data(values,min_val=None, max_val=None):
+    # These variables, togheter with folders, should be initialized differently...
+    nActs = 19
+    coordAct = get_splatt_act_coord()
 
     # Perform matrix rotation to align with 'gravity'
     phi = 60./180*np.pi
@@ -47,7 +52,7 @@ def plot_splatt_data(values):
     ax.set_ylim(min(y)-Margin,max(y)+Margin)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
-    plt.scatter(x, y, c=values, s=markerSize, edgecolor='k', cmap='hot')
+    plt.scatter(x, y, c=values, vmin = min_val, vmax = max_val, s=markerSize, edgecolor='k', cmap='hot')
     plt.colorbar()
 
     # Write 'G' reference and actuator indices

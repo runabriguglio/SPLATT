@@ -3,7 +3,9 @@ import numpy as np
 from astropy.io import fits as pyfits
 import os
 import glob
-import splatt_plot as splt
+from SPLATT.splattsw import splatt_plot as splt
+
+
 
 SPLATT_BUFFER_FOLDER = '/home/labot/Desktop/Data/SPLATT/Buffer'
 
@@ -32,7 +34,9 @@ def read_buffer_data(TN = None):
     return data, time_vec
 
 
-def analyse_buffer_data(data, time_vec, show = False):
+def analyse_buffer_data(TN = None, show = False):
+
+    data, time_vec = read_buffer_data(TN)
 
     data_size = np.shape(data)
     dt = time_vec[1]-time_vec[0]
@@ -48,7 +52,7 @@ def analyse_buffer_data(data, time_vec, show = False):
                 plot_data(time_vec,data[k])
 
             max_osc[k], peak_freq[k] = find_peak_freq(spe,f,bound=[1.,f[-1]])
-            splt.splattplot(max_osc[k])
+            splt.plot_splatt_data(max_osc[k])
     else:
 
         spe, f = spectral_analysis(data,dt)
@@ -64,6 +68,53 @@ def analyse_buffer_data(data, time_vec, show = False):
         splt.plot_splatt_data(max_osc)
 
     return max_osc, peak_freq
+
+
+def analyse_oscillation(TN_list, freq_list):
+
+    peak_val = np.zeros([19,len(TN_list)])
+    peak_freq = np.zeros([19,len(TN_list)])
+
+    for k,TN in enumerate(TN_list):
+        freq = freq_list[k]
+        data, t_vec = read_buffer_data(TN)
+        dt = t_vec[1] - t_vec[0]
+        spe, f_vec = spectral_analysis(data,dt)
+
+        if freq is not None:
+            freq_bound = [freq - 2., freq + 2.]
+        else:
+            freq_bound = [1., f_vec[-1]]
+
+        peak_v, peak_f = find_peak_freq(spe, f_vec, freq_bound)
+        splt.plot_splatt_data(peak_v)
+
+        # Store data in output variables
+        peak_val[:,k] = peak_v
+        peak_freq[:,k] = peak_f
+
+        # # remove mean from data
+        # data_m = np.mean(data,axis=1)
+        # data_mean = np.repeat(data_m,len(data[0,:]))
+        # data_mean.reshape(np.shape(data))
+        # data_osc = data - data_mean
+        # x = splt.get_splatt_act_coord()[:,0]
+        # y = splt.get_splatt_act_coord()[:,1]
+        # x_rep = np.ones([19,1])*x
+        # y_rep = np.repeat(y,19,axis=0)
+        # x_rep.reshape([19,19])
+        # y_rep.reshape([19,19])
+        #
+        # x_coeffs = x_rep @ data_osc/2.**26
+        # y_coeffs = y_rep @ data_osc/2.**26
+        #
+        # print(x_coeffs)
+        # print(y_coeffs)
+
+    return peak_val, peak_freq
+
+
+
 
 
 def plot_data(tvec, data):
