@@ -9,8 +9,8 @@ import time
 
 # Connect to WebDAQ
 webdaq = wbdq()
-webdaq.connect()
-freq_vec = np.arange(10,50+1,1)
+#webdaq.connect()
+freq_vec = np.arange(10,90+3,3)
 
 time_for_acquisition = 9.
 file_string_initials = 'OBB'
@@ -61,6 +61,9 @@ def analyse_wdfile(wdfile, exc_freq, doplot = False, ch = 0):
 
 
 def test_single_freq(freq_val,amp=1):
+    # Connect to WebDAQ
+    webdaq.connect()
+
     wg.set_wave1(amp,0,freq_val,'SIN')
     time.sleep(2) # wait for piezo command
     webdaq.start_schedule()
@@ -78,6 +81,10 @@ def start_cycle_on_freq(freqV = freq_vec):
     ampGain = 1
     scale_fact = ampPI
     file_list = []
+
+    # Connect to WebDAQ
+    webdaq.connect()
+
 
     # Select device ('Rigol' or 'RedPitaya')
     wg.update_device('Rigol')
