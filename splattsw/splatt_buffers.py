@@ -93,23 +93,24 @@ def analyse_oscillation(TN_list, freq_list):
         peak_val[:,k] = peak_v
         peak_freq[:,k] = peak_f
 
-        # # remove mean from data
-        # data_m = np.mean(data,axis=1)
-        # data_mean = np.repeat(data_m,len(data[0,:]))
-        # data_mean.reshape(np.shape(data))
-        # data_osc = data - data_mean
-        # x = splt.get_splatt_act_coord()[:,0]
-        # y = splt.get_splatt_act_coord()[:,1]
-        # x_rep = np.ones([19,1])*x
-        # y_rep = np.repeat(y,19,axis=0)
-        # x_rep.reshape([19,19])
-        # y_rep.reshape([19,19])
-        #
-        # x_coeffs = x_rep @ data_osc/2.**26
-        # y_coeffs = y_rep @ data_osc/2.**26
-        #
-        # print(x_coeffs)
-        # print(y_coeffs)
+        # remove mean from data
+        data_m = np.mean(data,axis=1)
+        data_m = np.repeat(data_m,len(data[0,:]))
+        data_mean = data_m.reshape(np.shape(data))
+        data_osc = data - data_mean
+        data_osc = data_osc/(2.**26)
+        x = splt.get_splatt_act_coord()[:,0]
+        y = splt.get_splatt_act_coord()[:,1]
+        x_rep = np.ones([19,1])*x
+        y_rep = np.repeat(y,19,axis=0)
+        x_rep = x_rep.reshape([19,19])
+        y_rep = y_rep.reshape([19,19])
+
+        x_coeffs = x_rep @ data_osc
+        y_coeffs = y_rep @ data_osc
+
+        print(x_coeffs)
+        print(y_coeffs)
 
     return peak_val, peak_freq
 
