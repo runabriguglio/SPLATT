@@ -24,7 +24,7 @@ hex_sides[2,:] = np.array([-hex_sides[1,0],hex_sides[1,1]])
 hex_sides[3,:] = -hex_sides[0,:]
 hex_sides[4,:] = -hex_sides[1,:]
 hex_sides[5,:] = -hex_sides[2,:]
-hex_sides[-1,:] = hex_sides[0,:] # only used for plotting
+hex_sides[-1,:] = hex_sides[0,:]
 
 
 def cw_rotate(vec, angle):
