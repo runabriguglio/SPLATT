@@ -270,7 +270,8 @@ mask1.mask_pixels()
 
 print('Computing interaction matrix...')
 n_modes = 3
-%timeit mask1.interaction_matrix(n_modes)
+#%timeit 
+mask1.interaction_matrix(n_modes)
 n_hex = len(mask1.hex_center_coords)
 # mode_vec = np.zeros([n_hex*n_modes])
 
