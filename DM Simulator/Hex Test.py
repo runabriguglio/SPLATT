@@ -111,7 +111,7 @@ class Mask:
         N_x = int((L*self.n_rings*SIN60 + self.hex_side_len*(0.5+COS60))*2*self.pix_scale)
         
         self.N = np.array([N_x,N_y])
-        self.full_mask = np.zeros([self.N[1],self.N[0]])#,np.uint8)
+        self.full_mask = np.zeros([self.N[1],self.N[0]], dtype = np.bool)
         
         # Inscribed circle
         Radius = np.sqrt((L*self.n_rings)**2 + (self.hex_side_len*(0.5+COS60))**2) - self.hex_side_len*COS60
@@ -121,7 +121,7 @@ class Mask:
         xc = int(img_size[1]/2.)
         yc = int(img_size[0]/2.)
         r = Radius * self.pix_scale
-        self.circle_mask = np.fromfunction(lambda i,j: (i-yc)**2 + (j-xc)**2 <= r**2, [self.N[1],self.N[0]])
+        self.circle_mask = np.fromfunction(lambda i,j: (i-yc)**2 + (j-xc)**2 <= r**2, [self.N[1],self.N[0]], dtype = np.bool)
     
     
     def draw_mask(self):
@@ -184,7 +184,8 @@ class Mask:
         max_y = int(L*SIN60)
         max_x = int(L/2.+L*COS60)
         
-        mask_ul = np.fromfunction(lambda i,j: j <= np.floor(L/2. + i/TAN60), [max_y,max_x])
+        # mask_ul = np.fromfunction(lambda i,j: j <= np.floor(L/2. + i/TAN60), [max_y,max_x])
+        mask_ul = np.fromfunction(lambda i,j: j > L/2. + i/TAN60, [max_y,max_x])
         
         mask = np.zeros([2*max_y,2*max_x], np.uint8)
         
@@ -200,10 +201,9 @@ class Mask:
         Y = mask_size[1]
         X = mask_size[0]
         
-        # Normalization TBD: zero mean and std = 1
         match Z_number:
             case 0: # Piston
-                mode = np.ones([X,Y])
+                norm_mode = np.ones([X,Y])
             case 1: # Tip
                 mode = np.fromfunction(lambda i,j: 2.*j/Y - 1., [X,Y])
             case 2: # Tilt
@@ -214,17 +214,22 @@ class Mask:
                 print("Zernike mode too high: not yet implemented")
                 return
             
-        masked_mode = np.multiply(self.pixel_mask, mode)
+        # Normalization: null mean and unit STD
+        if Z_number > 0:
+            norm_mode = (mode - np.mean(mode))/np.std(mode)
+            
+        # masked_mode = np.multiply(1-self.pixel_mask, norm_mode)
+        masked_mode = np.ma.masked_array(norm_mode, self.pixel_mask)
         
-        # plt.figure()
-        # plt.imshow(masked_mode,origin='lower')
+        plt.figure()
+        plt.imshow(masked_mode,origin='lower')
             
         return masked_mode
     
     
     def interaction_matrix(self, N_modes):   
         
-        self.int_mat = np.zeros([self.full_mask.size,len(self.hex_center_coords)*N_modes])
+        self.int_mat = np.zeros([self.full_mask.size,len(self.hex_center_coords)*N_modes],dtype=np.uint8)
         
         L_x = np.shape(self.pixel_mask)[0]
         L_y = np.shape(self.pixel_mask)[1]
@@ -251,7 +256,7 @@ class Mask:
             
 
 
-pixel_scale = 100.    # e.g. pixel/m
+pixel_scale = 200.    # e.g. pixel/m
 hex_side = 2.  
 gap = 0.4
 n_rings = 3
@@ -261,21 +266,26 @@ mask1 = Mask(n_rings, hex_side, gap, pixel_scale, cw_rot_angle)
 mask1.define_hex_centers()
 mask1.mask_pixels()
 # mask1.draw_mask()
-mask1.interaction_matrix(3)
 
-# masked_ar = np.ma.masked_array(data,mask)
 
+print('Computing interaction matrix...')
+n_modes = 3
+%timeit mask1.interaction_matrix(n_modes)
 n_hex = len(mask1.hex_center_coords)
-mode_vec = np.zeros([n_hex*3])
+# mode_vec = np.zeros([n_hex*n_modes])
 
-for i in range(n_hex):
-    for j in range(3):
-        mode_vec[i*3+j] = np.random.randn()
-        
+# for i in range(n_hex):
+#     for j in range(n_modes):
+#         mode_vec[i*n_modes+j] = (j > 0) * np.random.randn()
+print('Generating random mode coefficients...')
+mode_vec = np.random.randn(n_hex*n_modes)
+
+print('Plotting...')
 flat_img = mask1.int_mat @ mode_vec
 
+plt.figure()
 img = np.reshape(flat_img, mask1.full_mask.shape)
-
-plt.imshow(img)
+plt.imshow(img, origin = 'lower')
+        
         
         
