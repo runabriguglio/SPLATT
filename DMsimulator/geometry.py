@@ -2,6 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from read_config import readConfig
+from zernike_polynomials import computeZernike as czern
+
+from scipy.sparse import csr_matrix 
 
 
 # Useful variables
@@ -106,6 +109,15 @@ class Hexagons():
                     
         self.hex_mask = mask
         
+        x = np.arange(2*max_x)
+        y = np.arange(2*max_y)
+        X,Y = np.meshgrid(x,y)
+        valid_X = X[~self.hex_mask]
+        valid_Y = Y[~self.hex_mask]
+        
+        self.valid_row = valid_Y - max_y
+        self.valid_col = valid_X - max_x
+        
         
     def define_segmented_mask(self):
         """ Forms the segment mask """
@@ -117,27 +129,53 @@ class Hexagons():
         Ny = (L*self.n_rings + self.hex_side_len*SIN60)*2*self.pix_scale
         Nx = (L*self.n_rings*SIN60 + self.hex_side_len*(0.5+COS60))*2*self.pix_scale
         Ntot = np.array([Nx,Ny])
-        self.full_mask = np.ones([int(Ny),int(Nx)],dtype = bool)
+        mask = np.zeros([int(Ny),int(Nx)],dtype = bool)
         
-        pix_coords = self.hex_centers*self.pix_scale + Ntot/2.
-        Lhex = np.array(self.hex_mask.shape)
+        self.pix_coords = self.hex_centers*self.pix_scale + Ntot/2.
+        # Lhex = np.array(self.hex_mask.shape)
         
-        # bottom_left_coords = pix_coords - Lhex/2.
-        # top_right_coords = pix_coords + Lhex/2.
+        data = np.ones(len(self.valid_row),dtype=bool)
         
         for i in range(len(self.hex_centers)):
-            x_min = int(pix_coords[i,0] - Lhex[1]/2)
-            y_min = int(pix_coords[i,1] - Lhex[0]/2)
-            x_max = x_min + Lhex[1]
-            y_max = y_min + Lhex[0]
-            self.full_mask[y_min:y_max,x_min:x_max] *= self.hex_mask
+            # x_min = int(pix_coords[i,0] - Lhex[1]/2)
+            # y_min = int(pix_coords[i,1] - Lhex[0]/2)
+            # x_max = x_min + Lhex[1]
+            # y_max = y_min + Lhex[0]
+            # self.full_mask[y_min:y_max,x_min:x_max] *= self.hex_mask
+            x_shift = self.pix_coords[i,0]
+            y_shift = self.pix_coords[i,1]
+            row = self.valid_row + y_shift
+            col = self.valid_col + x_shift
+            sparseMatrix = csr_matrix((data, (row,col)),  
+                                      shape = mask.shape).toarray()
+            # plt.figure()
+            # plt.imshow(sparseMatrix,origin='lower')
+            
+            mask += sparseMatrix
+            
+        self.full_mask = ~mask
         
         
-    def calculate_interaction_matrix(self):
-        """ Forms the hexagonal mask to be placed 
-        at the given hexagonal coordinates """
+    def calculate_interaction_matrix(self,N_modes):
+        """ Computes the interaction matrix: [n_pixels,n_hexes*n_modes] """
 
+        self.int_mat = np.zeros([self.full_mask.size,len(self.hex_centers)*N_modes],dtype=np.uint8)
         
+        L_x,L_y = np.shape(self.hex_mask)
         
+        modes = np.zeros([L_x,L_y,N_modes])
+        for j in range(N_modes):
+            modes[:,:,j] = czern(j, [L_x,L_y])
+
+        for i in range(len(self.hex_center_coords)):
+            x_min = int(self.pix_coords[i,0] - L_y/2)
+            y_min = int(self.pix_coords[i,1] - L_x/2)
+            x_max = x_min + L_y
+            y_max = y_min + L_x
+            
+            for j in range(N_modes):
+                global_mode = np.zeros_like(self.full_mask)
+                global_mode[y_min:y_max,x_min:x_max] = modes[:,:,j]
+                self.int_mat[:,i*N_modes+j] = global_mode.flatten()
 
 
