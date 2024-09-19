@@ -1,24 +1,28 @@
 import numpy as np
 
-def computeZernike(noll_number, rect_shape):
-    Y = rect_shape[1]
-    X = rect_shape[0]
+def computeZernike(noll_number, mask):
+
+    X,Y = np.shape(mask)
     
     match noll_number:
-        case 0: # Piston
-            norm_mode = np.ones([X,Y])
-        case 1: # Tip
+        case 1: # Piston
+            mode = np.ones([X,Y])
+        case 2: # Tip
             mode = np.fromfunction(lambda i,j: 2.*j/Y - 1., [X,Y])
-        case 2: # Tilt
+        case 3: # Tilt
             mode = np.fromfunction(lambda i,j: 2.*i/X - 1., [X,Y])
-        case 3: # Focus
+        case 4: # Focus
             mode = np.fromfunction(lambda i,j: ((j-Y/2.)/Y)**2+((i-X/2.)/Y)**2, [X,Y])
         case _:
             print("Zernike mode too high: not yet implemented")
             return
-        
+
+    masked_mode = np.ma.masked_array(mode,mask)
+
+    masked_data = masked_mode.data[~masked_mode.mask]
+
     # Normalization: null mean and unit STD
-    if noll_number > 0:
-        norm_mode = (mode - np.mean(mode))/np.std(mode)
+    if noll_number > 1:
+        masked_data = (masked_data - np.mean(masked_data))/np.std(masked_data)
         
-    return norm_mode
+    return masked_data
