@@ -2,7 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from geometry import Hexagons
 
-from scipy.sparse import csr_matrix 
+# from scipy.sparse import csr_matrix 
+# from zernike_polynomials import computeZernike as czern
 
 configfile = 'config_parameters.yaml'
 hexes = Hexagons(configfile)
@@ -15,14 +16,47 @@ hexes.define_hex_mask()
 # plt.imshow(mask,origin = 'lower')
 
 hexes.define_segmented_mask()
-mas = hexes.full_mask
-plt.imshow(mas,origin='lower')
+mask = hexes.full_mask
+plt.imshow(mask,origin='lower')
 
-hex_mask_len = hexes.hex_mask.size
-flat_mask = hexes.hex_mask.flatten()
+n_modes = 3
+hexes.calculate_interaction_matrix(n_modes)
+img = hexes.segment_scramble()
+plt.figure()
+plt.imshow(img,origin='lower')
+
+
+# tip = czern(2,hexes.hex_mask)
+# tip1 = np.zeros(np.size(hexes.full_mask))
+# tip1[hexes.hex_indices[0,:]] = tip
+# tip1 = np.reshape(tip1,hexes.full_mask.shape)
+# plt.figure()
+# plt.imshow(tip1,origin='lower')
+
+# tilt = czern(3,hexes.hex_mask)
+# tilt8 = np.zeros(np.size(hexes.full_mask))
+# tilt8[hexes.hex_indices[7,:]] = tilt
+# tilt8 = np.reshape(tilt8,hexes.full_mask.shape)
+# plt.figure()
+# plt.imshow(tilt8,origin='lower')
+
+# mat1 = hexes.int_mat[:,6:18]
+# flat_img = mat1 @ np.tile(np.array([0.,0.,1.]),4) #mat1.dot(np.array([0.,1.,0.]))
+# img1 = np.reshape(flat_img, hexes.full_mask.shape)
+# plt.figure()
+# plt.imshow(img1,origin='lower')
+
+# flat_indices = hexes.hex_indices.flatten()
+# mode_indices = np.arange(n_modes)
+# X,Y = np.meshgrid(flat_indices,mode_indices)
+
+
+
+# hex_mask_len = hexes.hex_mask.size
+# flat_mask = hexes.hex_mask.flatten()
 
 # [Lx,Ly] = hexes.hex_mask.shape
-# tip = np.fromfunction(lambda i,j: 2.*j/Ly - 1., [Lx,Ly])
+# tip = np.fromfunction(lambda i,j: 2.*j - 1., [Lx,Ly])
 # tip = (tip-np.mean(tip))/np.std(tip)
 # flat_tip = tip.flatten()
 

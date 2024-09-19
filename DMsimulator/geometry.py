@@ -4,8 +4,9 @@ import matplotlib.pyplot as plt
 from read_config import readConfig
 from zernike_polynomials import computeZernike as czern
 
-from scipy.sparse import csr_matrix 
-
+# from scipy.sparse import csr_matrix
+# from scipy.sparse import random_array 
+import scipy.sparse as sp
 
 # Useful variables
 SIN60 = np.sin(np.pi/3.)
@@ -99,7 +100,7 @@ class Hexagons():
         max_y = int(L*SIN60)
         max_x = int(L/2.+L*COS60)
         
-        mask_ul = np.fromfunction(lambda i,j: j > L/2. + i/SIN60*COS60, [max_y,max_x])
+        mask_ul = np.fromfunction(lambda i,j: j >= L/2. + i/SIN60*COS60, [max_y,max_x])
         
         mask = np.zeros([2*max_y,2*max_x], dtype=bool)
         
@@ -130,52 +131,101 @@ class Hexagons():
         Nx = (L*self.n_rings*SIN60 + self.hex_side_len*(0.5+COS60))*2*self.pix_scale
         Ntot = np.array([Nx,Ny])
         mask = np.zeros([int(Ny),int(Nx)],dtype = bool)
+        mask_shape = np.shape(mask)
         
         self.pix_coords = self.hex_centers*self.pix_scale + Ntot/2.
-        # Lhex = np.array(self.hex_mask.shape)
+
+        # data = np.ones(len(self.valid_row),dtype=bool)
         
-        data = np.ones(len(self.valid_row),dtype=bool)
+        # self.hex_indices = np.zeros([len(self.hex_centers),len(self.valid_row)],dtype=int)
         
-        for i in range(len(self.hex_centers)):
-            # x_min = int(pix_coords[i,0] - Lhex[1]/2)
-            # y_min = int(pix_coords[i,1] - Lhex[0]/2)
-            # x_max = x_min + Lhex[1]
-            # y_max = y_min + Lhex[0]
-            # self.full_mask[y_min:y_max,x_min:x_max] *= self.hex_mask
-            x_shift = self.pix_coords[i,0]
-            y_shift = self.pix_coords[i,1]
-            row = self.valid_row + y_shift
-            col = self.valid_col + x_shift
-            sparseMatrix = csr_matrix((data, (row,col)),  
-                                      shape = mask.shape).toarray()
-            # plt.figure()
-            # plt.imshow(sparseMatrix,origin='lower')
+        # for i in range(len(self.hex_centers)):
+        #     row = (self.valid_row + self.pix_coords[i,1]).astype(int)
+        #     col = (self.valid_col + self.pix_coords[i,0]).astype(int)
+        #     sparse_mat = sp.csr_matrix((data, (row,col)),  
+        #                               mask_shape, dtype=bool).toarray()
+        #     # plt.figure()
+        #     # plt.imshow(sparseMatrix,origin='lower')
+        #     # print([i,np.max(row)*np.shape(mask)[1]+np.max(col)>np.size(mask)])
             
-            mask += sparseMatrix
+        #     # Save valid indices
+        #     self.hex_indices[i,:] = col + row*mask_shape[1]
+            
+        #     mask += sparse_mat
+        n_hex = n_hexagons(self.n_rings)
+        rep_valid_row = np.tile(self.valid_row,n_hex)
+        rep_valid_col = np.tile(self.valid_col,n_hex)
+        
+        valid_len = len(self.valid_row)
+        rep_pix_coords = np.repeat(self.pix_coords, valid_len, axis = 0)
+        
+        row = (rep_valid_row + rep_pix_coords[:,1]).astype(int)
+        col = (rep_valid_col + rep_pix_coords[:,0]).astype(int)
+        
+        data = np.ones(n_hex*valid_len,dtype=bool)
+        
+        sparse_mat = sp.csr_matrix((data, (row,col)),  
+                                  mask_shape, dtype=bool)
+          
+        mask += sparse_mat
             
         self.full_mask = ~mask
         
+        # Save valid indices
+        hex_idx = col + row*mask_shape[1]
+        self.hex_indices = np.reshape(hex_idx,[n_hex,valid_len])
         
-    def calculate_interaction_matrix(self,N_modes):
-        """ Computes the interaction matrix: [n_pixels,n_hexes*n_modes] """
-
-        self.int_mat = np.zeros([self.full_mask.size,len(self.hex_centers)*N_modes],dtype=np.uint8)
         
-        L_x,L_y = np.shape(self.hex_mask)
-        
-        modes = np.zeros([L_x,L_y,N_modes])
-        for j in range(N_modes):
-            modes[:,:,j] = czern(j, [L_x,L_y])
-
-        for i in range(len(self.hex_center_coords)):
-            x_min = int(self.pix_coords[i,0] - L_y/2)
-            y_min = int(self.pix_coords[i,1] - L_x/2)
-            x_max = x_min + L_y
-            y_max = y_min + L_x
+    def calculate_interaction_matrix(self,n_modes):
+        """ Computes the interaction matrix: 
+            [n_pixels,n_hexes*n_modes] """
+        n_hex = n_hexagons(self.n_rings)
+        hex_data_len = np.sum(1-self.hex_mask)
+        row_modes = np.zeros([hex_data_len*n_modes]) #,dtype = np.uint8
+        for j in range(n_modes):
+            row_modes[hex_data_len*j:hex_data_len*(j+1)] = czern(j+1, self.hex_mask)
             
-            for j in range(N_modes):
-                global_mode = np.zeros_like(self.full_mask)
-                global_mode[y_min:y_max,x_min:x_max] = modes[:,:,j]
-                self.int_mat[:,i*N_modes+j] = global_mode.flatten()
+        print('Computing interaction matrix...')      
+        row_indices = np.tile(self.hex_indices,n_modes)
+        mode_indices = np.arange(int(n_modes*n_hex))
+        
+        row = row_indices.flatten()
+        col = np.repeat(mode_indices,hex_data_len)
+        
+        data = np.tile(row_modes,n_hex)
 
-
+        int_mat_shape = [np.size(self.full_mask),n_modes*n_hex]
+        self.int_mat = sp.csr_matrix((data, (row,col)),  
+                                  int_mat_shape)
+        
+        
+    def segment_scramble(self):
+        """ Defines an initial segment scramble
+        returning a masked array image """
+        n_hex = n_hexagons(self.n_rings)
+        
+        # Retrieve number of modes from the interaction matrix
+        n_modes = int(np.shape(self.int_mat)[1]/n_hex)
+        
+        # Generate random mode coefficients
+        mode_vec = np.random.randn(n_hex*n_modes)
+        
+        # Matrix product
+        print('Performing matrix product ...')
+        # flat_img = (self.int_mat.dot(mode_vec)).astype(np.float16)
+        flat_img = self.int_mat*mode_vec
+        
+        # Reshape and mask image
+        print('Plotting....')
+        img = np.reshape(flat_img, np.shape(self.full_mask))
+        img = np.ma.masked_array(img, self.full_mask)
+        
+        return img
+            
+        
+        
+        
+        
+        
+        
+        

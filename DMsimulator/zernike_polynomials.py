@@ -1,4 +1,5 @@
 import numpy as np
+#import matplotlib.pyplot as plt
 
 def computeZernike(noll_number, mask):
 
@@ -18,6 +19,9 @@ def computeZernike(noll_number, mask):
             return
 
     masked_mode = np.ma.masked_array(mode,mask)
+
+    #plt.figure()
+    #plt.imshow(masked_mode,origin='lower')
 
     masked_data = masked_mode.data[~masked_mode.mask]
 
