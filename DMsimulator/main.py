@@ -21,4 +21,14 @@ plt.imshow(img,origin='lower',cmap='hot')
 
 hexes.draw_hex_outline()
 
+# astig1 = czern(5,hexes.hex_mask)
+# astig2 = czern(6,hexes.hex_mask)
+# coma1 = czern(7,hexes.hex_mask)
+# coma2 = czern(8,hexes.hex_mask)
+# tref1 = czern(9,hexes.hex_mask)
+# tref2 = czern(10,hexes.hex_mask)
+# spher = czern(11,hexes.hex_mask)
+
+
+
 
