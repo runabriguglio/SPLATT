@@ -1,12 +1,16 @@
 import numpy as np
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt # only used in draw_hex_outline
 
 from read_config import readConfig
 from zernike_polynomials import computeZernike as czern
 
-# from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix
 # from scipy.sparse import random_array 
-import scipy.sparse as sp
+# import scipy.sparse as sp
+
+from astropy.io import fits
+import os
+
 
 # Useful variables
 SIN60 = np.sin(np.pi/3.)
@@ -34,28 +38,68 @@ def rotate_by_60deg(vec):
     
     return rot_vec
 
+
 def n_hexagons(n_rings):
     return int(1 + (6 + n_rings*6)*n_rings/2)
 
 
+def write_to_fits(data, file_path):
+    
+    if isinstance(data,list): # sparse matrix
+        fits.writeto(file_path, data[0], overwrite=True)
+        for vec in data[1:]:
+            fits.append(file_path, vec)  
+            
+    else:
+        # Print to a .fits file
+        fits.writeto(file_path, data, overwrite=True)
+        
+        if hasattr(data,'mask'): # masked array
+            fits.append(file_path, (data.mask).astype(np.uint8))
+        
+
+
+
+
 class Hexagons():
 
-    def __init__(self, configfile):
+    def __init__(self, TN):
 
         # Read configuration files
-        path = './' + configfile
-        par = readConfig(path)
+        config_path = './config_par_' + TN + '.yaml'
+        par = readConfig(config_path)
 
         self.g = par[0]
         self.hex_side_len = par[1]
         self.n_rings = int(par[2])
         self.pix_scale = par[3]
         self.angle = par[4]
+        
+        self.savepath = './' + TN + '/'
+        
+        try: # Create new folder
+            os.mkdir(TN)
+        except FileExistsError: # Folder already existing
+            pass
+        
+        self.define_hex_coordinates()
+        self.define_hex_mask()
+        self.define_segmented_mask()
+        
     
 
-    def find_hex_coordinates(self):
+    def define_hex_coordinates(self):
         """ Defines and saves the coordinates of the 
         centers of all hexagonal segments """
+        
+        file_path = self.savepath + 'hex_centers_coords.fits'
+        try:
+            with fits.open(file_path) as hdu:
+                self.hex_centers = np.array(hdu[0].data)
+            return
+        
+        except FileNotFoundError:
+            pass
         
         # Number of hexes
         self.hex_centers = np.zeros([n_hexagons(self.n_rings),2])
@@ -85,15 +129,24 @@ class Hexagons():
                     for i in range(5):
                         aux = rotate_by_60deg(aux)
                         self.hex_centers[hex_ctr+j+1+(i+1)*ring_ctr,:] = aux
-                    
-        # Print to a .fits file
-        
-        # return self.hex_centers
 
+        # Save to fits
+        write_to_fits(self.hex_centers,file_path)
+        
 
     def define_hex_mask(self):
         """ Forms the hexagonal mask to be placed 
         at the given hexagonal coordinates """
+        
+        file_path = self.savepath + 'hexagon_mask.fits'
+        try:
+            with fits.open(file_path) as hdu:
+                self.hex_mask = np.array(hdu[0].data).astype(bool)
+            return
+        
+        except FileNotFoundError:
+            pass
+        
         L = self.hex_side_len*self.pix_scale
         
         # Consider points in the upper-left of the hexagon
@@ -110,8 +163,8 @@ class Hexagons():
                     
         self.hex_mask = mask
         
-        x = np.arange(2*max_x)
-        y = np.arange(2*max_y)
+        x = np.arange(2*max_x,dtype=int)
+        y = np.arange(2*max_y,dtype=int)
         X,Y = np.meshgrid(x,y)
         valid_X = X[~self.hex_mask]
         valid_Y = Y[~self.hex_mask]
@@ -119,9 +172,30 @@ class Hexagons():
         self.valid_row = valid_Y - max_y
         self.valid_col = valid_X - max_x
         
+        # Save to fits
+        write_to_fits((self.hex_mask).astype(np.uint8),file_path)
+        
         
     def define_segmented_mask(self):
         """ Forms the segment mask """
+        
+        mask_file_path = self.savepath + 'segments_mask.fits'
+        idx_file_path = self.savepath + 'hexagon_matrix_indices.fits'
+        try:
+            with fits.open(mask_file_path) as hdu:
+                self.full_mask = np.array(hdu[0].data).astype(bool)
+                
+            with fits.open(idx_file_path) as hdu:
+                hex_mat_idx = np.array(hdu[0].data)
+            row = (hex_mat_idx[:,0,:]).flatten()
+            col = (hex_mat_idx[:,1,:]).flatten()
+            hex_idx = col + row*np.shape(self.full_mask)[1]
+            new_shape = [np.shape(hex_mat_idx)[0],np.shape(hex_mat_idx)[2]]
+            self.hex_indices = np.reshape(hex_idx, new_shape)
+            return
+        
+        except FileNotFoundError:
+            pass
         
         # Height of hex + gap
         L = self.g + 2.*self.hex_side_len*SIN60
@@ -135,23 +209,6 @@ class Hexagons():
         
         self.pix_coords = self.hex_centers*self.pix_scale + Ntot/2.
 
-        # data = np.ones(len(self.valid_row),dtype=bool)
-        
-        # self.hex_indices = np.zeros([len(self.hex_centers),len(self.valid_row)],dtype=int)
-        
-        # for i in range(len(self.hex_centers)):
-        #     row = (self.valid_row + self.pix_coords[i,1]).astype(int)
-        #     col = (self.valid_col + self.pix_coords[i,0]).astype(int)
-        #     sparse_mat = sp.csr_matrix((data, (row,col)),  
-        #                               mask_shape, dtype=bool).toarray()
-        #     # plt.figure()
-        #     # plt.imshow(sparseMatrix,origin='lower')
-        #     # print([i,np.max(row)*np.shape(mask)[1]+np.max(col)>np.size(mask)])
-            
-        #     # Save valid indices
-        #     self.hex_indices[i,:] = col + row*mask_shape[1]
-            
-        #     mask += sparse_mat
         n_hex = n_hexagons(self.n_rings)
         rep_valid_row = np.tile(self.valid_row,n_hex)
         rep_valid_col = np.tile(self.valid_col,n_hex)
@@ -164,7 +221,7 @@ class Hexagons():
         
         data = np.ones(n_hex*valid_len,dtype=bool)
         
-        sparse_mat = sp.csr_matrix((data, (row,col)),  
+        sparse_mat = csr_matrix((data, (row,col)),  
                                   mask_shape, dtype=bool)
           
         mask += sparse_mat
@@ -174,12 +231,37 @@ class Hexagons():
         # Save valid indices
         hex_idx = col + row*mask_shape[1]
         self.hex_indices = np.reshape(hex_idx,[n_hex,valid_len])
+        # Save in a matrix, with dimensions [n_hex,2,valid_len]
+        rows_mat = np.reshape(row,[n_hex,valid_len])
+        cols_mat = np.reshape(col,[n_hex,valid_len])
+        rows_cols_mat = np.concatenate((rows_mat,cols_mat),axis=1)
+        hex_mat_idx = np.reshape(rows_cols_mat,[n_hex,2,valid_len])
+        
+        # Save to fits
+        write_to_fits((self.full_mask).astype(np.uint8),mask_file_path)
+        write_to_fits(hex_mat_idx,idx_file_path)
         
         
     def calculate_interaction_matrix(self,n_modes):
         """ Computes the interaction matrix: 
             [n_pixels,n_hexes*n_modes] """
+            
         n_hex = n_hexagons(self.n_rings)
+        int_mat_shape = [np.size(self.full_mask),n_modes*n_hex]
+            
+        file_path = self.savepath + str(n_modes) + 'modes_interaction_matrix.fits'
+        try:
+            with fits.open(file_path) as hdu:
+                # self.int_mat = csr_matrix(hdu[0].data)
+                mat_data = hdu[0].data
+                indices = hdu[1].data
+                indptr = hdu[2].data
+                self.int_mat = csr_matrix((mat_data,indices,indptr), int_mat_shape)
+            return
+        
+        except FileNotFoundError:
+            pass
+        
         hex_data_len = np.sum(1-self.hex_mask)
         row_modes = np.zeros([hex_data_len*n_modes]) #,dtype = np.uint8
         for j in range(n_modes):
@@ -194,14 +276,34 @@ class Hexagons():
         
         data = np.tile(row_modes,n_hex)
 
-        int_mat_shape = [np.size(self.full_mask),n_modes*n_hex]
-        self.int_mat = sp.csr_matrix((data, (row,col)),  
+        self.int_mat = csr_matrix((data, (row,col)),  
                                   int_mat_shape)
+        
+        # Save to fits
+        print('Saving interaction matrix...') 
+        data_list = []
+        data_list.append(self.int_mat.data)
+        data_list.append(self.int_mat.indices)
+        data_list.append(self.int_mat.indptr)
+        write_to_fits(data_list, file_path)
+        
+        
         
         
     def segment_scramble(self):
         """ Defines an initial segment scramble
         returning a masked array image """
+        
+        file_path = self.savepath + 'segment_scramble.fits'
+        try:
+            with fits.open(file_path) as hdu:
+                img = np.array(hdu[0].data)
+                img_mask = np.array(hdu[1].data).astype(bool)
+            masked_img = np.ma.masked_array(img,mask=img_mask)
+            return masked_img
+        except FileNotFoundError:
+            pass
+        
         n_hex = n_hexagons(self.n_rings)
         
         # Retrieve number of modes from the interaction matrix
@@ -211,16 +313,63 @@ class Hexagons():
         mode_vec = np.random.randn(n_hex*n_modes)
         
         # Matrix product
-        print('Performing matrix product ...')
+        print('Performing matrix product...')
         # flat_img = (self.int_mat.dot(mode_vec)).astype(np.float16)
         flat_img = self.int_mat*mode_vec
         
         # Reshape and mask image
         print('Plotting....')
         img = np.reshape(flat_img, np.shape(self.full_mask))
-        img = np.ma.masked_array(img, self.full_mask)
+        masked_img = np.ma.masked_array(img, self.full_mask)
         
-        return img
+        # Save to fits
+        write_to_fits(masked_img, file_path)
+        
+        return masked_img
+    
+    
+    def draw_hex_outline(self):
+        """ Plots the hexagons' outline and the inscribed circle """
+        
+        hex_sides = np.zeros([8,2])
+        hex_sides[0,:] = np.array([-2*COS60, 0.])
+        hex_sides[1,:] = np.array([-0.5, SIN60])
+        hex_sides[2,:] = np.array([-hex_sides[1,0],hex_sides[1,1]])
+        hex_sides[3,:] = -hex_sides[0,:]
+        hex_sides[4,:] = -hex_sides[1,:]
+        hex_sides[5,:] = -hex_sides[2,:]
+        hex_sides[6,:] = hex_sides[0,:]
+        hex_sides[-1,:] = np.array([None,None])
+        
+        plt.figure()
+        plt.grid('on')
+        
+        # for i in range(len(self.hex_center_coords)):
+        #     c_coords = self.hex_center_coords[i] + self.center
+        #     coords = c_coords + self.hex_side_len*hex_sides
+        #     plt.plot(coords[:,0],coords[:,1],color='goldenrod')
+        
+        rep_c_coords = np.tile(self.hex_centers,len(hex_sides))
+        rep_c_coords = rep_c_coords.flatten()
+        hex_sides = hex_sides.flatten()
+        rep_hex_sides = np.tile(hex_sides,len(self.hex_centers))
+        coords = rep_c_coords + rep_hex_sides 
+        coords = np.reshape(coords,[int(len(coords)/2),2])
+        # print(coords)
+        plt.plot(coords[:,0],coords[:,1],color='goldenrod')
+                 
+        
+        # Plot inscribed cirle
+        L = self.g + 2.*self.hex_side_len*SIN60
+        R = np.sqrt((L*self.n_rings)**2 + (self.hex_side_len*(0.5+COS60))**2) - self.hex_side_len*COS60
+        x_vec = np.linspace(-R,R,100)
+        y_vec = np.sqrt(R**2-x_vec**2)
+        
+        plt.plot(x_vec,y_vec,'--',color='green')
+        plt.plot(x_vec,-y_vec,'--',color='green')
+            
+        plt.axis('equal')
+
             
         
         
