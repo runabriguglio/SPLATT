@@ -1,0 +1,10 @@
+
+[DM]
+n_rings = 3     # number of hexagonal segment rings
+hex_side = 1.   # [m] hexagonal side length
+hex_gap = 0.12   # [m] gap between hexagonal segments
+
+[OPT]
+pixel_scale = 200.  # pixels per meter
+opt_radius = 20.    # [m] pupil radius
+cw_rot_angle = 0.   # [deg] clockwise pupil rotation angle about optical axis
