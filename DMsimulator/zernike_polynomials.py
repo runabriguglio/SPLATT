@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 def computeZernike(noll_number, mask):
 
@@ -40,9 +40,9 @@ def computeZernike(noll_number, mask):
 
     masked_data = masked_mode.data[~masked_mode.mask]
     
-    masked_mode = (masked_mode - np.mean(masked_data))/np.std(masked_data)
-    plt.figure()
-    plt.imshow(masked_mode,origin='lower')
+    # masked_mode = (masked_mode - np.mean(masked_data))/np.std(masked_data)
+    # plt.figure()
+    # plt.imshow(masked_mode,origin='lower')
 
     # Normalization: null mean and unit STD
     if noll_number > 1:
