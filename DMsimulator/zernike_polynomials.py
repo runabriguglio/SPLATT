@@ -1,11 +1,17 @@
 import numpy as np
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 def computeZernike(noll_number, mask):
+    """ Defines the Zernike polynomials identified by the Noll number in input
+    on a mask (boolean array). The polynomials are computed in a circle
+    inscribed in the mask, and the masked data is then normalized on the 
+    valid area as follows:
+    data = ma.data[~ma.mask], data = (data - mean(data))/std(data)"""
 
     X,Y = np.shape(mask)
     
-    r = X/2.
+    # Determine circle radius on to which define the Zernike
+    r = np.min([X,Y])/2
     theta = lambda i,j: np.arctan2((j-Y/2.)/r,(i-X/2.)/r)
     rho = lambda i,j: np.sqrt(((j-Y/2.)/r)**2+((i-X/2.)/r)**2)
     
@@ -40,9 +46,9 @@ def computeZernike(noll_number, mask):
 
     masked_data = masked_mode.data[~masked_mode.mask]
     
-    # masked_mode = (masked_mode - np.mean(masked_data))/np.std(masked_data)
-    # plt.figure()
-    # plt.imshow(masked_mode,origin='lower')
+    masked_mode = (masked_mode - np.mean(masked_data))/np.std(masked_data)
+    plt.figure()
+    plt.imshow(masked_mode,origin='lower')
 
     # Normalization: null mean and unit STD
     if noll_number > 1:
