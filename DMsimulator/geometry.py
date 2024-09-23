@@ -1,14 +1,14 @@
 import numpy as np
 import matplotlib.pyplot as plt # only used in draw_hex_outline
+from scipy.sparse import csr_matrix
+import os
 
 from read_config import readConfig
 from zernike_polynomials import computeZernike as czern
 from rotate_coordinates import rotate_by_60deg as crot60
 
-from scipy.sparse import csr_matrix
-
 from astropy.io import fits
-import os
+from read_and_write_fits import write_to_fits
 
 
 # Useful variables
@@ -18,25 +18,6 @@ COS60 = np.cos(np.pi/3.)
 
 def n_hexagons(n_rings):
     return int(1 + (6 + n_rings*6)*n_rings/2)
-
-
-def write_to_fits(data, file_path):
-    
-    if isinstance(data,list): # list (e.g. sparse matrix)
-        fits.writeto(file_path, data[0], overwrite=True)
-        for vec in data[1:]:
-            fits.append(file_path, vec)  
-            
-    else:
-        # Print to a .fits file
-        fits.writeto(file_path, data, overwrite=True)
-        
-        if hasattr(data,'mask'): # masked array
-            fits.append(file_path, (data.mask).astype(np.uint8))
-        
-
-
-
 
 class Hexagons():
 
@@ -364,18 +345,12 @@ class Hexagons():
         plt.figure()
         plt.grid('on')
         
-        # for i in range(len(self.hex_center_coords)):
-        #     c_coords = self.hex_center_coords[i] + self.center
-        #     coords = c_coords + self.hex_side_len*hex_sides
-        #     plt.plot(coords[:,0],coords[:,1],color='goldenrod')
-        
         rep_c_coords = np.tile(self.hex_centers,len(hex_sides))
         rep_c_coords = rep_c_coords.flatten()
         hex_sides = hex_sides.flatten()
         rep_hex_sides = np.tile(hex_sides,len(self.hex_centers))
         coords = rep_c_coords + rep_hex_sides 
         coords = np.reshape(coords,[int(len(coords)/2),2])
-        # print(coords)
         plt.plot(coords[:,0],coords[:,1],color='goldenrod')
                  
         
