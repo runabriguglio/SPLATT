@@ -389,6 +389,8 @@ class Hexagons():
         plt.plot(x_vec,-y_vec,'--',color='green')
             
         plt.axis('equal')
+        
+        return coords
 
             
         
