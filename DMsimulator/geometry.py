@@ -3,10 +3,9 @@ import matplotlib.pyplot as plt # only used in draw_hex_outline
 
 from read_config import readConfig
 from zernike_polynomials import computeZernike as czern
+from rotate_coordinates import rotate_by_60deg as crot60
 
 from scipy.sparse import csr_matrix
-# from scipy.sparse import random_array 
-# import scipy.sparse as sp
 
 from astropy.io import fits
 import os
@@ -17,35 +16,13 @@ SIN60 = np.sin(np.pi/3.)
 COS60 = np.cos(np.pi/3.)
 
 
-def cw_rotate(vec, angle):
-    c = np.cos(angle)
-    s = np.sin(angle)
-    rot_mat = [[c,s],[-s,c]]
-    
-    if np.shape(vec)[0] > 2:
-        aux_vec = rot_mat @ vec.transpose()
-        rot_vec = aux_vec.transpose()
-    else:
-        rot_vec = rot_mat @ vec
-    
-    return rot_vec
-
-
-def rotate_by_60deg(vec):
-    # Wrapper to cw_rotate()
-    cw_angle = np.pi/3.
-    rot_vec = cw_rotate(vec, cw_angle)
-    
-    return rot_vec
-
-
 def n_hexagons(n_rings):
     return int(1 + (6 + n_rings*6)*n_rings/2)
 
 
 def write_to_fits(data, file_path):
     
-    if isinstance(data,list): # sparse matrix
+    if isinstance(data,list): # list (e.g. sparse matrix)
         fits.writeto(file_path, data[0], overwrite=True)
         for vec in data[1:]:
             fits.append(file_path, vec)  
@@ -117,7 +94,7 @@ class Hexagons():
             self.hex_centers[hex_ctr,:] = aux
             
             for i in range(5):
-                aux = rotate_by_60deg(aux)
+                aux = crot60(aux)
                 self.hex_centers[hex_ctr+(i+1)*ring_ctr,:] = aux
             
             if ring_ctr > 1:
@@ -127,7 +104,7 @@ class Hexagons():
                     aux[1] = self.hex_centers[hex_ctr,1] - (j+1)*shift
                     self.hex_centers[hex_ctr+j+1,:] = aux
                     for i in range(5):
-                        aux = rotate_by_60deg(aux)
+                        aux = crot60(aux)
                         self.hex_centers[hex_ctr+j+1+(i+1)*ring_ctr,:] = aux
 
         # Save to fits
@@ -174,24 +151,16 @@ class Hexagons():
         
         # Save to fits
         write_to_fits((self.hex_mask).astype(np.uint8),file_path)
-        
+
         
     def define_segmented_mask(self):
         """ Forms the segment mask """
         
-        mask_file_path = self.savepath + 'segments_mask.fits'
-        idx_file_path = self.savepath + 'hexagon_matrix_indices.fits'
+        file_path = self.savepath + 'segments_mask_and_indices.fits'
         try:
-            with fits.open(mask_file_path) as hdu:
+            with fits.open(file_path) as hdu:
                 self.full_mask = np.array(hdu[0].data).astype(bool)
-                
-            with fits.open(idx_file_path) as hdu:
-                hex_mat_idx = np.array(hdu[0].data)
-            row = (hex_mat_idx[:,0,:]).flatten()
-            col = (hex_mat_idx[:,1,:]).flatten()
-            hex_idx = col + row*np.shape(self.full_mask)[1]
-            new_shape = [np.shape(hex_mat_idx)[0],np.shape(hex_mat_idx)[2]]
-            self.hex_indices = np.reshape(hex_idx, new_shape)
+                self.hex_indices = np.array(hdu[1].data)
             return
         
         except FileNotFoundError:
@@ -228,18 +197,20 @@ class Hexagons():
             
         self.full_mask = ~mask
         
-        # Save valid indices
-        hex_idx = col + row*mask_shape[1]
+        # Save valid hexagon indices
+        n_cols = mask_shape[1]
+        hex_idx = col + row*n_cols
         self.hex_indices = np.reshape(hex_idx,[n_hex,valid_len])
-        # Save in a matrix, with dimensions [n_hex,2,valid_len]
-        rows_mat = np.reshape(row,[n_hex,valid_len])
-        cols_mat = np.reshape(col,[n_hex,valid_len])
-        rows_cols_mat = np.concatenate((rows_mat,cols_mat),axis=1)
-        hex_mat_idx = np.reshape(rows_cols_mat,[n_hex,2,valid_len])
         
         # Save to fits
-        write_to_fits((self.full_mask).astype(np.uint8),mask_file_path)
-        write_to_fits(hex_mat_idx,idx_file_path)
+        write_to_fits([(self.full_mask).astype(np.uint8),
+                       self.hex_indices],file_path)
+        
+        # Save in a matrix, with dimensions [n_hex,2,valid_len]
+        hex_mat_idx = np.reshape(self.hex_indices,[2,n_hex,valid_len])
+        hex_mat_idx = np.transpose(hex_mat_idx,[1,0,2])
+        
+        return hex_mat_idx
         
         
     def calculate_interaction_matrix(self,n_modes):
@@ -311,6 +282,15 @@ class Hexagons():
         
         # Generate random mode coefficients
         mode_vec = np.random.randn(n_hex*n_modes)
+        
+        # Probability inversely proportional to spatial frequency
+        freq_vec = np.repeat(np.arange(int(n_modes/2)/2)+1,
+                             np.arange(int(n_modes/2))+1)
+        prob_vec = 1./freq_vec[0:n_modes]
+        prob_vec_rep = np.tile(prob_vec,n_hex)
+        
+        # Modulate on the probability
+        mode_vec = mode_vec * prob_vec_rep
         
         # Matrix product
         print('Performing matrix product...')
