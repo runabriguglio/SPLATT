@@ -12,7 +12,7 @@ mask = hexes.full_mask
 plt.figure()
 plt.imshow(mask,origin='lower',cmap='gray')
 
-n_modes = 4
+n_modes = 11
 hexes.calculate_interaction_matrix(n_modes)
 img = hexes.segment_scramble()
 plt.figure()

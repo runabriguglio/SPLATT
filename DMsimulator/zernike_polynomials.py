@@ -11,7 +11,7 @@ def computeZernike(noll_number, mask):
     X,Y = np.shape(mask)
     
     # Determine circle radius on to which define the Zernike
-    r = np.min([X,Y])/2
+    r = np.max([X,Y])/2
     theta = lambda i,j: np.arctan2((j-Y/2.)/r,(i-X/2.)/r)
     rho = lambda i,j: np.sqrt(((j-Y/2.)/r)**2+((i-X/2.)/r)**2)
     
