@@ -61,6 +61,7 @@ class Hexagons():
         
         self.define_hex_coordinates()
         self.define_hex_mask()
+        self.define_hexagon_valid_indices()
         self.define_segmented_mask()
         
     
@@ -140,27 +141,21 @@ class Hexagons():
                     
         self.hex_mask = mask
         
-        x = np.arange(2*max_x,dtype=int)
-        y = np.arange(2*max_y,dtype=int)
-        X,Y = np.meshgrid(x,y)
-        valid_X = X[~self.hex_mask]
-        valid_Y = Y[~self.hex_mask]
-        
-        self.valid_row = valid_Y - max_y
-        self.valid_col = valid_X - max_x
-        
         # Save to fits
         write_to_fits((self.hex_mask).astype(np.uint8),file_path)
-
         
-    def define_segmented_mask(self):
-        """ Forms the segment mask """
         
-        file_path = self.savepath + 'segments_mask_and_indices.fits'
+        
+    def define_hexagon_valid_indices(self):
+        """ Finds the full aperture image (containing all segments)
+        row and column indices for the hexagons data """
+        
+        file_path = self.savepath + 'segments_indices.fits'
         try:
             with fits.open(file_path) as hdu:
-                self.full_mask = np.array(hdu[0].data).astype(bool)
-                self.hex_indices = np.array(hdu[1].data)
+                self.hex_indices = np.array(hdu[0].data)
+                self.valid_row = np.array(hdu[1].data)
+                self.valid_col = np.array(hdu[2].data)
             return
         
         except FileNotFoundError:
@@ -173,44 +168,89 @@ class Hexagons():
         Ny = (L*self.n_rings + self.hex_side_len*SIN60)*2*self.pix_scale
         Nx = (L*self.n_rings*SIN60 + self.hex_side_len*(0.5+COS60))*2*self.pix_scale
         Ntot = np.array([Nx,Ny])
-        mask = np.zeros([int(Ny),int(Nx)],dtype = bool)
-        mask_shape = np.shape(mask)
-        
+
+        # Hexagon centers pixel coordinates
         self.pix_coords = self.hex_centers*self.pix_scale + Ntot/2.
+        
+        My,Mx = np.shape(self.hex_mask)
+        x = np.arange(Mx,dtype=int)
+        y = np.arange(My,dtype=int)
+        X,Y = np.meshgrid(x,y)
+        valid_X = X[~self.hex_mask]
+        valid_Y = Y[~self.hex_mask]
+        hex_valid_row = valid_Y - int(My/2)
+        hex_valid_col = valid_X - int(Mx/2)
 
         n_hex = n_hexagons(self.n_rings)
-        rep_valid_row = np.tile(self.valid_row,n_hex)
-        rep_valid_col = np.tile(self.valid_col,n_hex)
+        rep_valid_row = np.tile(hex_valid_row,n_hex)
+        rep_valid_col = np.tile(hex_valid_col,n_hex)
         
-        valid_len = len(self.valid_row)
+        valid_len = len(hex_valid_row)
         rep_pix_coords = np.repeat(self.pix_coords, valid_len, axis = 0)
         
-        row = (rep_valid_row + rep_pix_coords[:,1]).astype(int)
-        col = (rep_valid_col + rep_pix_coords[:,0]).astype(int)
+        self.valid_row = (rep_valid_row + rep_pix_coords[:,1]).astype(int)
+        self.valid_col = (rep_valid_col + rep_pix_coords[:,0]).astype(int)
         
-        data = np.ones(n_hex*valid_len,dtype=bool)
+        # Save valid hexagon indices
+        hex_idx = self.valid_col + self.valid_row*int(Nx)
+        self.hex_indices = np.reshape(hex_idx,[n_hex,valid_len])
         
-        sparse_mat = csr_matrix((data, (row,col)),  
+        # Save to fits
+        write_to_fits([self.hex_indices,self.valid_row,self.valid_col],file_path)
+        
+        # # Save in a matrix, with dimensions [n_hex,2,valid_len]
+        # hex_mat_idx = np.reshape(self.hex_indices,[2,n_hex,valid_len])
+        # hex_mat_idx = np.transpose(hex_mat_idx,[1,0,2])
+        
+        # return hex_mat_idx
+
+        
+    def define_segmented_mask(self):
+        """ Forms the segment mask """
+        
+        file_path = self.savepath + 'segments_mask.fits'
+        try:
+            with fits.open(file_path) as hdu:
+                self.full_mask = np.array(hdu[0].data).astype(bool)
+            return
+        
+        except FileNotFoundError:
+            pass
+        
+
+        # Height of hex + gap
+        L = self.g + 2.*self.hex_side_len*SIN60
+        
+        # Full mask dimensions
+        Ny = (L*self.n_rings + self.hex_side_len*SIN60)*2*self.pix_scale
+        Nx = (L*self.n_rings*SIN60 + self.hex_side_len*(0.5+COS60))*2*self.pix_scale
+        mask_shape = np.array([int(Ny),int(Nx)])
+        mask = np.zeros(mask_shape,dtype = bool)
+        
+        # self.pix_coords = self.hex_centers*self.pix_scale + Ntot/2.
+
+        # n_hex = n_hexagons(self.n_rings)
+        # rep_valid_row = np.tile(self.valid_row,n_hex)
+        # rep_valid_col = np.tile(self.valid_col,n_hex)
+        
+        valid_len = len(self.valid_row)
+        # rep_pix_coords = np.repeat(self.pix_coords, valid_len, axis = 0)
+        
+        # row = (rep_valid_row + rep_pix_coords[:,1]).astype(int)
+        # col = (rep_valid_col + rep_pix_coords[:,0]).astype(int)
+        
+        data = np.ones(valid_len, dtype=bool)
+        
+        sparse_mat = csr_matrix((data, (self.valid_row,self.valid_col)),  
                                   mask_shape, dtype=bool)
-          
+        
         mask += sparse_mat
             
         self.full_mask = ~mask
         
-        # Save valid hexagon indices
-        n_cols = mask_shape[1]
-        hex_idx = col + row*n_cols
-        self.hex_indices = np.reshape(hex_idx,[n_hex,valid_len])
-        
         # Save to fits
-        write_to_fits([(self.full_mask).astype(np.uint8),
-                       self.hex_indices],file_path)
+        write_to_fits((self.full_mask).astype(np.uint8),file_path)
         
-        # Save in a matrix, with dimensions [n_hex,2,valid_len]
-        hex_mat_idx = np.reshape(self.hex_indices,[2,n_hex,valid_len])
-        hex_mat_idx = np.transpose(hex_mat_idx,[1,0,2])
-        
-        return hex_mat_idx
         
         
     def calculate_interaction_matrix(self,n_modes):
@@ -284,8 +324,8 @@ class Hexagons():
         mode_vec = np.random.randn(n_hex*n_modes)
         
         # Probability inversely proportional to spatial frequency
-        freq_vec = np.repeat(np.arange(int(n_modes/2)/2)+1,
-                             np.arange(int(n_modes/2))+1)
+        freq_vec = np.repeat(np.arange(int(n_modes))+1,
+                             np.arange(int(n_modes))+1)
         prob_vec = 1./freq_vec[0:n_modes]
         prob_vec_rep = np.tile(prob_vec,n_hex)
         
