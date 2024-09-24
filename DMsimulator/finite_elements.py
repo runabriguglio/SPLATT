@@ -12,8 +12,6 @@ COS60 = np.cos(np.pi/3.)
 def sum_n(n):
     return int(n*(n+1)/2)
 
-
-
 ul_triangle = np.zeros([3,2])
 ul_triangle[1,:] = np.array([2*COS60, 0.])
 ul_triangle[2,:] = np.array([0.5, SIN60])

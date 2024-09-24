@@ -25,13 +25,13 @@ class Hexagons():
 
         # Read configuration files
         config_path = './config_par_' + TN + '.yaml'
-        par = readConfig(config_path)
+        dm_par, opt_par = readConfig(config_path)
 
-        self.g = par[0]
-        self.hex_side_len = par[1]
-        self.n_rings = int(par[2])
-        self.pix_scale = par[3]
-        self.angle = par[4]
+        self.g = dm_par[0]
+        self.hex_side_len = dm_par[1]
+        self.n_rings = dm_par[2]
+
+        self.pix_scale = opt_par[0]
         
         self.savepath = './' + TN + '/'
         
@@ -208,17 +208,7 @@ class Hexagons():
         mask_shape = np.array([int(Ny),int(Nx)])
         mask = np.zeros(mask_shape,dtype = bool)
         
-        # self.pix_coords = self.hex_centers*self.pix_scale + Ntot/2.
-
-        # n_hex = n_hexagons(self.n_rings)
-        # rep_valid_row = np.tile(self.valid_row,n_hex)
-        # rep_valid_col = np.tile(self.valid_col,n_hex)
-        
         valid_len = len(self.valid_row)
-        # rep_pix_coords = np.repeat(self.pix_coords, valid_len, axis = 0)
-        
-        # row = (rep_valid_row + rep_pix_coords[:,1]).astype(int)
-        # col = (rep_valid_col + rep_pix_coords[:,0]).astype(int)
         
         data = np.ones(valid_len, dtype=bool)
         
@@ -305,8 +295,8 @@ class Hexagons():
         mode_vec = np.random.randn(n_hex*n_modes)
         
         # Probability inversely proportional to spatial frequency
-        freq_vec = np.repeat(np.arange(int(n_modes))+1,
-                             np.arange(int(n_modes))+1)
+        m = int(np.round((np.sqrt(8*n_modes)-1.)/2.))
+        freq_vec = np.repeat(np.arange(m)+1,np.arange(m)+1)
         prob_vec = 1./freq_vec[0:n_modes]
         prob_vec_rep = np.tile(prob_vec,n_hex)
         
@@ -315,7 +305,6 @@ class Hexagons():
         
         # Matrix product
         print('Performing matrix product...')
-        # flat_img = (self.int_mat.dot(mode_vec)).astype(np.float16)
         flat_img = self.int_mat*mode_vec
         
         # Reshape and mask image
