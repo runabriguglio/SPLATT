@@ -80,12 +80,12 @@ ul_triangle[2,:] = np.array([0.5, SIN60])
 # plist[ctr:,1] = y
 
 # Structured mesh + noise
-points_per_side = 16
-plist = np.zeros([sum_n(points_per_side+1)*2+3,2])
+points_per_side = 24
+plist = np.zeros([sum_n(points_per_side+1)+3,2])
 
 plist[0:3,:] = ul_triangle
 dx = 1./points_per_side 
-sig = dx/8.
+sig = dx/7.5
 for k in np.arange(1,points_per_side+1):
     y = np.linspace(0.,SIN60*k*dx,k+1)
     x = k*dx - COS60/SIN60 * y
@@ -101,14 +101,48 @@ points[0:len(plist),:] = plist
 for i in range(5):
     points[(i+1)*len(plist):(i+2)*len(plist),:] = rot60(points[i*len(plist):(i+1)*len(plist),:])
 
+hex_side_len = 2.
+points = hex_side_len*points
 
+# Actuation points
+act_pitch = 0.4
+capsens_radius = 0.02
+
+act_per_side = int((hex_side_len-2*capsens_radius)/act_pitch)
+n_acts_tri = sum_n(points_per_side)
+act_coords = np.zeros([n_acts_tri*6+1,2])
+dx = (hex_side_len-2*capsens_radius)/act_per_side
+
+act_size = capsens_radius*500 * np.ones(len(act_coords))
+
+# for k in range(act_per_side):
+#     y = np.linspace(0.,SIN60*k*dx,k+1)
+#     x = (k+1)*dx - COS60/SIN60 * y
+#     act_coords[1+sum_n(k):1+sum_n(k+1),0] = x
+#     act_coords[1+sum_n(k):1+sum_n(k+1),1] = y
+
+# for i in range(5):
+#     act_coords[1+(i+1)*n_acts_tri:1+(i+2)*n_acts_tri,:] = rot60(act_coords[1+i*n_acts_tri:1+(i+1)*n_acts_tri,:])
+
+for k in np.arange(0,act_per_side):
+    y = np.linspace(SIN60*k*dx,0.,k+1)
+    x = (k+1)*dx - COS60/SIN60 * y
+    n = k+1
+    p = np.zeros([6*n,2])
+    p[0:n,0] = x
+    p[0:n,1] = y
+    p[n:2*n,:] = rot60(p[0:n,:].T)
+    p[2*n:3*n,:] = rot60(p[n:2*n,:].T)
+    p[3*n:,:] = cw_rotate(p[0:3*n,:].T,np.array([np.pi]))
+
+    act_coords[1+sum_n(k)*6:1+sum_n(k+1)*6,:] = p
 
 tria = Delaunay(points) #,incremental=True
 plt.figure()
 plt.grid('on')
 plt.axis('equal')
-plt.triplot(points[:,0], points[:,1], tria.simplices)
-plt.plot(plist[:,0], plist[:,1], 'o')
+plt.triplot(points[:,0], points[:,1], tria.simplices,c='black')
+plt.scatter(act_coords[:,0], act_coords[:,1],s=act_size,c='red')
 plt.show()
 
 # tria.add_points(np.array([[0.222,0.234],[0.5,0.717],[0.333,0.125],[0.6,0.1222]]),restart=True)
