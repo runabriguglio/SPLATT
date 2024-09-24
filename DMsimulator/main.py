@@ -33,7 +33,7 @@ hexes.draw_hex_outline()
 # Testing mesh
 hex_side_len = hexes.hex_side_len
 act_pitch = 0.3
-capsens_radius = 0.02
+capsens_radius = 0.04
 points_per_side = 9 # very low for visualization purposes 
 
 local_act_coords = segment_act_coordinates(act_pitch, capsens_radius, hex_side_len)
