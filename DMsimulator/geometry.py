@@ -27,7 +27,7 @@ class Hexagons():
         config_path = './config_par_' + TN + '.yaml'
         dm_par, opt_par = readConfig(config_path)
 
-        self.g = dm_par[0]
+        self.gap = dm_par[0]
         self.hex_side_len = dm_par[1]
         self.n_rings = dm_par[2]
 
@@ -40,14 +40,14 @@ class Hexagons():
         except FileExistsError: # Folder already existing
             pass
         
-        self.define_hex_coordinates()
-        self.define_hex_mask()
+        self.define_hex_centers()
+        self.define_local_mask()
         self.define_hexagon_valid_indices()
-        self.define_segmented_mask()
+        self.define_global_mask()
         
     
 
-    def define_hex_coordinates(self):
+    def define_hex_centers(self):
         """ Defines and saves the coordinates of the 
         centers of all hexagonal segments """
         
@@ -64,7 +64,7 @@ class Hexagons():
         self.hex_centers = np.zeros([n_hexagons(self.n_rings),2])
         
         # Height of hex + gap
-        L = self.g + 2.*self.hex_side_len*SIN60
+        L = self.gap + 2.*self.hex_side_len*SIN60
         
         for ring_ctr in range(self.n_rings):
             
@@ -81,7 +81,7 @@ class Hexagons():
             
             if ring_ctr > 1:
                 for j in range(ring_ctr-1):
-                    shift = self.g + 2.*self.hex_side_len*SIN60
+                    shift = self.gap + 2.*self.hex_side_len*SIN60
                     aux[0] = self.hex_centers[hex_ctr,0] 
                     aux[1] = self.hex_centers[hex_ctr,1] - (j+1)*shift
                     self.hex_centers[hex_ctr+j+1,:] = aux
@@ -93,14 +93,14 @@ class Hexagons():
         write_to_fits(self.hex_centers,file_path)
         
 
-    def define_hex_mask(self):
+    def define_local_mask(self):
         """ Forms the hexagonal mask to be placed 
         at the given hexagonal coordinates """
         
         file_path = self.savepath + 'hexagon_mask.fits'
         try:
             with fits.open(file_path) as hdu:
-                self.hex_mask = np.array(hdu[0].data).astype(bool)
+                self.local_mask = np.array(hdu[0].data).astype(bool)
             return
         
         except FileNotFoundError:
@@ -120,10 +120,10 @@ class Hexagons():
         mask[0:max_y,0:max_x] = np.flip(mask_ul,1) # upper right
         mask[max_y:,:] = np.flip(mask[0:max_y,:],0) # lower
                     
-        self.hex_mask = mask
+        self.local_mask = mask
         
         # Save to fits
-        write_to_fits((self.hex_mask).astype(np.uint8),file_path)
+        write_to_fits((self.local_mask).astype(np.uint8),file_path)
         
         
         
@@ -135,15 +135,15 @@ class Hexagons():
         try:
             with fits.open(file_path) as hdu:
                 self.hex_indices = np.array(hdu[0].data)
-                self.valid_row = np.array(hdu[1].data)
-                self.valid_col = np.array(hdu[2].data)
+                self.global_row_idx = np.array(hdu[1].data)
+                self.global_col_idx = np.array(hdu[2].data)
             return
         
         except FileNotFoundError:
             pass
         
         # Height of hex + gap
-        L = self.g + 2.*self.hex_side_len*SIN60
+        L = self.gap + 2.*self.hex_side_len*SIN60
         
         # Full mask dimensions
         Ny = (L*self.n_rings + self.hex_side_len*SIN60)*2*self.pix_scale
@@ -153,31 +153,32 @@ class Hexagons():
         # Hexagon centers pixel coordinates
         self.pix_coords = self.hex_centers*self.pix_scale + Ntot/2.
         
-        My,Mx = np.shape(self.hex_mask)
+        My,Mx = np.shape(self.local_mask)
         x = np.arange(Mx,dtype=int)
         y = np.arange(My,dtype=int)
         X,Y = np.meshgrid(x,y)
-        valid_X = X[~self.hex_mask]
-        valid_Y = Y[~self.hex_mask]
-        hex_valid_row = valid_Y - int(My/2)
-        hex_valid_col = valid_X - int(Mx/2)
+        local_X = X[~self.local_mask]
+        local_Y = Y[~self.local_mask]
+        local_row_idx = local_Y - int(My/2)
+        local_col_idx = local_X - int(Mx/2)
 
         n_hex = n_hexagons(self.n_rings)
-        rep_valid_row = np.tile(hex_valid_row,n_hex)
-        rep_valid_col = np.tile(hex_valid_col,n_hex)
+        rep_local_row = np.tile(local_row_idx,n_hex)
+        rep_local_col = np.tile(local_col_idx,n_hex)
         
-        valid_len = len(hex_valid_row)
+        # valid_len = len(local_row_idx)
+        valid_len = np.sum(1-self.local_mask)
         rep_pix_coords = np.repeat(self.pix_coords, valid_len, axis = 0)
         
-        self.valid_row = (rep_valid_row + rep_pix_coords[:,1]).astype(int)
-        self.valid_col = (rep_valid_col + rep_pix_coords[:,0]).astype(int)
+        self.global_row_idx = (rep_local_row + rep_pix_coords[:,1]).astype(int)
+        self.global_col_idx = (rep_local_col + rep_pix_coords[:,0]).astype(int)
         
         # Save valid hexagon indices
-        hex_idx = self.valid_col + self.valid_row*int(Nx)
+        hex_idx = self.global_col_idx + self.global_row_idx*int(Nx)
         self.hex_indices = np.reshape(hex_idx,[n_hex,valid_len])
         
         # Save to fits
-        write_to_fits([self.hex_indices,self.valid_row,self.valid_col],file_path)
+        write_to_fits([self.hex_indices,self.global_row_idx,self.global_col_idx],file_path)
         
         # # Save in a matrix, with dimensions [n_hex,2,valid_len]
         # hex_mat_idx = np.reshape(self.hex_indices,[2,n_hex,valid_len])
@@ -186,13 +187,13 @@ class Hexagons():
         # return hex_mat_idx
 
         
-    def define_segmented_mask(self):
+    def define_global_mask(self):
         """ Forms the segment mask """
         
         file_path = self.savepath + 'segments_mask.fits'
         try:
             with fits.open(file_path) as hdu:
-                self.full_mask = np.array(hdu[0].data).astype(bool)
+                self.global_mask = np.array(hdu[0].data).astype(bool)
             return
         
         except FileNotFoundError:
@@ -200,7 +201,7 @@ class Hexagons():
         
 
         # Height of hex + gap
-        L = self.g + 2.*self.hex_side_len*SIN60
+        L = self.gap + 2.*self.hex_side_len*SIN60
         
         # Full mask dimensions
         Ny = (L*self.n_rings + self.hex_side_len*SIN60)*2*self.pix_scale
@@ -208,19 +209,20 @@ class Hexagons():
         mask_shape = np.array([int(Ny),int(Nx)])
         mask = np.zeros(mask_shape,dtype = bool)
         
-        valid_len = len(self.valid_row)
+        #valid_len = len(self.global_row_idx)
+        valid_len = np.sum(1-self.global_mask)
         
         data = np.ones(valid_len, dtype=bool)
         
-        sparse_mat = csr_matrix((data, (self.valid_row,self.valid_col)),  
+        sparse_mat = csr_matrix((data, (self.global_row_idx,self.global_col_idx)),  
                                   mask_shape, dtype=bool)
         
         mask += sparse_mat
             
-        self.full_mask = ~mask
+        self.global_mask = ~mask
         
         # Save to fits
-        write_to_fits((self.full_mask).astype(np.uint8),file_path)
+        write_to_fits((self.global_mask).astype(np.uint8),file_path)
         
         
         
@@ -229,7 +231,7 @@ class Hexagons():
             [n_pixels,n_hexes*n_modes] """
             
         n_hex = n_hexagons(self.n_rings)
-        int_mat_shape = [np.size(self.full_mask),n_modes*n_hex]
+        int_mat_shape = [np.size(self.global_mask),n_modes*n_hex]
             
         file_path = self.savepath + str(n_modes) + 'modes_interaction_matrix.fits'
         try:
@@ -244,10 +246,10 @@ class Hexagons():
         except FileNotFoundError:
             pass
         
-        hex_data_len = np.sum(1-self.hex_mask)
+        hex_data_len = np.sum(1-self.local_mask)
         row_modes = np.zeros([hex_data_len*n_modes]) #,dtype = np.uint8
         for j in range(n_modes):
-            row_modes[hex_data_len*j:hex_data_len*(j+1)] = czern(j+1, self.hex_mask)
+            row_modes[hex_data_len*j:hex_data_len*(j+1)] = czern(j+1, self.local_mask)
             
         print('Computing interaction matrix...')      
         row_indices = np.tile(self.hex_indices,n_modes)
@@ -309,8 +311,8 @@ class Hexagons():
         
         # Reshape and mask image
         print('Plotting....')
-        img = np.reshape(flat_img, np.shape(self.full_mask))
-        masked_img = np.ma.masked_array(img, self.full_mask)
+        img = np.reshape(flat_img, np.shape(self.global_mask))
+        masked_img = np.ma.masked_array(img, self.global_mask)
         
         # Save to fits
         write_to_fits(masked_img, file_path)
@@ -344,7 +346,7 @@ class Hexagons():
                  
         
         # Plot inscribed cirle
-        L = self.g + 2.*self.hex_side_len*SIN60
+        L = self.gap + 2.*self.hex_side_len*SIN60
         R = np.sqrt((L*self.n_rings)**2 + (self.hex_side_len*(0.5+COS60))**2) - self.hex_side_len*COS60
         x_vec = np.linspace(-R,R,100)
         y_vec = np.sqrt(R**2-x_vec**2)
