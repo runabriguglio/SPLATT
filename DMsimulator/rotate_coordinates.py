@@ -1,24 +1,28 @@
 import numpy as np
 
 def cw_rotate(vec, angles):
+    """ Rotates vector vec of shape [2,n_points]
+    clockwise about [0,0] by all angles in input
+    Outputs a vector of shape vec [n_points,2]"""
     
+    L = len(angles)
+        
     n_pts = int(np.size(vec)/2)
-    res_vec = np.zeros([n_pts*len(angles),2])
+    rot_vec = np.zeros([2,n_pts*L])
     
     for k, angle in enumerate(angles):
         c = np.cos(angle)
         s = np.sin(angle)
         rot_mat = [[c,s],[-s,c]]
         
-        if n_pts > 2:
+        if np.shape(vec)[0] != 2:
             aux_vec = rot_mat @ vec.transpose()
-            rot_vec = aux_vec.transpose()
         else:
-            rot_vec = rot_mat @ vec
+            aux_vec = rot_mat @ vec
             
-        res_vec[k*n_pts:(k+1)*n_pts,:] = rot_vec
+        rot_vec[:,k*n_pts:(k+1)*n_pts] = aux_vec
     
-    return res_vec
+    return rot_vec.T
 
 
 def rotate_by_60deg(vec):
