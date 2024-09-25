@@ -6,9 +6,10 @@ import os
 from read_config import readConfig
 from zernike_polynomials import computeZernike as czern
 from rotate_coordinates import rotate_by_60deg as crot60
-
-from astropy.io import fits
 from read_and_write_fits import write_to_fits
+from read_and_write_fits import read_fits_file as read_fits
+
+# from astropy.io import fits
 
 
 # Useful variables
@@ -39,7 +40,7 @@ class Hexagons():
             os.mkdir(TN)
         except FileExistsError: # Folder already existing
             pass
-        
+            
         self.define_hex_centers()
         self.define_local_mask()
         self.define_hexagon_valid_indices()
@@ -52,11 +53,12 @@ class Hexagons():
         centers of all hexagonal segments """
         
         file_path = self.savepath + 'hex_centers_coords.fits'
+
         try:
-            with fits.open(file_path) as hdu:
-                self.hex_centers = np.array(hdu[0].data)
+            #     with fits.open(file_path) as hdu:
+            #         self.hex_centers = np.array(hdu[0].data)
+            self.hex_centers = read_fits(file_path)
             return
-        
         except FileNotFoundError:
             pass
         
@@ -90,7 +92,7 @@ class Hexagons():
                         self.hex_centers[hex_ctr+j+1+(i+1)*ring_ctr,:] = aux
 
         # Save to fits
-        write_to_fits(self.hex_centers,file_path)
+        write_to_fits(self.hex_centers, file_path)
         
 
     def define_local_mask(self):
@@ -99,8 +101,9 @@ class Hexagons():
         
         file_path = self.savepath + 'hexagon_mask.fits'
         try:
-            with fits.open(file_path) as hdu:
-                self.local_mask = np.array(hdu[0].data).astype(bool)
+            # with fits.open(file_path) as hdu:
+            #     self.local_mask = np.array(hdu[0].data).astype(bool)
+            self.local_mask = read_fits(file_path, is_bool = True)
             return
         
         except FileNotFoundError:
@@ -123,7 +126,7 @@ class Hexagons():
         self.local_mask = mask
         
         # Save to fits
-        write_to_fits((self.local_mask).astype(np.uint8),file_path)
+        write_to_fits((self.local_mask).astype(np.uint8), file_path)
         
         
         
@@ -133,10 +136,14 @@ class Hexagons():
         
         file_path = self.savepath + 'segments_indices.fits'
         try:
-            with fits.open(file_path) as hdu:
-                self.hex_indices = np.array(hdu[0].data)
-                self.global_row_idx = np.array(hdu[1].data)
-                self.global_col_idx = np.array(hdu[2].data)
+            # with fits.open(file_path) as hdu:
+            #     self.hex_indices = np.array(hdu[0].data)
+            #     self.global_row_idx = np.array(hdu[1].data)
+            #     self.global_col_idx = np.array(hdu[2].data)
+            out = read_fits(file_path, list_len = 3)
+            self.hex_indices = out[0]
+            self.global_row_idx = out[1]
+            self.global_col_idx = out[2]
             return
         
         except FileNotFoundError:
@@ -178,7 +185,7 @@ class Hexagons():
         self.hex_indices = np.reshape(hex_idx,[n_hex,valid_len])
         
         # Save to fits
-        write_to_fits([self.hex_indices,self.global_row_idx,self.global_col_idx],file_path)
+        write_to_fits([self.hex_indices,self.global_row_idx,self.global_col_idx], file_path)
         
         # # Save in a matrix, with dimensions [n_hex,2,valid_len]
         # hex_mat_idx = np.reshape(self.hex_indices,[2,n_hex,valid_len])
@@ -192,8 +199,9 @@ class Hexagons():
         
         file_path = self.savepath + 'segments_mask.fits'
         try:
-            with fits.open(file_path) as hdu:
-                self.global_mask = np.array(hdu[0].data).astype(bool)
+            # with fits.open(file_path) as hdu:
+            #     self.global_mask = np.array(hdu[0].data).astype(bool)
+            self.global_mask = read_fits(file_path, is_bool = True)
             return
         
         except FileNotFoundError:
@@ -222,7 +230,7 @@ class Hexagons():
         self.global_mask = ~mask
         
         # Save to fits
-        write_to_fits((self.global_mask).astype(np.uint8),file_path)
+        write_to_fits((self.global_mask).astype(np.uint8), file_path)
         
         
         
@@ -235,12 +243,13 @@ class Hexagons():
             
         file_path = self.savepath + str(n_modes) + 'modes_interaction_matrix.fits'
         try:
-            with fits.open(file_path) as hdu:
-                # self.int_mat = csr_matrix(hdu[0].data)
-                mat_data = hdu[0].data
-                indices = hdu[1].data
-                indptr = hdu[2].data
-                self.int_mat = csr_matrix((mat_data,indices,indptr), int_mat_shape)
+            # with fits.open(file_path) as hdu:
+            #     # self.int_mat = csr_matrix(hdu[0].data)
+            #     mat_data = hdu[0].data
+            #     indices = hdu[1].data
+            #     indptr = hdu[2].data
+            #     self.int_mat = csr_matrix((mat_data,indices,indptr), int_mat_shape)
+            self.int_mat = read_fits(file_path, sparse_shape = int_mat_shape)
             return
         
         except FileNotFoundError:
@@ -280,11 +289,13 @@ class Hexagons():
         
         file_path = self.savepath + 'segment_scramble.fits'
         try:
-            with fits.open(file_path) as hdu:
-                img = np.array(hdu[0].data)
-                img_mask = np.array(hdu[1].data).astype(bool)
-            masked_img = np.ma.masked_array(img,mask=img_mask)
+            # with fits.open(file_path) as hdu:
+            #     img = np.array(hdu[0].data)
+            #     img_mask = np.array(hdu[1].data).astype(bool)
+            # masked_img = np.ma.masked_array(img,mask=img_mask)
+            masked_img = read_fits(file_path, is_ma = True)
             return masked_img
+        
         except FileNotFoundError:
             pass
         
@@ -310,7 +321,6 @@ class Hexagons():
         flat_img = self.int_mat*mode_vec
         
         # Reshape and mask image
-        print('Plotting....')
         img = np.reshape(flat_img, np.shape(self.global_mask))
         masked_img = np.ma.masked_array(img, self.global_mask)
         
