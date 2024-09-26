@@ -2,9 +2,11 @@ import numpy as np
 from scipy.spatial import Delaunay
 import matplotlib.pyplot as plt
 
+from scipy.sparse import csr_matrix
+
 from read_config import readConfig
 from read_and_write_fits import write_to_fits
-from read_and_write_fits import read_fits_file as read_fits
+from read_and_write_fits import read_fits
 
 from rotate_coordinates import rotate_by_60deg as rot60
 from rotate_coordinates import cw_rotate
@@ -142,15 +144,20 @@ class Mesh():
         self.local_mesh_coords = mesh_points
         write_to_fits(mesh_points, file_path)
         
-        return mesh_points
+        # return mesh_points
     
     
     
-    def act_influence_functions(self, mask):
+    def act_influence_functions(self, hex_indices, mask, n_w, n_hex):
+        
+        n_acts = len(self.local_act_coords)
+        iff_mat_shape = np.array([n_w, n_hex*n_acts])
         
         file_path = self.savepath + 'fake_local_influence_functions.fits'
+        IFFmat_path = self.savepath + 'fake_influence_function_matrix.fits'
         try:
-            self.local_IFFs = read_fits(file_path, list_len = len(self.local_act_coords), is_ma = True)
+            self.local_IFFs = read_fits(file_path, list_len = n_acts, is_ma = True)
+            self.IFF = read_fits(IFFmat_path, sparse_shape = iff_mat_shape)
             return
         
         except FileNotFoundError:
@@ -163,6 +170,9 @@ class Mesh():
         
         masked_img_cube = []
         hex_pix_len = self.hex_side_len * self.pix_scale
+        
+        hex_data_len = np.sum(1-mask)
+        masked_data_vec = np.zeros([n_acts*hex_data_len])
         
         for k, coords in enumerate(self.local_act_coords):
             x_act = int(coords[0]*hex_pix_len) + Y/2
@@ -178,6 +188,8 @@ class Mesh():
             masked_img = np.ma.masked_array(uint8_img, mask)
             masked_img_cube.append(masked_img)
             
+            masked_data_vec[k*hex_data_len:(k+1)*hex_data_len] = masked_data.flatten()
+            
             # masked_data = masked_img.data[~masked_img.mask]
             # print([np.max(masked_data),np.min(masked_data)])
             
@@ -185,11 +197,29 @@ class Mesh():
             # plt.imshow(masked_img,origin='lower')
             # plt.scatter(x_act,y_act,c='black')
             
+        print('Computing IFF matrix...')      
+        row_indices = np.tile(hex_indices, n_acts)
+        row = row_indices.flatten()
+
+        act_indices = np.arange(n_acts*n_hex)
+        col = np.repeat(act_indices, hex_data_len)
+
+        data = np.tile(masked_data_vec, n_hex)
+
+        iff_mat = csr_matrix((data, (row,col)), iff_mat_shape)
+            
         # Save result
         self.local_IFFs = masked_img_cube
         write_to_fits(masked_img_cube, file_path)
             
-        return masked_img_cube
+        # Save to fits
+        print('Saving interaction matrix...') 
+        self.IFF = iff_mat
+        data_list = []
+        data_list.append(iff_mat.data)
+        data_list.append(iff_mat.indices)
+        data_list.append(iff_mat.indptr)
+        write_to_fits(data_list, IFFmat_path)
 
 
 
