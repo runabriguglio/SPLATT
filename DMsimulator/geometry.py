@@ -7,7 +7,7 @@ from read_config import readConfig
 from zernike_polynomials import computeZernike as czern
 from rotate_coordinates import rotate_by_60deg as crot60
 from read_and_write_fits import write_to_fits
-from read_and_write_fits import read_fits_file as read_fits
+from read_and_write_fits import read_fits 
 
 # from astropy.io import fits
 
@@ -246,9 +246,9 @@ class Hexagons():
             
         print('Computing interaction matrix...')      
         row_indices = np.tile(self.hex_indices,n_modes)
-        mode_indices = np.arange(int(n_modes*n_hex))
-        
         row = row_indices.flatten()
+        
+        mode_indices = np.arange(int(n_modes*n_hex))
         col = np.repeat(mode_indices,hex_data_len)
         
         data = np.tile(row_modes,n_hex)
