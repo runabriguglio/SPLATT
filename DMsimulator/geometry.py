@@ -55,8 +55,6 @@ class Hexagons():
         file_path = self.savepath + 'hex_centers_coords.fits'
 
         try:
-            #     with fits.open(file_path) as hdu:
-            #         self.hex_centers = np.array(hdu[0].data)
             self.hex_centers = read_fits(file_path)
             return
         except FileNotFoundError:
@@ -101,8 +99,6 @@ class Hexagons():
         
         file_path = self.savepath + 'hexagon_mask.fits'
         try:
-            # with fits.open(file_path) as hdu:
-            #     self.local_mask = np.array(hdu[0].data).astype(bool)
             self.local_mask = read_fits(file_path, is_bool = True)
             return
         
@@ -136,10 +132,6 @@ class Hexagons():
         
         file_path = self.savepath + 'segments_indices.fits'
         try:
-            # with fits.open(file_path) as hdu:
-            #     self.hex_indices = np.array(hdu[0].data)
-            #     self.global_row_idx = np.array(hdu[1].data)
-            #     self.global_col_idx = np.array(hdu[2].data)
             out = read_fits(file_path, list_len = 3)
             self.hex_indices = out[0]
             self.global_row_idx = out[1]
@@ -199,8 +191,6 @@ class Hexagons():
         
         file_path = self.savepath + 'segments_mask.fits'
         try:
-            # with fits.open(file_path) as hdu:
-            #     self.global_mask = np.array(hdu[0].data).astype(bool)
             self.global_mask = read_fits(file_path, is_bool = True)
             return
         
@@ -243,12 +233,6 @@ class Hexagons():
             
         file_path = self.savepath + str(n_modes) + 'modes_interaction_matrix.fits'
         try:
-            # with fits.open(file_path) as hdu:
-            #     # self.int_mat = csr_matrix(hdu[0].data)
-            #     mat_data = hdu[0].data
-            #     indices = hdu[1].data
-            #     indptr = hdu[2].data
-            #     self.int_mat = csr_matrix((mat_data,indices,indptr), int_mat_shape)
             self.int_mat = read_fits(file_path, sparse_shape = int_mat_shape)
             return
         
@@ -289,10 +273,6 @@ class Hexagons():
         
         file_path = self.savepath + 'segment_scramble.fits'
         try:
-            # with fits.open(file_path) as hdu:
-            #     img = np.array(hdu[0].data)
-            #     img_mask = np.array(hdu[1].data).astype(bool)
-            # masked_img = np.ma.masked_array(img,mask=img_mask)
             masked_img = read_fits(file_path, is_ma = True)
             return masked_img
         

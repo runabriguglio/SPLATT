@@ -6,8 +6,7 @@ from geometry import Hexagons
 # from zernike_polynomials import computeZernike as czern
 
 # Mesh testing
-from finite_elements import segment_act_coordinates
-from finite_elements import mesh_from_act_coordinates
+from finite_elements import Mesh
 from scipy.spatial import Delaunay
 
 config_tn = '20240920'
@@ -30,16 +29,15 @@ plt.imshow(img,origin='lower',cmap='hot')
 hexes.draw_hex_outline()
 
 
-# Testing mesh
-hex_side_len = hexes.hex_side_len
-act_pitch = 0.3
-capsens_radius = 0.04
-points_per_side = 9 # very low for visualization purposes 
 
-local_act_coords = segment_act_coordinates(act_pitch, capsens_radius, hex_side_len)
-points = mesh_from_act_coordinates(points_per_side,local_act_coords, capsens_radius, hex_side_len)
+# Mesh class
+acts = Mesh(config_tn)
+acts.act_influence_functions(hexes.local_mask)
 
-act_size = capsens_radius * 250 * np.ones(len(local_act_coords)) # plotting only
+
+# Plotting actuator locations
+local_mesh_points = acts.local_mesh_coords
+local_act_coords = acts.local_act_coords
 
 plt.figure()
 plt.grid('on')
@@ -47,15 +45,21 @@ plt.axis('equal')
 
 for center in hexes.hex_centers:
     # print(center)
-    coords = points*hex_side_len + center
-    global_act_coords = local_act_coords*hex_side_len + center
-    tria = Delaunay(coords) #,incremental=True
-    plt.triplot(coords[:,0], coords[:,1], tria.simplices,c='black')
-    plt.scatter(global_act_coords[:,0], global_act_coords[:,1],s=act_size,c='red')
-
+    mesh_coords = local_mesh_points*hexes.hex_side_len + center
+    global_act_coords = local_act_coords*hexes.hex_side_len + center
+    tria = Delaunay(mesh_coords) #,incremental=True
+    plt.triplot(mesh_coords[:,0], mesh_coords[:,1], tria.simplices,c='black')
+    plt.scatter(global_act_coords[:,0], global_act_coords[:,1],c='red')
+    
 plt.xlim([-2,2])
 plt.ylim([-2,2])
 
+
+# Plotting fake influence functions
+masked_cube = acts.local_IFFs
+for img in masked_cube:
+    plt.figure()
+    plt.imshow(img,origin='lower')
 
 
 
