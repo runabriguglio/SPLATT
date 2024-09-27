@@ -9,7 +9,7 @@ from finite_elements import Mesh
 
 # from scipy.sparse.linalg import svds
 from scipy.sparse.linalg import lsqr
-from scipy.sparse import csr_matrix
+# from scipy.sparse import csr_matrix
 
 config_tn = '20240920'
 hexes = Hexagons(config_tn)
@@ -21,7 +21,7 @@ plt.imshow(mask,origin='lower',cmap='gray')
 
 # Interaction matrix and initial scramble
 n_modes = 11
-hexes.calculate_interaction_matrix(n_modes)
+hexes.create_interaction_matrix(n_modes)
 img = hexes.segment_scramble()
 plt.figure()
 plt.axis('equal')

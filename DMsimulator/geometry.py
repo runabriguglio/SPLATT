@@ -5,7 +5,8 @@ import os
 
 from read_config import readConfig
 from zernike_polynomials import computeZernike as czern
-from rotate_coordinates import rotate_by_60deg as crot60
+# from rotate_coordinates import rotate_by_60deg as crot60
+from rotate_coordinates import cw_rotate as crot
 from read_and_write_fits import write_to_fits
 from read_and_write_fits import read_fits 
 
@@ -30,7 +31,7 @@ class Hexagons():
 
         self.gap = dm_par[0]
         self.hex_side_len = dm_par[1]
-        self.n_rings = dm_par[2]
+        self.n_rings = int(dm_par[2])
 
         self.pix_scale = opt_par[0]
         
@@ -65,6 +66,7 @@ class Hexagons():
         
         # Height of hex + gap
         L = self.gap + 2.*self.hex_side_len*SIN60
+        angles = np.pi/3. * (np.arange(5)+1)
         
         for ring_ctr in range(self.n_rings):
             
@@ -75,9 +77,10 @@ class Hexagons():
             aux = np.array([R*SIN60,R*COS60])
             self.hex_centers[hex_ctr,:] = aux
             
-            for i in range(5):
-                aux = crot60(aux)
-                self.hex_centers[hex_ctr+(i+1)*ring_ctr,:] = aux
+            # for i in range(5):
+            #     aux = crot60(aux)
+            #     self.hex_centers[hex_ctr+(i+1)*ring_ctr,:] = aux
+            self.hex_centers[hex_ctr+ring_ctr:hex_ctr+6*ring_ctr:ring_ctr,:] = crot(aux, angles)
             
             if ring_ctr > 1:
                 for j in range(ring_ctr-1):
@@ -85,9 +88,10 @@ class Hexagons():
                     aux[0] = self.hex_centers[hex_ctr,0] 
                     aux[1] = self.hex_centers[hex_ctr,1] - (j+1)*shift
                     self.hex_centers[hex_ctr+j+1,:] = aux
-                    for i in range(5):
-                        aux = crot60(aux)
-                        self.hex_centers[hex_ctr+j+1+(i+1)*ring_ctr,:] = aux
+                    # for i in range(5):
+                    #     aux = crot60(aux)
+                    #     self.hex_centers[hex_ctr+j+1+(i+1)*ring_ctr,:] = aux
+                    self.hex_centers[hex_ctr+j+1+ring_ctr:hex_ctr+j+1+6*ring_ctr:ring_ctr,:] = crot(aux, angles)
 
         # Save to fits
         write_to_fits(self.hex_centers, file_path)
@@ -207,8 +211,7 @@ class Hexagons():
         mask_shape = np.array([int(Ny),int(Nx)])
         mask = np.zeros(mask_shape,dtype = bool)
         
-        #valid_len = len(self.global_row_idx)
-        valid_len = np.sum(1-self.global_mask)
+        valid_len = np.size(self.hex_indices)
         
         data = np.ones(valid_len, dtype=bool)
         
@@ -224,7 +227,7 @@ class Hexagons():
         
         
         
-    def calculate_interaction_matrix(self,n_modes):
+    def create_interaction_matrix(self,n_modes):
         """ Computes the interaction matrix: 
             [n_pixels,n_hexes*n_modes] """
             
@@ -288,9 +291,9 @@ class Hexagons():
         mode_vec = np.random.randn(n_hex*n_modes)
         
         # Probability inversely proportional to spatial frequency
-        m = int(np.round((np.sqrt(8*n_modes)-1.)/2.))
+        m = int(np.ceil((np.sqrt(8*n_modes)-1.)/2.))
         freq_vec = np.repeat(np.arange(m)+1,np.arange(m)+1)
-        prob_vec = 1./freq_vec[0:n_modes]
+        prob_vec = 1./freq_vec[:n_modes]
         prob_vec_rep = np.tile(prob_vec,n_hex)
         
         # Modulate on the probability
