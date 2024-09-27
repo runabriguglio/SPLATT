@@ -1,7 +1,8 @@
 import numpy as np
-from scipy.spatial import Delaunay
+# from scipy.spatial import Delaunay
 import matplotlib.pyplot as plt
 
+from scipy.interpolate import griddata
 from scipy.sparse import csr_matrix
 
 from read_config import readConfig
@@ -163,10 +164,10 @@ class Mesh():
         except FileNotFoundError:
             pass
         
-        dist = lambda x,y: np.sqrt(x**2+y**2)
-
+        # dist = lambda x,y: np.sqrt(x**2+y**2)
+        # r = self.act_pitch # np.max([X,Y])
+        
         X,Y = np.shape(mask)
-        r = np.max([X,Y])
         
         masked_img_cube = []
         hex_pix_len = self.hex_side_len * self.pix_scale
@@ -174,16 +175,31 @@ class Mesh():
         hex_data_len = np.sum(1-mask)
         masked_data_vec = np.zeros([n_acts*hex_data_len])
         
+        x_acts = self.local_act_coords[:,0]
+        y_acts = self.local_act_coords[:,1]
+        
+        x_acts_pix = (x_acts*hex_pix_len).astype(int) + Y/2
+        y_acts_pix = (y_acts*hex_pix_len).astype(int) + X/2
+        
+        Xm,Ym = np.meshgrid(np.arange(X),np.arange(Y))
+
+        
         for k, coords in enumerate(self.local_act_coords):
-            x_act = int(coords[0]*hex_pix_len) + Y/2
-            y_act = int(coords[1]*hex_pix_len) + X/2
+            # x_act = int(coords[0]*hex_pix_len) + Y/2
+            # y_act = int(coords[1]*hex_pix_len) + X/2
             
-            img = np.fromfunction(lambda i,j: r - dist(j-x_act, i-y_act), [X,Y])
+            # img = np.fromfunction(lambda i,j: r - dist(j-x_act, i-y_act), [X,Y])
+            data = np.zeros(n_acts)
+            data[k] = 1
+            
+            img = griddata((y_acts_pix, x_acts_pix), data, (Xm,Ym) )
+            img = img.T
             
             # Normalization to uint8
             masked_data = img[~mask]
-            norm = np.max(masked_data)-np.min(masked_data)
-            uint8_img = ((2**8-1) * (img - np.min(masked_data))/norm).astype(np.uint8)
+            # norm = np.max(masked_data)-np.min(masked_data)
+            # uint8_img = ((2**8-1) * (img - np.min(masked_data))/norm).astype(np.uint8)
+            uint8_img = img
             
             masked_img = np.ma.masked_array(uint8_img, mask)
             masked_img_cube.append(masked_img)
@@ -193,9 +209,9 @@ class Mesh():
             # masked_data = masked_img.data[~masked_img.mask]
             # print([np.max(masked_data),np.min(masked_data)])
             
-            # plt.figure()
-            # plt.imshow(masked_img,origin='lower')
-            # plt.scatter(x_act,y_act,c='black')
+            plt.figure()
+            plt.imshow(masked_img,origin='lower')
+            # plt.scatter(x_acts_pix[k],y_acts_pix[k],c='black')
             
         print('Computing IFF matrix...')      
         row_indices = np.tile(hex_indices, n_acts)
