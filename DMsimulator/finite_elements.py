@@ -164,9 +164,6 @@ class Mesh():
         except FileNotFoundError:
             pass
         
-        # dist = lambda x,y: np.sqrt(x**2+y**2)
-        # r = self.act_pitch # np.max([X,Y])
-        
         X,Y = np.shape(mask)
         
         masked_img_cube = []
@@ -181,37 +178,26 @@ class Mesh():
         x_acts_pix = (x_acts*hex_pix_len).astype(int) + Y/2
         y_acts_pix = (y_acts*hex_pix_len).astype(int) + X/2
         
-        Xm,Ym = np.meshgrid(np.arange(X),np.arange(Y))
-
+        # Xm,Ym = np.meshgrid(np.arange(X),np.arange(Y))
+        Xm,Ym = np.meshgrid(np.arange(Y),np.arange(X))
         
         for k, coords in enumerate(self.local_act_coords):
-            # x_act = int(coords[0]*hex_pix_len) + Y/2
-            # y_act = int(coords[1]*hex_pix_len) + X/2
-            
-            # img = np.fromfunction(lambda i,j: r - dist(j-x_act, i-y_act), [X,Y])
             data = np.zeros(n_acts)
             data[k] = 1
             
-            img = griddata((y_acts_pix, x_acts_pix), data, (Xm,Ym) )
-            img = img.T
+            img = griddata((x_acts_pix, y_acts_pix), data, (Xm,Ym), fill_value = 0.)
             
             # Normalization to uint8
             masked_data = img[~mask]
-            # norm = np.max(masked_data)-np.min(masked_data)
-            # uint8_img = ((2**8-1) * (img - np.min(masked_data))/norm).astype(np.uint8)
-            uint8_img = img
             
-            masked_img = np.ma.masked_array(uint8_img, mask)
+            masked_img = np.ma.masked_array(img, mask)
             masked_img_cube.append(masked_img)
             
             masked_data_vec[k*hex_data_len:(k+1)*hex_data_len] = masked_data.flatten()
             
-            # masked_data = masked_img.data[~masked_img.mask]
-            # print([np.max(masked_data),np.min(masked_data)])
-            
-            plt.figure()
-            plt.imshow(masked_img,origin='lower')
-            # plt.scatter(x_acts_pix[k],y_acts_pix[k],c='black')
+            # plt.figure()
+            # plt.imshow(masked_img,origin='lower')
+            # # plt.scatter(x_acts_pix[k],y_acts_pix[k],c='black')
             
         print('Computing IFF matrix...')      
         row_indices = np.tile(hex_indices, n_acts)
@@ -229,7 +215,7 @@ class Mesh():
         write_to_fits(masked_img_cube, file_path)
             
         # Save to fits
-        print('Saving interaction matrix...') 
+        print('Saving influence function matrix...') 
         self.IFF = iff_mat
         data_list = []
         data_list.append(iff_mat.data)

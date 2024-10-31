@@ -18,6 +18,7 @@ hexes = Hexagons(config_tn)
 mask = hexes.global_mask
 plt.figure()
 plt.imshow(mask,origin='lower',cmap='gray')
+plt.title('Segment Mask')
 
 # Interaction matrix and initial scramble
 n_modes = 11
@@ -26,13 +27,15 @@ img = hexes.segment_scramble()
 plt.figure()
 plt.axis('equal')
 plt.imshow(img,origin='lower',cmap='hot')
+plt.title('Segment Scramble')
 plt.colorbar()
 
 w = img.data.flatten()
 
 # RECONSTRUCTOR
-acc = 1e-7
-command, itstop, itn, r1norm, r2norm, anorm, acond, arnorm, xnorm, var  = lsqr(hexes.int_mat, w, atol = acc)
+acc = 1e-10
+INT_MAT = hexes.int_mat
+command, itstop, itn, r1norm, r2norm, anorm, acond, arnorm, xnorm, var  = lsqr(INT_MAT, w, atol = acc)
 w_star = hexes.int_mat * command
 
 img_star = np.reshape(w_star, np.shape(hexes.global_mask))
@@ -42,6 +45,7 @@ masked_delta_img = np.ma.masked_array(delta_img, hexes.global_mask)
 plt.figure()
 plt.axis('equal')
 plt.imshow(masked_delta_img,origin='lower')
+plt.title('Flattening result')
 plt.colorbar()
 
 
@@ -56,14 +60,30 @@ n_w = np.size(hexes.global_mask)
 acts.act_influence_functions(hexes.hex_indices, hexes.local_mask, n_w, n_hex)
 
 n_acts_per_hex = len(acts.local_act_coords)
-iff_mat = acts.IFF
+IFF = acts.IFF
+
+# Shape command
+shape_vec = np.zeros(n_modes)
+shape_vec[8] = -0.5
+shape_cmd = np.tile(shape_vec, n_hex)
+shapeW = INT_MAT * shape_cmd
+# actCMD, itstop, itn, r1norm, r2norm, anorm, acond, arnorm, xnorm, var  = lsqr(IFF, shapeW, atol = 1e-5)
+
+img = np.reshape(shapeW, np.shape(hexes.global_mask))
+masked_img = np.ma.masked_array(img, hexes.global_mask)
+
+plt.figure()
+plt.axis('equal')
+plt.imshow(masked_img, origin='lower')
+plt.title('Shape command')
+plt.colorbar()
 
 # Testing IFF matrix
 act_command = np.zeros(n_acts_per_hex)
-act_command[0] = 1 
-act_command[-1] = -1
 command = np.tile(act_command, n_hex)
-w_cmd = iff_mat * command
+idx = np.arange(n_hex) * n_acts_per_hex + np.arange(n_hex)
+command[idx] = 1
+w_cmd = IFF * command
 cmd_img = np.reshape(w_cmd, np.shape(hexes.global_mask))
 masked_cmd = np.ma.masked_array(cmd_img, hexes.global_mask)
 
@@ -84,13 +104,20 @@ plt.colorbar()
 #     # print(center)
 #     mesh_coords = local_mesh_points*hexes.hex_side_len + center
 #     global_act_coords = local_act_coords*hexes.hex_side_len + center
-#     tria = Delaunay(mesh_coords) #,incremental=True
-#     plt.triplot(mesh_coords[:,0], mesh_coords[:,1], tria.simplices,c='black')
+#     # tria = Delaunay(mesh_coords) #,incremental=True
+#     # plt.triplot(mesh_coords[:,0], mesh_coords[:,1], tria.simplices,c='black')
 #     plt.scatter(global_act_coords[:,0], global_act_coords[:,1],c='red')
     
 # plt.xlim([-2,2])
 # plt.ylim([-2,2])
 
+# Plotting local act coordinates
+local_act_coords = acts.local_act_coords
+
+plt.figure()
+plt.grid('on')
+plt.axis('equal')
+plt.scatter(local_act_coords[:,0], local_act_coords[:,1],c='red')
 
 # # Plotting fake influence functions
 # masked_cube = acts.local_IFFs

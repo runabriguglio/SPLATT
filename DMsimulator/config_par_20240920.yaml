@@ -1,14 +1,14 @@
 
 [DM]
-n_rings = 3          # number of hexagonal segment rings
+n_rings = 3.          # number of hexagonal segment rings
 hex_side = 1.        # [m] hexagonal side length
-hex_gap = 0.12       # [m] gap between hexagonal segments
-act_pitch = 0.24     # [m] inter-actuator distance
-act_radius = 0.02    # [m] actuator radius
+hex_gap = 0.04       # [m] gap between hexagonal segments
+act_pitch = 0.3     # [m] inter-actuator distance
+act_radius = 0.05    # [m] actuator radius
 
 [OPT]
 pixel_scale = 200.  # pixels per meter
-# None of the foolowing is currently implemented:
+# None of the following is currently implemented:
 opt_radius = 20.    # [m] pupil radius
 cw_rot_angle = 0.   # [deg] clockwise pupil rotation angle about optical axis
 pupil_x = 0.        # [m] pupil's center x coordinate

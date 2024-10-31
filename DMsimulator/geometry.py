@@ -36,6 +36,7 @@ class Hexagons():
         self.pix_scale = opt_par[0]
         
         self.savepath = './' + TN + '/'
+        self.n_hex = n_hexagons(self.n_rings)
         
         try: # Create new folder
             os.mkdir(TN)
@@ -77,9 +78,6 @@ class Hexagons():
             aux = np.array([R*SIN60,R*COS60])
             self.hex_centers[hex_ctr,:] = aux
             
-            # for i in range(5):
-            #     aux = crot60(aux)
-            #     self.hex_centers[hex_ctr+(i+1)*ring_ctr,:] = aux
             self.hex_centers[hex_ctr+ring_ctr:hex_ctr+6*ring_ctr:ring_ctr,:] = crot(aux, angles)
             
             if ring_ctr > 1:
@@ -88,9 +86,6 @@ class Hexagons():
                     aux[0] = self.hex_centers[hex_ctr,0] 
                     aux[1] = self.hex_centers[hex_ctr,1] - (j+1)*shift
                     self.hex_centers[hex_ctr+j+1,:] = aux
-                    # for i in range(5):
-                    #     aux = crot60(aux)
-                    #     self.hex_centers[hex_ctr+j+1+(i+1)*ring_ctr,:] = aux
                     self.hex_centers[hex_ctr+j+1+ring_ctr:hex_ctr+j+1+6*ring_ctr:ring_ctr,:] = crot(aux, angles)
 
         # Save to fits
@@ -169,7 +164,6 @@ class Hexagons():
         rep_local_row = np.tile(local_row_idx,n_hex)
         rep_local_col = np.tile(local_col_idx,n_hex)
         
-        # valid_len = len(local_row_idx)
         valid_len = np.sum(1-self.local_mask)
         rep_pix_coords = np.repeat(self.pix_coords, valid_len, axis = 0)
         
