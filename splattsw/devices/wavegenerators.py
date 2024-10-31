@@ -3,7 +3,7 @@
  
 import sys
 import time
-import  SPLATT.splattsw.devices.wavegenerators_scpi as scpi
+import  SPLATT.splattsw.devices.devices_scipi as scpi
 
 print("Warning!! Load your device with function ''update_device(deviceName)''")
 
