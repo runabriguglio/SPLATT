@@ -1,4 +1,4 @@
-import SPLATT.splattsw.devices.devices_scipi as scpi
+import SPLATT.splattsw.devices.devices_scpi as scpi
 
 name = 'Rigol_PowerSupplier'
 default_state = 'splatt.RSF'
