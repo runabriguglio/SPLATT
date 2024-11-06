@@ -23,30 +23,33 @@ plt.title('Segment Mask')
 # Interaction matrix and initial scramble
 n_modes = 11
 hexes.create_interaction_matrix(n_modes)
-img = hexes.segment_scramble()
+img = hexes.segment_scramble()*10e-6
 plt.figure()
-plt.axis('equal')
-plt.imshow(img,origin='lower',cmap='hot')
+plt.imshow(img,origin='lower',cmap='hot_r')
 plt.title('Segment Scramble')
 plt.colorbar()
 
 w = img.data.flatten()
 
-# RECONSTRUCTOR
-acc = 1e-10
+# # RECONSTRUCTOR
+# acc = 1e-7
 INT_MAT = hexes.int_mat
-command, itstop, itn, r1norm, r2norm, anorm, acond, arnorm, xnorm, var  = lsqr(INT_MAT, w, atol = acc)
-w_star = hexes.int_mat * command
+# command, itstop, itn, r1norm, r2norm, anorm, acond, arnorm, xnorm, var  = lsqr(INT_MAT, w, atol = acc)
+# w_star = INT_MAT * command
 
-img_star = np.reshape(w_star, np.shape(hexes.global_mask))
-delta_img = img - img_star
-masked_delta_img = np.ma.masked_array(delta_img, hexes.global_mask)
+# img_star = np.reshape(w_star, np.shape(hexes.global_mask))
+# plt.figure()
+# plt.imshow(np.ma.masked_array(img_star,hexes.global_mask),origin='lower',cmap='hot_r')
+# plt.title('Correction command')
+# plt.colorbar()
+# delta_img = img - img_star
+# # delta_img = np.reshape(w-w_star, np.shape(hexes.global_mask))
+# masked_delta_img = np.ma.masked_array(delta_img, hexes.global_mask)
 
-plt.figure()
-plt.axis('equal')
-plt.imshow(masked_delta_img,origin='lower')
-plt.title('Flattening result')
-plt.colorbar()
+# plt.figure()
+# plt.imshow(masked_delta_img,origin='lower')
+# plt.title('Flattening result')
+# plt.colorbar()
 
 
 # # Draw hexes and inscribed circle
@@ -64,7 +67,7 @@ IFF = acts.IFF
 
 # Shape command
 shape_vec = np.zeros(n_modes)
-shape_vec[8] = -0.5
+shape_vec[8] = 1
 shape_cmd = np.tile(shape_vec, n_hex)
 shapeW = INT_MAT * shape_cmd
 # actCMD, itstop, itn, r1norm, r2norm, anorm, acond, arnorm, xnorm, var  = lsqr(IFF, shapeW, atol = 1e-5)
@@ -73,7 +76,6 @@ img = np.reshape(shapeW, np.shape(hexes.global_mask))
 masked_img = np.ma.masked_array(img, hexes.global_mask)
 
 plt.figure()
-plt.axis('equal')
 plt.imshow(masked_img, origin='lower')
 plt.title('Shape command')
 plt.colorbar()
@@ -88,7 +90,6 @@ cmd_img = np.reshape(w_cmd, np.shape(hexes.global_mask))
 masked_cmd = np.ma.masked_array(cmd_img, hexes.global_mask)
 
 plt.figure()
-plt.axis('equal')
 plt.imshow(masked_cmd, origin='lower')
 plt.colorbar()
 
@@ -126,6 +127,22 @@ plt.scatter(local_act_coords[:,0], local_act_coords[:,1],c='red')
 #     plt.imshow(img,origin='lower')
     
 
+# RECONSTRUCTOR
+acc = 1e-9
+command, itstop, itn, r1norm, r2norm, anorm, acond, arnorm, xnorm, var  = lsqr(IFF, w, atol = acc)
+w_star = IFF * command
 
+img_star = np.reshape(w_star, np.shape(hexes.global_mask))
+plt.figure()
+plt.imshow(np.ma.masked_array(img_star,hexes.global_mask),origin='lower',cmap='hot_r')
+plt.title('Correction command')
+plt.colorbar()
+delta_img = np.reshape(w-w_star, np.shape(hexes.global_mask))
+masked_delta_img = np.ma.masked_array(delta_img, hexes.global_mask)
+
+plt.figure()
+plt.imshow(masked_delta_img,origin='lower')
+plt.title('Flattening result')
+plt.colorbar()
 
 
