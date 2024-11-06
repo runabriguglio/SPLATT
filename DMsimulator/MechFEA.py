@@ -17,7 +17,7 @@ c = E/2/(1+nu)
 
 E_mat = np.array([[a,b,0],[b,a,0],[0,0,c]])
 
-# SHell's thickness
+# Shell's thickness
 t = 1e-3 #[m]
 
 stiff_mat = t * E_mat
