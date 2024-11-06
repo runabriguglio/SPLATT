@@ -1,11 +1,11 @@
 import numpy as np
 import os
 from scipy.sparse import csr_matrix
-from scipy.interpolate import griddata
+# from scipy.interpolate import griddata
 
 from read_config import readConfig
 from zernike_polynomials import computeZernike as czern
-from rotate_coordinates import cw_rotate as crot
+# from rotate_coordinates import cw_rotate as crot
 from read_and_write_fits import write_to_fits
 from read_and_write_fits import read_fits 
 
@@ -264,30 +264,30 @@ class Hexagon():
         except FileNotFoundError:
             pass
 
-        print('Computing IFF matrix...')      
-        #x, y = in_mesh[:, 0], in_mesh[:, 1]
-        #new_x = np.linspace(min(x), max(x), npix)
-        #new_y = np.linspace(min(y), max(y), npix)
-        #gx, gy = np.meshgrid(new_x, new_y)
-        #if_grid = griddata((x, y), if_matteo, (gx, gy), method='linear'
+        # print('Computing IFF matrix...')      
+        # #x, y = in_mesh[:, 0], in_mesh[:, 1]
+        # #new_x = np.linspace(min(x), max(x), npix)
+        # #new_y = np.linspace(min(y), max(y), npix)
+        # #gx, gy = np.meshgrid(new_x, new_y)
+        # #if_grid = griddata((x, y), if_matteo, (gx, gy), method='linear'
 
-        act_data = np.zeros(n_acts*n_acts)
-        act_data[n_acts*np.arange(n_acts)] = 1
+        # act_data = np.zeros(n_acts*n_acts)
+        # act_data[n_acts*np.arange(n_acts)] = 1
 
 
-        row_ids = np.tile(self.hex_valid_ids, n_acts)
-        pix_ids = row_ids.flatten()
+        # row_ids = np.tile(self.hex_valid_ids, n_acts)
+        # pix_ids = row_ids.flatten()
 
-        act_ids = np.arange(n_acts)
+        # act_ids = np.arange(n_acts)
 
-        iff_mat = csr_matrix((data, (pix_ids, act_ids)), iff_mat_shape)
+        # iff_mat = csr_matrix((data, (pix_ids, act_ids)), iff_mat_shape)
             
-        # Save local IFF sparse mat
-        print('Saving influence function matrix...') 
-        self.local_IFF = iff_mat
-        data_list = []
-        data_list.append(iff_mat.data)
-        data_list.append(iff_mat.indices)
-        data_list.append(iff_mat.indptr)
-        write_to_fits(data_list, file_path)
+        # # Save local IFF sparse mat
+        # print('Saving influence function matrix...') 
+        # self.local_IFF = iff_mat
+        # data_list = []
+        # data_list.append(iff_mat.data)
+        # data_list.append(iff_mat.indices)
+        # data_list.append(iff_mat.indptr)
+        # write_to_fits(data_list, file_path)
             
