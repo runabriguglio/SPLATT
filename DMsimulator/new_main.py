@@ -25,37 +25,30 @@ global_INTMAT = dm.glob_int_mat
 
 glob_pow = [0,0,0,-1]
 flat_img = global_INTMAT * glob_pow
-full_img = np.reshape(flat_img, np.shape(dm.global_mask))
-img = np.ma.masked_array(full_img, dm.global_mask)
-
-plt.figure()
-plt.imshow(img, origin = 'lower', cmap='winter')
-plt.title('Global Power')
+dm.plot_wavefront(flat_img, 'Global Power')
 
 glob_tilt = [0,1,-1,0]
 flat_img = global_INTMAT * glob_tilt
-full_img = np.reshape(flat_img, np.shape(dm.global_mask))
-img = np.ma.masked_array(full_img, dm.global_mask)
-
-plt.figure()
-plt.imshow(img, origin = 'lower', cmap='winter')
-plt.title('Global Tip/Tilt')
+dm.plot_wavefront(flat_img, 'Global Tip/Tilt')
 
 # Initial segment scramble
 scrambled_img = dm.segment_scramble()
 plt.figure()
-plt.imshow(scrambled_img, origin = 'lower', cmap = 'hot')
+plt.imshow(scrambled_img, origin = 'lower', cmap = 'inferno_r')
 plt.title('Segment scramble')
 
 # Testing single segment commands
-N = 8
-local_INTMAT_N = INTMAT[:,N_modes*(N-1):N_modes*N]
-cmd = np.zeros(N_modes)
-cmd[8] = 1
-flat_img = local_INTMAT_N * cmd
-full_img = np.reshape(flat_img, np.shape(dm.global_mask))
-img = np.ma.masked_array(full_img, dm.global_mask)
+n_hexes = int(np.shape(INTMAT)[1]/N_modes)
+cmd_ids = np.arange(N_modes-1)+1
+cmd_ids = np.tile(cmd_ids,int(np.ceil(n_hexes/(N_modes-1))))
+cmd_ids = cmd_ids[0:n_hexes]
+cmd_ids = cmd_ids + N_modes*np.arange(n_hexes)
+modal_cmd = np.zeros(n_hexes*N_modes)
+modal_cmd[cmd_ids] = 1
+flat_img = INTMAT * modal_cmd
+dm.plot_wavefront(flat_img, 'Zernike modes')
 
-plt.figure()
-plt.imshow(img, origin = 'lower', cmap='winter')
-plt.title('Local Trefoil')
+
+# Testing influence functions
+hexA.simulate_influence_functions()
+IFF = hexA.IFF

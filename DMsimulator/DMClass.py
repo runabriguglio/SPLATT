@@ -1,6 +1,7 @@
 import numpy as np
 import os
 from scipy.sparse import csr_matrix
+import matplotlib.pyplot as plt
 
 from read_config import readConfig
 from zernike_polynomials import computeZernike as czern
@@ -53,6 +54,20 @@ class DM():
         self._define_global_valid_ids()
         self._assemble_global_mask()
         self._define_segment_array()
+        
+        
+    def plot_wavefront(self, wavefront, title_str = None):
+        """ Plots an image on the global mask 
+        given a wavefront """
+        
+        full_img = np.reshape(wavefront, np.shape(self.global_mask))
+        img = np.ma.masked_array(full_img, self.global_mask)
+
+        plt.figure()
+        plt.imshow(img, origin = 'lower', cmap='winter')
+        if title_str is not None:
+            plt.title(title_str)
+        plt.colorbar()
         
         
     def segment_scramble(self):

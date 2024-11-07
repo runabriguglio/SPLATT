@@ -1,10 +1,10 @@
 import numpy as np
 import os
 from scipy.sparse import csr_matrix
-# from scipy.interpolate import griddata
+from scipy.interpolate import griddata
 
 from read_config import readConfig
-from zernike_polynomials import computeZernike as czern
+# from zernike_polynomials import computeZernike as czern
 # from rotate_coordinates import cw_rotate as crot
 from read_and_write_fits import write_to_fits
 from read_and_write_fits import read_fits 
@@ -81,53 +81,12 @@ class Hexagon():
         self._initialize_act_coords()
         self._define_mesh(points_per_side)
 
-
-    # def compute_local_interaction_matrix(self, n_modes):
-    #     """ Computes the local interaction matrix: 
-    #         [n_pixels,n_modes] """
-
-    #     int_mat_shape = [np.size(self.local_mask),n_modes]
-            
-    #     file_path = self.savepath + str(n_modes) + 'modes_local_interaction_matrix.fits'
-    #     try:
-    #         self.int_mat = read_fits(file_path, sparse_shape = int_mat_shape)
-    #         return
-    #     except FileNotFoundError:
-    #         pass
-        
-    #     hex_data_len = np.sum(1-self.local_mask)
-    #     modes = np.zeros([hex_data_len*n_modes])
-    #     for j in range(n_modes):
-    #         modes[hex_data_len*j:hex_data_len*(j+1)] = czern(j+1, self.local_mask)
-            
-    #     print('Computing interaction matrix...')   
-    #     mask = self.local_mask.copy()
-    #     flat_mask = mask.flatten()
-    #     ids = np.arange(len(flat_mask))
-    #     hex_valid_ids = ids[ids[~flat_mask]]
-        
-    #     row_indices = np.tile(hex_valid_ids, n_modes)
-    #     row = row_indices.flatten()
-        
-    #     mode_indices = np.arange(n_modes)
-    #     col = np.repeat(mode_indices, hex_data_len)
-
-    #     self.int_mat = csr_matrix((modes, (row,col)),  
-    #                             int_mat_shape)
-        
-    #     # Save to fits
-    #     print('Saving interaction matrix...') 
-    #     data_list = []
-    #     data_list.append(self.int_mat.data)
-    #     data_list.append(self.int_mat.indices)
-    #     data_list.append(self.int_mat.indptr)
-    #     write_to_fits(data_list, file_path)
     
     def simulate_influence_functions(self):
         """ Simulate the actuator influence functions 
         via grid interpolation """
         
-        n_w = len(self.hex_valid_ids) # length of the masked flattened image
+        n_w = np.size(self.local_mask) # length of the masked flattened image
         n_acts = len(self.local_act_coords)
         iff_mat_shape = np.array([n_w, n_acts])
         
@@ -138,32 +97,44 @@ class Hexagon():
         except FileNotFoundError:
             pass
 
-        # print('Computing IFF matrix...')      
-        # #x, y = in_mesh[:, 0], in_mesh[:, 1]
-        # #new_x = np.linspace(min(x), max(x), npix)
-        # #new_y = np.linspace(min(y), max(y), npix)
-        # #gx, gy = np.meshgrid(new_x, new_y)
-        # #if_grid = griddata((x, y), if_matteo, (gx, gy), method='linear'
+        coords = self.local_act_coords
+        x, y = coords[:, 0], coords[:, 1]
+        npix_x, npix_y = np.shape(self.local_mask)  
+        new_x = np.linspace(min(x), max(x), npix_x)
+        new_y = np.linspace(min(y), max(y), npix_y)
+        gx, gy = np.meshgrid(new_x, new_y)
+        
+        act_data = np.zeros([n_acts,n_acts])
+        act_data[np.arange(n_acts),np.arange(n_acts)] = 1
+        img_cube = griddata((x, y), act_data, (gx, gy), fill_value = 0.)
+        img_cube = np.transpose(img_cube,axes=[1,0,2])
+        
+        cube_mask = np.tile(self.local_mask,n_acts)
+        cube_mask = np.reshape(cube_mask, [npix_x,npix_y,n_acts], order='F')
+        
+        masked_cube = np.ma.masked_array(img_cube,cube_mask)
 
-        # act_data = np.zeros(n_acts*n_acts)
-        # act_data[n_acts*np.arange(n_acts)] = 1
+        data = masked_cube.data[~masked_cube.mask]
+        
+        mask = self.local_mask.copy()
+        flat_mask = mask.flatten()
+        ids = np.arange(len(flat_mask))
+        valid_ids = ids[ids[~flat_mask]]
+        row_ids = np.tile(valid_ids, n_acts)
+        pix_ids = row_ids.flatten()
 
+        act_ids = np.arange(n_acts)
+        act_ids = np.tile(act_ids, len(valid_ids))
 
-        # row_ids = np.tile(self.hex_valid_ids, n_acts)
-        # pix_ids = row_ids.flatten()
-
-        # act_ids = np.arange(n_acts)
-
-        # iff_mat = csr_matrix((data, (pix_ids, act_ids)), iff_mat_shape)
+        iff_mat = csr_matrix((data, (pix_ids, act_ids)), iff_mat_shape)
             
-        # # Save local IFF sparse mat
-        # print('Saving influence function matrix...') 
-        # self.local_IFF = iff_mat
-        # data_list = []
-        # data_list.append(iff_mat.data)
-        # data_list.append(iff_mat.indices)
-        # data_list.append(iff_mat.indptr)
-        # write_to_fits(data_list, file_path)
+        # Save local IFF sparse mat
+        self.IFF = iff_mat
+        data_list = []
+        data_list.append(iff_mat.data)
+        data_list.append(iff_mat.indices)
+        data_list.append(iff_mat.indptr)
+        write_to_fits(data_list, file_path)
 
     
     def update_act_coords(self, new_coords):
