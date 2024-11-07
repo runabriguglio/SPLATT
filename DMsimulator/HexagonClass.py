@@ -67,7 +67,7 @@ class Hexagon():
         self.act_pitch = dm_par[3]
         self.act_radius = dm_par[4]
 
-        self.points_per_side = 9
+        points_per_side = 9
 
         # Manage save path
         self.savepath = './' + TN + '/'
@@ -79,44 +79,91 @@ class Hexagon():
         # Run initialization functions
         self._define_mask()
         self._initialize_act_coords()
-        self._define_mesh()
+        self._define_mesh(points_per_side)
 
 
-    def compute_interaction_matrix(self, n_modes):
-        """ Computes the interaction matrix: 
-            [n_pixels,n_hexes*n_modes] """
+    # def compute_local_interaction_matrix(self, n_modes):
+    #     """ Computes the local interaction matrix: 
+    #         [n_pixels,n_modes] """
 
-        int_mat_shape = [np.size(self.local_mask),n_modes]
+    #     int_mat_shape = [np.size(self.local_mask),n_modes]
             
-        file_path = self.savepath + str(n_modes) + 'modes_local_interaction_matrix.fits'
+    #     file_path = self.savepath + str(n_modes) + 'modes_local_interaction_matrix.fits'
+    #     try:
+    #         self.int_mat = read_fits(file_path, sparse_shape = int_mat_shape)
+    #         return
+    #     except FileNotFoundError:
+    #         pass
+        
+    #     hex_data_len = np.sum(1-self.local_mask)
+    #     modes = np.zeros([hex_data_len*n_modes])
+    #     for j in range(n_modes):
+    #         modes[hex_data_len*j:hex_data_len*(j+1)] = czern(j+1, self.local_mask)
+            
+    #     print('Computing interaction matrix...')   
+    #     mask = self.local_mask.copy()
+    #     flat_mask = mask.flatten()
+    #     ids = np.arange(len(flat_mask))
+    #     hex_valid_ids = ids[ids[~flat_mask]]
+        
+    #     row_indices = np.tile(hex_valid_ids, n_modes)
+    #     row = row_indices.flatten()
+        
+    #     mode_indices = np.arange(n_modes)
+    #     col = np.repeat(mode_indices, hex_data_len)
+
+    #     self.int_mat = csr_matrix((modes, (row,col)),  
+    #                             int_mat_shape)
+        
+    #     # Save to fits
+    #     print('Saving interaction matrix...') 
+    #     data_list = []
+    #     data_list.append(self.int_mat.data)
+    #     data_list.append(self.int_mat.indices)
+    #     data_list.append(self.int_mat.indptr)
+    #     write_to_fits(data_list, file_path)
+    
+    def simulate_influence_functions(self):
+        """ Simulate the actuator influence functions 
+        via grid interpolation """
+        
+        n_w = len(self.hex_valid_ids) # length of the masked flattened image
+        n_acts = len(self.local_act_coords)
+        iff_mat_shape = np.array([n_w, n_acts])
+        
+        file_path = self.savepath + 'fake_local_influence_function_matrix.fits'
         try:
-            self.int_mat = read_fits(file_path, sparse_shape = int_mat_shape)
+            self.IFF = read_fits(file_path, sparse_shape = iff_mat_shape)
             return
         except FileNotFoundError:
             pass
-        
-        hex_data_len = np.sum(1-self.local_mask)
-        modes = np.zeros([hex_data_len*n_modes])
-        for j in range(n_modes):
-            modes[hex_data_len*j:hex_data_len*(j+1)] = czern(j+1, self.local_mask)
-            
-        print('Computing interaction matrix...')      
-        row_indices = np.tile(self.hex_valid_ids, n_modes)
-        row = row_indices.flatten()
-        
-        mode_indices = np.arange(n_modes)
-        col = np.repeat(mode_indices, hex_data_len)
 
-        self.int_mat = csr_matrix((modes, (row,col)),  
-                                int_mat_shape)
-        
-        # Save to fits
-        print('Saving interaction matrix...') 
-        data_list = []
-        data_list.append(self.int_mat.data)
-        data_list.append(self.int_mat.indices)
-        data_list.append(self.int_mat.indptr)
-        write_to_fits(data_list, file_path)
+        # print('Computing IFF matrix...')      
+        # #x, y = in_mesh[:, 0], in_mesh[:, 1]
+        # #new_x = np.linspace(min(x), max(x), npix)
+        # #new_y = np.linspace(min(y), max(y), npix)
+        # #gx, gy = np.meshgrid(new_x, new_y)
+        # #if_grid = griddata((x, y), if_matteo, (gx, gy), method='linear'
+
+        # act_data = np.zeros(n_acts*n_acts)
+        # act_data[n_acts*np.arange(n_acts)] = 1
+
+
+        # row_ids = np.tile(self.hex_valid_ids, n_acts)
+        # pix_ids = row_ids.flatten()
+
+        # act_ids = np.arange(n_acts)
+
+        # iff_mat = csr_matrix((data, (pix_ids, act_ids)), iff_mat_shape)
+            
+        # # Save local IFF sparse mat
+        # print('Saving influence function matrix...') 
+        # self.local_IFF = iff_mat
+        # data_list = []
+        # data_list.append(iff_mat.data)
+        # data_list.append(iff_mat.indices)
+        # data_list.append(iff_mat.indptr)
+        # write_to_fits(data_list, file_path)
 
     
     def update_act_coords(self, new_coords):
@@ -155,11 +202,6 @@ class Hexagon():
         mask[max_y:,:] = np.flip(mask[0:max_y,:],0) # lower
                     
         self.local_mask = mask
-
-        # Save valid indices
-        flat_mask = mask.flatten()
-        ids = np.arange(np.size(mask))
-        self.hex_valid_ids = ids[ids[~flat_mask]]
 
         # Save to fits
         write_to_fits((self.local_mask).astype(np.uint8), file_path)
@@ -202,33 +244,31 @@ class Hexagon():
         self.local_act_coords = act_coords*self.hex_len
         write_to_fits(act_coords, file_path)
 
-        # Compute influence functions
-        self._simulate_influence_functions()
-
+        # self._simulate_influence_functions()
         # self._simulate_FF_matrix(CapSens_R_in = 0., 
         #                          CapSens_R_out = self.act_radius)
 
 
-    def _define_mesh(self):
+    def _define_mesh(self, points_per_side):
         """ Defines the local mesh point coordinates
         on the segment starting from a semi-structured
         point cloud and adding the act locations to it"""
-
-        # Load or create a 'random' mesh for the hexagon 
-        file_path = self.savepath + 'point_cloud_coords.fits'
-        try:
-            self.point_cloud = read_fits(file_path)
-        except FileNotFoundError:
-            point_cloud = semi_structured_point_cloud(self.points_per_side)
-            write_to_fits(point_cloud, file_path)
-
+        
         # Load or create the hexagon's mesh
-        mesh_path = self.savepath + 'local_mesh_points_coords.fits'
+        mesh_path = self.savepath + str(points_per_side) + 'pps_local_mesh_point_coords.fits'
         try:
             self.local_mesh_coords = read_fits(mesh_path)
             return
         except FileNotFoundError:
             pass
+
+        # Load or create a 'random' mesh for the hexagon 
+        file_path = self.savepath + str(points_per_side) + 'pps_point_cloud_coords.fits'
+        try:
+            self.point_cloud = read_fits(file_path)
+        except FileNotFoundError:
+            self.point_cloud = semi_structured_point_cloud(points_per_side)
+            write_to_fits(self.point_cloud, file_path)
         
         # Add points on the actuator locations
         n_acts = len(self.local_act_coords)
@@ -239,55 +279,13 @@ class Hexagon():
         act_points = flat_act_coords + UDLR*self.act_radius/self.hex_len
         act_points = np.reshape(act_points,[n_acts*5,2])
         
-        mesh_points = np.concatenate((self.point_cloud,act_points))
+        mesh_points = np.concatenate((self.point_cloud, act_points))
         
         # Save result
         self.local_mesh_coords = mesh_points
         write_to_fits(mesh_points, mesh_path)
 
-        # self._compute_stiffness_matrix
-        # self._compute_thermal_sensitivity_matrix
+        # self._compute_stiffness_matrix()
+        # self._compute_thermal_sensitivity_matrix()
 
-
-    def _simulate_influence_functions(self):
-        """ Simulate the actuator influence functions 
-        via grid interpolation """
-        
-        n_w = len(self.hex_valid_ids) # length of the masked flattened image
-        n_acts = len(self.local_act_coords)
-        iff_mat_shape = np.array([n_w, n_acts])
-        
-        file_path = self.savepath + 'fake_local_influence_function_matrix.fits'
-        try:
-            self.IFF = read_fits(file_path, sparse_shape = iff_mat_shape)
-            return
-        except FileNotFoundError:
-            pass
-
-        # print('Computing IFF matrix...')      
-        # #x, y = in_mesh[:, 0], in_mesh[:, 1]
-        # #new_x = np.linspace(min(x), max(x), npix)
-        # #new_y = np.linspace(min(y), max(y), npix)
-        # #gx, gy = np.meshgrid(new_x, new_y)
-        # #if_grid = griddata((x, y), if_matteo, (gx, gy), method='linear'
-
-        # act_data = np.zeros(n_acts*n_acts)
-        # act_data[n_acts*np.arange(n_acts)] = 1
-
-
-        # row_ids = np.tile(self.hex_valid_ids, n_acts)
-        # pix_ids = row_ids.flatten()
-
-        # act_ids = np.arange(n_acts)
-
-        # iff_mat = csr_matrix((data, (pix_ids, act_ids)), iff_mat_shape)
-            
-        # # Save local IFF sparse mat
-        # print('Saving influence function matrix...') 
-        # self.local_IFF = iff_mat
-        # data_list = []
-        # data_list.append(iff_mat.data)
-        # data_list.append(iff_mat.indices)
-        # data_list.append(iff_mat.indptr)
-        # write_to_fits(data_list, file_path)
             

@@ -1,7 +1,9 @@
 import numpy as np
 import os
+from scipy.sparse import csr_matrix
 
 from read_config import readConfig
+from zernike_polynomials import computeZernike as czern
 from rotate_coordinates import cw_rotate as crot
 from read_and_write_fits import write_to_fits
 from read_and_write_fits import read_fits 
@@ -48,7 +50,131 @@ class DM():
             pass
         
         self._compute_segment_centers()
+        self._assemble_global_mask()
+        self._define_global_valid_ids()
         self._define_segment_array()
+        
+        
+    def compute_global_interaction_matrix(self,n_modes):
+        """ Computes the global interaction matrix: 
+            [n_pixels,n_modes] """
+            
+        int_mat_shape = [np.size(self.global_mask),n_modes]
+            
+        file_path = self.savepath + str(n_modes) + 'modes_global_interaction_matrix.fits'
+        try:
+            self.int_mat = read_fits(file_path, sparse_shape = int_mat_shape)
+            return
+        except FileNotFoundError:
+            pass
+        
+        data_len = np.sum(1-self.global_mask)
+        modes_data = np.zeros([data_len*n_modes])
+        for j in range(n_modes):
+            modes_data[data_len*j:data_len*(j+1)] = czern(j+1, self.global_mask)
+            
+        mask = self.global_mask.copy()
+        flat_mask = mask.flatten()
+        ids = np.arange(len(flat_mask))
+        valid_ids = ids[ids[~flat_mask]]
+        row_indices = np.tile(valid_ids,n_modes)
+        row = row_indices.flatten()
+        
+        mode_indices = np.arange(n_modes)
+        col = np.repeat(mode_indices,data_len)
+    
+        self.glob_int_mat = csr_matrix((modes_data, (row,col)),  
+                                  int_mat_shape)
+        
+        # Save to fits
+        data_list = []
+        data_list.append(self.glob_int_mat.data)
+        data_list.append(self.glob_int_mat.indices)
+        data_list.append(self.glob_int_mat.indptr)
+        write_to_fits(data_list, file_path)
+        
+        
+        
+    def compute_interaction_matrix(self,n_modes):
+        """ Computes the interaction matrix: 
+            [n_pixels,n_hexes*n_modes] """
+            
+        n_hex = n_hexagons(self.n_rings)
+        int_mat_shape = [np.size(self.global_mask),n_modes*n_hex]
+            
+        file_path = self.savepath + str(n_modes) + 'modes_interaction_matrix.fits'
+        try:
+            self.int_mat = read_fits(file_path, sparse_shape = int_mat_shape)
+            return
+        except FileNotFoundError:
+            pass
+        
+        hex_data_len = np.sum(1-self.local_mask)
+        row_modes = np.zeros([hex_data_len*n_modes])
+        for j in range(n_modes):
+            row_modes[hex_data_len*j:hex_data_len*(j+1)] = czern(j+1, self.local_mask)
+            
+        row_indices = np.tile(self.hex_valid_ids,n_modes)
+        row = row_indices.flatten()
+        
+        mode_indices = np.arange(int(n_modes*n_hex))
+        col = np.repeat(mode_indices,hex_data_len)
+        
+        data = np.tile(row_modes,n_hex)
+    
+        self.int_mat = csr_matrix((data, (row,col)),  
+                                  int_mat_shape)
+        
+        # Save to fits
+        data_list = []
+        data_list.append(self.int_mat.data)
+        data_list.append(self.int_mat.indices)
+        data_list.append(self.int_mat.indptr)
+        write_to_fits(data_list, file_path)
+        
+        
+    def _assemble_global_mask(self):
+        """ Assembles the global segmented mask from
+        the local mask data """
+        
+        # Read local mask file
+        local_mask_path = self.savepath + 'hexagon_mask.fits'
+        self.local_mask = read_fits(local_mask_path, is_bool = True)
+        
+        file_path = self.savepath + 'global_mask.fits'
+        try:
+            self.global_mask = read_fits(file_path, is_bool = True)
+            return
+        except FileNotFoundError:
+            pass
+        
+        # Height of hex + gap
+        L = self.gap + 2.*self.hex_side_len*SIN60
+        
+        # Full mask dimensions
+        Ny = (L*self.n_rings + self.hex_side_len*SIN60)*2*self.pix_scale
+        Nx = (L*self.n_rings*SIN60 + self.hex_side_len*(0.5+COS60))*2*self.pix_scale
+        mask_shape = np.array([int(Ny),int(Nx)])
+        mask = np.zeros(mask_shape, dtype = bool)
+        
+        # Hexagon centers pixel coordinates
+        pix_coords = self.hex_centers*self.pix_scale + np.array([Nx,Ny])/2.
+        
+        valid_len = np.sum(1-self.local_mask)
+        rep_pix_coords = np.repeat(pix_coords, valid_len, axis = 0)
+        
+        # Data
+        data = np.ones(len(rep_pix_coords), dtype=bool)
+        
+        # Sparse matrix assembly
+        sparse_mat = csr_matrix((data, (self.global_row_idx, self.global_col_idx)),  
+                                  mask_shape, dtype=bool)
+        mask += sparse_mat
+            
+        self.global_mask = np.array(~mask)
+        
+        # Save to fits
+        write_to_fits((self.global_mask).astype(np.uint8), file_path)
         
         
         
@@ -60,7 +186,59 @@ class DM():
         self.segments = []
         
         for k,coords in enumerate(self.hex_centers):
-            self.segments.append(Segment(coords, n))
+            self.segments.append(Segment(coords))
+            
+            
+    def _define_global_valid_ids(self):
+        """ Finds the full aperture image (containing all segments)
+        row and column indices for the segments images """
+        
+        file_path = self.savepath + 'segments_indices.fits'
+        try:
+            out = read_fits(file_path, list_len = 3)
+            self.hex_valid_ids = out[0]
+            self.global_row_idx = out[1]
+            self.global_col_idx = out[2]
+            return
+        except FileNotFoundError:
+            pass
+        
+        # Height of hex + gap
+        L = self.gap + 2.*self.hex_side_len*SIN60
+        
+        # Full mask dimensions
+        Ny = (L*self.n_rings + self.hex_side_len*SIN60)*2*self.pix_scale
+        Nx = (L*self.n_rings*SIN60 + self.hex_side_len*(0.5+COS60))*2*self.pix_scale
+        Ntot = np.array([Nx,Ny])
+
+        # Hexagon centers pixel coordinates
+        self.pix_coords = self.hex_centers*self.pix_scale + Ntot/2.
+        
+        My,Mx = np.shape(self.local_mask)
+        x = np.arange(Mx,dtype=int)
+        y = np.arange(My,dtype=int)
+        X,Y = np.meshgrid(x,y)
+        local_X = X[~self.local_mask]
+        local_Y = Y[~self.local_mask]
+        local_row_idx = local_Y - int(My/2)
+        local_col_idx = local_X - int(Mx/2)
+
+        n_hex = n_hexagons(self.n_rings)
+        rep_local_row = np.tile(local_row_idx,n_hex)
+        rep_local_col = np.tile(local_col_idx,n_hex)
+        
+        valid_len = np.sum(1-self.local_mask)
+        rep_pix_coords = np.repeat(self.pix_coords, valid_len, axis = 0)
+        
+        self.global_row_idx = (rep_local_row + rep_pix_coords[:,1]).astype(int)
+        self.global_col_idx = (rep_local_col + rep_pix_coords[:,0]).astype(int)
+        
+        # Save valid hexagon indices
+        hex_idx = self.global_col_idx + self.global_row_idx*int(Nx)
+        self.hex_valid_ids = np.reshape(hex_idx,[n_hex,valid_len])
+        
+        # Save to fits
+        write_to_fits([self.hex_valid_ids,self.global_row_idx,self.global_col_idx], file_path)
         
         
     def _compute_segment_centers(self):
