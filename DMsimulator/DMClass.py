@@ -50,9 +50,54 @@ class DM():
             pass
         
         self._compute_segment_centers()
-        self._assemble_global_mask()
         self._define_global_valid_ids()
+        self._assemble_global_mask()
         self._define_segment_array()
+        
+        
+    def segment_scramble(self):
+        """ Defines an initial segment scramble
+        returning a masked array image """
+        
+        file_path = self.savepath + 'segment_scramble.fits'
+        try:
+            masked_img = read_fits(file_path, is_ma = True)
+            return masked_img
+        except FileNotFoundError:
+            pass
+        
+        n_hex = n_hexagons(self.n_rings)
+        
+        # Retrieve number of modes from the interaction matrix
+        n_modes = int(np.shape(self.int_mat)[1]/n_hex)
+        
+        # Generate random mode coefficients
+        mode_vec = np.random.randn(n_hex*n_modes)
+        
+        # Probability inversely proportional to spatial frequency
+        m = int(np.ceil((np.sqrt(8*n_modes)-1.)/2.))
+        freq_vec = np.repeat(np.arange(m)+1,np.arange(m)+1)
+        prob_vec = 1./freq_vec[:n_modes]
+        prob_vec_rep = np.tile(prob_vec,n_hex)
+        
+        # Modulate on the probability
+        mode_vec = mode_vec * prob_vec_rep
+        
+        # Matrix product
+        flat_img = self.int_mat*mode_vec
+        
+        # # Global modes
+        # n_glob_modes = np.shape(self.glob_int_mat)[1]
+        # glob_mode_vec = np.random.randn(n_glob_modes)
+        # flat_img += self.glob_int_mat*glob_mode_vec
+        
+        # Reshape and mask image
+        img = np.reshape(flat_img, np.shape(self.global_mask))
+        masked_img = np.ma.masked_array(img, self.global_mask)
+        
+        # Save to fits
+        write_to_fits(masked_img, file_path)
+        return masked_img
         
         
     def compute_global_interaction_matrix(self,n_modes):
@@ -63,7 +108,7 @@ class DM():
             
         file_path = self.savepath + str(n_modes) + 'modes_global_interaction_matrix.fits'
         try:
-            self.int_mat = read_fits(file_path, sparse_shape = int_mat_shape)
+            self.glob_int_mat = read_fits(file_path, sparse_shape = int_mat_shape)
             return
         except FileNotFoundError:
             pass
@@ -137,10 +182,6 @@ class DM():
         """ Assembles the global segmented mask from
         the local mask data """
         
-        # Read local mask file
-        local_mask_path = self.savepath + 'hexagon_mask.fits'
-        self.local_mask = read_fits(local_mask_path, is_bool = True)
-        
         file_path = self.savepath + 'global_mask.fits'
         try:
             self.global_mask = read_fits(file_path, is_bool = True)
@@ -187,11 +228,16 @@ class DM():
         
         for k,coords in enumerate(self.hex_centers):
             self.segments.append(Segment(coords))
+            # local_INTMAT = self.int_mat[:,N_modes*(k-1):N_modes*k]
             
             
     def _define_global_valid_ids(self):
         """ Finds the full aperture image (containing all segments)
         row and column indices for the segments images """
+                  
+        # Read local mask file
+        local_mask_path = self.savepath + 'hexagon_mask.fits'
+        self.local_mask = read_fits(local_mask_path, is_bool = True)
         
         file_path = self.savepath + 'segments_indices.fits'
         try:
