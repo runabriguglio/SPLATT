@@ -60,7 +60,6 @@ loc_IFF = hexA.IFF
 #     hex_k_ids = dm.hex_valid_ids[k]
 #     w = w_scramble[hex_k_ids]
 #     acc = 1e-9
-#     #command, itstop, itn, r1norm, r2norm, anorm, acond, arnorm, xnorm, var  = lsqr(local_IFF, w, atol = acc)
 #     command = pinv_IFF @ w
 #     w_star = local_IFF @ command
     
@@ -124,8 +123,33 @@ def meters_to_pixels(coords, mask = hexA.local_mask, pixel_scale = hexA.pix_scal
 pix_act_coords = meters_to_pixels(hexA.local_act_coords)
 plt.figure()
 plt.scatter(pix_act_coords[:,0],pix_act_coords[:,1],s=100)
-plt.axis('equal')
+plt.axis([0,400,0,346])
 
+R = hexA.act_radius*hexA.pix_scale
+max_x, max_y = np.shape(hexA.local_mask)
+
+act_mask = np.zeros_like(hexA.local_mask)
+iff_cube = np.zeros([max_x,max_y, len(pix_act_coords)])
+    
+for k in range(len(pix_act_coords)):
+    act_coord = pix_act_coords[k,:]
+    act_iff = np.fromfunction(lambda i,j: (i-act_coord[1])**2 + (j-act_coord[0])**2 <= R**2, [max_x,max_y])
+    # plt.figure()
+    act_mask += act_iff
+    # img = np.ma.masked_array(act_iff,hexA.local_mask)
+    # plt.imshow(img,origin='lower')
+
+    iff_cube[:,:,k]=~ act_iff
+plt.figure()
+plt.imshow(act_mask,origin='lower',cmap='gray')    
+
+cube_mask = np.tile(act_mask,len(pix_act_coords))
+cube_mask= np.reshape(cube_mask,np.shape(iff_cube),order='F')
+iff_cube = np.ma.masked_array(iff_cube,cube_mask)
+
+for k in range(len(pix_act_coords)):
+    plt.figure()
+    plt.imshow(iff_cube[:,:,k],origin='lower',cmap='gray') 
 # #####
 # def generate_hex_mask(npix = int(2**9)):
 #     L = npix/(1.+2.*COS60)
