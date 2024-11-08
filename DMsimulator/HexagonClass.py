@@ -100,21 +100,17 @@ class Hexagon():
         coords = self.local_act_coords
         x, y = coords[:, 0], coords[:, 1]
         npix_x, npix_y = np.shape(self.local_mask)  
-        new_x = np.linspace(min(x), max(x), npix_x)
-        new_y = np.linspace(min(y), max(y), npix_y)
+        new_x = np.linspace(min(x), max(x), npix_y) # x coordinate is the img column!
+        new_y = np.linspace(min(y), max(y), npix_x) # y coordinate is the img row!
         gx, gy = np.meshgrid(new_x, new_y)
         
         act_data = np.zeros([n_acts,n_acts])
         act_data[np.arange(n_acts),np.arange(n_acts)] = 1
         img_cube = griddata((x, y), act_data, (gx, gy), fill_value = 0.)
-        img_cube = np.transpose(img_cube,axes=[1,0,2])
         
         cube_mask = np.tile(self.local_mask,n_acts)
-        cube_mask = np.reshape(cube_mask, [npix_x,npix_y,n_acts], order='F')
-        
+        cube_mask = np.reshape(cube_mask, np.shape(img_cube), order = 'F')
         masked_cube = np.ma.masked_array(img_cube,cube_mask)
-
-        data = masked_cube.data[~masked_cube.mask]
         
         mask = self.local_mask.copy()
         flat_mask = mask.flatten()
@@ -124,7 +120,13 @@ class Hexagon():
         pix_ids = row_ids.flatten()
 
         act_ids = np.arange(n_acts)
-        act_ids = np.tile(act_ids, len(valid_ids))
+        # act_ids = np.tile(act_ids, len(valid_ids))
+        act_ids = np.repeat(act_ids, len(valid_ids))
+        
+        data = np.zeros(len(valid_ids)*n_acts)
+        for i in np.arange(n_acts):
+            img = img_cube[:,:,i]
+            data[i*len(valid_ids):(i+1)*len(valid_ids)] = img[~self.local_mask]
 
         iff_mat = csr_matrix((data, (pix_ids, act_ids)), iff_mat_shape)
             
@@ -135,6 +137,8 @@ class Hexagon():
         data_list.append(iff_mat.indices)
         data_list.append(iff_mat.indptr)
         write_to_fits(data_list, file_path)
+        
+        # return masked_cube
 
     
     def update_act_coords(self, new_coords):
