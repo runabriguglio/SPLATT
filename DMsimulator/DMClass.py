@@ -64,10 +64,13 @@ class DM():
         img = np.ma.masked_array(full_img, self.global_mask)
 
         plt.figure()
-        plt.imshow(img, origin = 'lower', cmap='winter')
+        plt.imshow(img, origin = 'lower', cmap='inferno')
         if title_str is not None:
             plt.title(title_str)
-        plt.colorbar()
+            
+        # # Add a colorbar
+        # plt.colorbar()
+        # fig.set_clim([min(wavefront), max(wavefront)])
         
         
     def segment_scramble(self):
@@ -243,7 +246,7 @@ class DM():
         
         for k,coords in enumerate(self.hex_centers):
             self.segments.append(Segment(coords))
-            # local_INTMAT = self.int_mat[:,N_modes*(k-1):N_modes*k]
+            # local_INTMAT = self.int_mat[:,N_modes*k:N_modes*(k+1)]
             
             
     def _define_global_valid_ids(self):

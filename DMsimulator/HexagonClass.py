@@ -1,6 +1,6 @@
 import numpy as np
 import os
-from scipy.sparse import csr_matrix
+# from scipy.sparse import csr_matrix
 from scipy.interpolate import griddata
 
 from read_config import readConfig
@@ -67,7 +67,7 @@ class Hexagon():
         self.act_pitch = dm_par[3]
         self.act_radius = dm_par[4]
 
-        points_per_side = 9
+        self.pps = 9
 
         # Manage save path
         self.savepath = './' + TN + '/'
@@ -79,24 +79,21 @@ class Hexagon():
         # Run initialization functions
         self._define_mask()
         self._initialize_act_coords()
-        self._define_mesh(points_per_side)
+        self._define_mesh(self.pps)
 
     
     def simulate_influence_functions(self):
         """ Simulate the actuator influence functions 
         via grid interpolation """
         
-        n_w = np.size(self.local_mask) # length of the masked flattened image
-        n_acts = len(self.local_act_coords)
-        iff_mat_shape = np.array([n_w, n_acts])
-        
         file_path = self.savepath + 'fake_local_influence_function_matrix.fits'
         try:
-            self.IFF = read_fits(file_path, sparse_shape = iff_mat_shape)
+            self.IFF = read_fits(file_path)
             return
         except FileNotFoundError:
             pass
 
+        # Grid interpolation
         coords = self.local_act_coords
         x, y = coords[:, 0], coords[:, 1]
         npix_x, npix_y = np.shape(self.local_mask)  
@@ -104,41 +101,23 @@ class Hexagon():
         new_y = np.linspace(min(y), max(y), npix_x) # y coordinate is the img row!
         gx, gy = np.meshgrid(new_x, new_y)
         
+        # Actuator data
+        n_acts = len(self.local_act_coords)
         act_data = np.zeros([n_acts,n_acts])
         act_data[np.arange(n_acts),np.arange(n_acts)] = 1
         img_cube = griddata((x, y), act_data, (gx, gy), fill_value = 0.)
         
+        # Masked array
         cube_mask = np.tile(self.local_mask,n_acts)
         cube_mask = np.reshape(cube_mask, np.shape(img_cube), order = 'F')
-        masked_cube = np.ma.masked_array(img_cube,cube_mask)
+        cube = np.ma.masked_array(img_cube,cube_mask)
         
-        mask = self.local_mask.copy()
-        flat_mask = mask.flatten()
-        ids = np.arange(len(flat_mask))
-        valid_ids = ids[ids[~flat_mask]]
-        row_ids = np.tile(valid_ids, n_acts)
-        pix_ids = row_ids.flatten()
-
-        act_ids = np.arange(n_acts)
-        # act_ids = np.tile(act_ids, len(valid_ids))
-        act_ids = np.repeat(act_ids, len(valid_ids))
+        # Save valid data to IFF (full) matrix
+        flat_cube = cube.data[~cube.mask]
+        valid_len = np.sum(1-self.local_mask)
+        local_IFF = np.reshape(flat_cube, [valid_len, n_acts])
         
-        data = np.zeros(len(valid_ids)*n_acts)
-        for i in np.arange(n_acts):
-            img = img_cube[:,:,i]
-            data[i*len(valid_ids):(i+1)*len(valid_ids)] = img[~self.local_mask]
-
-        iff_mat = csr_matrix((data, (pix_ids, act_ids)), iff_mat_shape)
-            
-        # Save local IFF sparse mat
-        self.IFF = iff_mat
-        data_list = []
-        data_list.append(iff_mat.data)
-        data_list.append(iff_mat.indices)
-        data_list.append(iff_mat.indptr)
-        write_to_fits(data_list, file_path)
-        
-        # return masked_cube
+        self.IFF = np.array(local_IFF)
 
     
     def update_act_coords(self, new_coords):
@@ -148,7 +127,7 @@ class Hexagon():
         self.local_act_coords = new_coords
         # The IFFs and mesh now need to be updated:
         self._simulate_influence_functions()
-        self._define_mesh() 
+        self._define_mesh(self.pps, update_mesh = True) 
 
 
     def _define_mask(self):
@@ -194,14 +173,18 @@ class Hexagon():
             pass
         
         # Normalize quantities by hexagon side length (hex_len)
-        act_rad = self.act_radius/self.hex_len
-        act_spacing = self.act_pitch/self.hex_len
+        L = self.hex_len
+        act_rad = self.act_radius/L
+        pitch = self.act_pitch/L
         
-        acts_per_side = int((1.-2*act_rad)/act_spacing)
+        # acts_per_side = int((1.-2*act_rad)/act_spacing)
+        acts_per_side = (1+pitch)/(2*act_rad + pitch)
+        dx = (1-2*act_rad)/(acts_per_side-1) # was acts_per_side
+        print(dx)
+        acts_per_side = int(acts_per_side)
         n_acts_tri = sum_n(acts_per_side)
         
         act_coords = np.zeros([n_acts_tri*6+1,2])
-        dx = (1.-2*act_rad)/acts_per_side
         
         for k in range(acts_per_side):
             y = np.linspace(SIN60*k*dx,0.,k+1)
@@ -224,18 +207,20 @@ class Hexagon():
         #                          CapSens_R_out = self.act_radius)
 
 
-    def _define_mesh(self, points_per_side):
+    def _define_mesh(self, points_per_side, update_mesh = False):
         """ Defines the local mesh point coordinates
         on the segment starting from a semi-structured
         point cloud and adding the act locations to it"""
         
         # Load or create the hexagon's mesh
         mesh_path = self.savepath + str(points_per_side) + 'pps_local_mesh_point_coords.fits'
-        try:
-            self.local_mesh_coords = read_fits(mesh_path)
-            return
-        except FileNotFoundError:
-            pass
+        
+        if update_mesh is False:
+            try:
+                self.local_mesh_coords = read_fits(mesh_path)
+                return
+            except FileNotFoundError:
+                pass
 
         # Load or create a 'random' mesh for the hexagon 
         file_path = self.savepath + str(points_per_side) + 'pps_point_cloud_coords.fits'

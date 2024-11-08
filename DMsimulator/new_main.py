@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 # from scipy.interpolate import griddata
+# from scipy.sparse.linalg import lsqr
 
 from HexagonClass import Hexagon
 from DMClass import DM
@@ -31,12 +32,6 @@ glob_tilt = [0,1,-1,0]
 flat_img = global_INTMAT * glob_tilt
 dm.plot_wavefront(flat_img, 'Global Tip/Tilt')
 
-# Initial segment scramble
-scrambled_img = dm.segment_scramble()
-plt.figure()
-plt.imshow(scrambled_img, origin = 'lower', cmap = 'inferno_r')
-plt.title('Segment scramble')
-
 # Testing single segment commands
 n_hex = int(np.shape(INTMAT)[1]/N_modes)
 cmd_ids = np.arange(N_modes-1)+1
@@ -49,25 +44,87 @@ flat_img = INTMAT * modal_cmd
 dm.plot_wavefront(flat_img, 'Zernike modes')
 
 
+# Initial segment scramble
+scrambled_img = dm.segment_scramble()
+w_scramble = scrambled_img.flatten()
+dm.plot_wavefront(w_scramble, 'Segment scramble')
+
 # Testing influence functions
-iff_cube = hexA.simulate_influence_functions()
-IFF = hexA.IFF
+hexA.simulate_influence_functions()
+loc_IFF = hexA.IFF
 
-n_acts = np.shape(IFF)[1]
-for k in np.arange(n_acts):
-    # img = iff_cube[:,:,k]
-    # # img = np.ma.masked_array(img, hexA.local_mask)
-    # plt.figure()
-    # plt.imshow(img,origin='lower',cmap='gray')
-    cmd = np.zeros(n_acts)
-    cmd[k] = 1
-    w = IFF*cmd
-    img = np.reshape(w, np.shape(hexA.local_mask))
-    img = np.ma.masked_array(img,hexA.local_mask)
+# pinv_IFF = np.linalg.pinv(local_IFF)
+# flattone = w_scramble.copy()
+
+# for k in np.arange(n_hex):
+#     hex_k_ids = dm.hex_valid_ids[k]
+#     w = w_scramble[hex_k_ids]
+#     acc = 1e-9
+#     #command, itstop, itn, r1norm, r2norm, anorm, acond, arnorm, xnorm, var  = lsqr(local_IFF, w, atol = acc)
+#     command = pinv_IFF @ w
+#     w_star = local_IFF @ command
+    
+#     flattone[hex_k_ids] -= w_star
+#     dm.plot_wavefront(flattone, 'Hex ' + str(k+1) + ' correction')
+
+# flat_img = np.reshape(flattone,np.shape(dm.global_mask))
+# flat_img = np.ma.masked_array(flat_img, dm.global_mask)
+# plt.figure()
+# fig=plt.imshow(flat_img,origin='lower',cmap='gray')
+# cmap=plt.colorbar()
+# masked_img_data = flat_img.data[~flat_img.mask]
+# fig.set_clim([min(masked_img_data),max(masked_img_data)])
+# plt.axis([950,1000,950,1000])
+# flat_rel_rms = np.std(masked_img_data)/np.std(w_scramble)
+
+#Fitting error for a single segment
+k = 1
+hex_k_ids = dm.hex_valid_ids[k]
+loc_IM = INTMAT[hex_k_ids,N_modes*k:N_modes*(k+1)]
+loc_R = np.linalg.pinv(loc_IFF, rcond = 1e-15)
+rel_rms = np.zeros(N_modes)
+
+wf = np.zeros(np.size(dm.global_mask))
+
+for j in np.arange(N_modes-1):
+    
+    modes = np.zeros(N_modes)
+    modes[j+1] = 1 
+    
+    # modal_img = loc_IM * modes
+    # w_mode = modal_img[hex_k_ids]
+    w_mode = loc_IM * modes
+    cmd = loc_R @ w_mode
+    w_cmd = loc_IFF @ cmd
+    w = w_mode - w_cmd
+    
+    rel_rms[j+1] = np.std(w)/np.std(w_mode)
+    
+    wf[hex_k_ids] = w
+    img = np.reshape(wf, np.shape(dm.global_mask))
+    img = np.ma.masked_array(img, dm.global_mask)
     plt.figure()
-    plt.imshow(img,origin='lower',cmap='gray')
+    plt.imshow(img, cmap='gray', origin = 'lower')
+    plt.title('Mode ' + str(j+1) + ' residual\n RMS: ' + str(np.std(w)) )
+    plt.colorbar()
+    plt.axis([1220,1630,1225,1600])
+    
 
-
+def meters_to_pixels(coords, mask = hexA.local_mask, pixel_scale = hexA.pix_scale):
+    
+    x, y = coords[:,0], coords[:,1]
+    max_x, max_y = np.shape(mask)
+    
+    pix_coords = np.zeros_like(coords)
+    pix_coords[:,0] = (x * pixel_scale + max_y/2).astype(int)
+    pix_coords[:,1] = (y * pixel_scale + max_x/2).astype(int)
+    
+    return pix_coords
+    
+pix_act_coords = meters_to_pixels(hexA.local_act_coords)
+plt.figure()
+plt.scatter(pix_act_coords[:,0],pix_act_coords[:,1],s=100)
+plt.axis('equal')
 
 # #####
 # def generate_hex_mask(npix = int(2**9)):
@@ -84,22 +141,3 @@ for k in np.arange(n_acts):
 #     mask[0:half_npix,:] = np.flip(mask[half_npix:,:],0) # lower
     
 #     return mask
-
-# hex_mask = generate_hex_mask()
-# plt.figure()
-# plt.imshow(hex_mask,origin='lower',cmap='gray')
-
-# npix = int(2**9)
-# coords = dm.hex_centers
-# limit_coords = coords + np.max([1.+2*COS60, 2*SIN60])*dm.hex_side_len
-# D = np.max(limit_coords)
-# pix_coords = (coords+D)/(2*D)*npix
-# mask_size = int(np.round(dm.hex_side_len*(1.+2*COS60)/(2*D)*npix))
-# mask_coords = (pix_coords - mask_size*2).astype(int)
-
-# global_mask = np.ones([npix,npix], dtype=bool)
-# scaled_mask = generate_hex_mask(mask_size)
-# for m_coords in mask_coords:
-#     global_mask[m_coords[0]:m_coords[0]+mask_size,m_coords[1]:m_coords[1]+mask_size] = scaled_mask
-  
-# plt.imshow(global_mask, origin='lower', cmap = 'gray')
