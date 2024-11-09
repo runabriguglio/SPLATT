@@ -1,0 +1,221 @@
+import numpy as np
+import matplotlib.pyplot as plt
+# from scipy.interpolate import griddata
+# from scipy.sparse.linalg import lsqr
+
+from HexagonClass import Hexagon
+from DMClass import DM
+
+config_tn = '20240920'
+
+hexA = Hexagon(config_tn)
+dm = DM(config_tn)
+
+plt.figure()
+plt.imshow(dm.global_mask, origin = 'lower', cmap='gray')
+plt.title('Global Mask')
+
+# Interaction matrices
+N_modes = 11
+dm.compute_interaction_matrix(N_modes)
+INTMAT = dm.int_mat
+
+N_global_modes = 4
+dm.compute_global_interaction_matrix(N_global_modes)
+global_INTMAT = dm.glob_int_mat
+
+glob_pow = [0,0,0,-1]
+flat_img = global_INTMAT * glob_pow
+dm.plot_wavefront(flat_img, 'Global Power')
+
+glob_tilt = [0,1,-1,0]
+flat_img = global_INTMAT * glob_tilt
+dm.plot_wavefront(flat_img, 'Global Tip/Tilt')
+
+# Testing single segment commands
+n_hex = int(np.shape(INTMAT)[1]/N_modes)
+cmd_ids = np.arange(N_modes-1)+1
+cmd_ids = np.tile(cmd_ids,int(np.ceil(n_hex/(N_modes-1))))
+cmd_ids = cmd_ids[0:n_hex]
+cmd_ids = cmd_ids + N_modes*np.arange(n_hex)
+modal_cmd = np.zeros(n_hex*N_modes)
+modal_cmd[cmd_ids] = 1
+flat_img = INTMAT * modal_cmd
+dm.plot_wavefront(flat_img, 'Zernike modes')
+
+
+# Initial segment scramble
+scrambled_img = dm.segment_scramble()
+w_scramble = scrambled_img.flatten()
+dm.plot_wavefront(w_scramble, 'Segment scramble')
+
+# Testing influence functions
+hexA.simulate_influence_functions()
+loc_IFF = hexA.IFF
+
+# pinv_IFF = np.linalg.pinv(local_IFF)
+# flattone = w_scramble.copy()
+
+# for k in np.arange(n_hex):
+#     hex_k_ids = dm.hex_valid_ids[k]
+#     w = w_scramble[hex_k_ids]
+#     acc = 1e-9
+#     command = pinv_IFF @ w
+#     w_star = local_IFF @ command
+    
+#     flattone[hex_k_ids] -= w_star
+#     dm.plot_wavefront(flattone, 'Hex ' + str(k+1) + ' correction')
+
+# flat_img = np.reshape(flattone,np.shape(dm.global_mask))
+# flat_img = np.ma.masked_array(flat_img, dm.global_mask)
+# plt.figure()
+# fig=plt.imshow(flat_img,origin='lower',cmap='gray')
+# cmap=plt.colorbar()
+# masked_img_data = flat_img.data[~flat_img.mask]
+# fig.set_clim([min(masked_img_data),max(masked_img_data)])
+# plt.axis([950,1000,950,1000])
+# flat_rel_rms = np.std(masked_img_data)/np.std(w_scramble)
+
+#Fitting error for a single segment
+k = 1
+hex_k_ids = dm.hex_valid_ids[k]
+loc_IM = INTMAT[hex_k_ids,N_modes*k:N_modes*(k+1)]
+loc_R = np.linalg.pinv(loc_IFF, rcond = 1e-15)
+rel_rms = np.zeros(N_modes)
+
+wf = np.zeros(np.size(dm.global_mask))
+
+for j in np.arange(N_modes):
+    
+    modes = np.zeros(N_modes)
+    modes[j] = 1 
+    
+    # modal_img = loc_IM * modes
+    # w_mode = modal_img[hex_k_ids]
+    w_mode = loc_IM * modes
+    cmd = loc_R @ w_mode
+    w_cmd = loc_IFF @ cmd
+    w = w_mode - w_cmd
+    
+    rel_rms[j] = np.std(w)/np.std(w_mode)
+    
+    wf[hex_k_ids] = w
+    img = np.reshape(wf, np.shape(dm.global_mask))
+    img = np.ma.masked_array(img, dm.global_mask)
+    plt.figure()
+    plt.imshow(img, cmap='gray', origin = 'lower')
+    plt.title('Mode ' + str(j) + ' residual\n RMS: ' + str(np.std(w)) )
+    plt.colorbar()
+    plt.axis([1220,1630,1225,1600])
+    
+plt.figure()
+plt.plot(rel_rms,'o')
+plt.grid('on')
+
+def meters_to_pixels(coords, mask = hexA.local_mask, pixel_scale = hexA.pix_scale):
+    
+    x, y = coords[:,0], coords[:,1]
+    max_x, max_y = np.shape(mask)
+    
+    pix_coords = np.zeros_like(coords)
+    pix_coords[:,0] = (x * pixel_scale + max_y/2).astype(int)
+    pix_coords[:,1] = (y * pixel_scale + max_x/2).astype(int)
+    
+    return pix_coords
+    
+pix_act_coords = meters_to_pixels(hexA.local_act_coords)
+plt.figure()
+plt.scatter(pix_act_coords[:,0],pix_act_coords[:,1],s=100)
+plt.axis([0,400,0,346])
+
+R = hexA.act_radius*hexA.pix_scale
+max_x, max_y = np.shape(hexA.local_mask)
+
+act_mask = np.zeros_like(hexA.local_mask)
+iff_cube = np.zeros([max_x,max_y, len(pix_act_coords)])
+    
+for k in range(len(pix_act_coords)):
+    act_coord = pix_act_coords[k,:]
+    act_iff = np.fromfunction(lambda i,j: (i-act_coord[1])**2 + (j-act_coord[0])**2 < R**2, [max_x,max_y])
+    # plt.figure()
+    act_mask += act_iff
+    # img = np.ma.masked_array(act_iff,hexA.local_mask)
+    # plt.imshow(act_iff,origin='lower')
+    iff_cube[:,:,k]= np.ones_like(hexA.local_mask)*act_iff
+    
+# plt.figure()
+# plt.imshow(act_mask,origin='lower',cmap='gray')    
+
+cube_mask = np.tile(act_mask,len(pix_act_coords))
+cube_mask= np.reshape(cube_mask,np.shape(iff_cube),order='F')
+iff_cube = np.ma.masked_array(iff_cube,~cube_mask)
+
+# for k in range(len(pix_act_coords)):
+#     plt.figure()
+#     plt.imshow(iff_cube[:,:,k],origin='lower' ) 
+    
+act_x_pix = np.arange(max_x)
+act_y_pix = np.arange(max_y)
+
+X,Y = np.meshgrid(act_y_pix,act_x_pix)
+xx = X[act_mask] #valid_X
+yy = Y[act_mask] #valid_Y
+
+# npix_x, npix_y = np.shape(hexA.local_mask)  
+new_x = np.linspace(min(xx), max(xx), max_y) # x coordinate is the img column!
+new_y = np.linspace(min(yy), max(yy), max_x) # y coordinate is the img row!
+gx, gy = np.meshgrid(new_x, new_y)
+
+# Actuator data
+n_acts = len(pix_act_coords)
+valid_len = np.sum(1-hexA.local_mask)
+
+from scipy.interpolate import griddata
+act_data = iff_cube.data[~iff_cube.mask]
+act_data = np.reshape(act_data, [len(xx),n_acts])
+img_cube = griddata((xx, yy), act_data, (gx, gy), fill_value = 0., method = 'linear')
+
+# Masked array
+cube_mask = np.tile(hexA.local_mask,n_acts)
+cube_mask = np.reshape(cube_mask, np.shape(img_cube), order = 'F')
+cube = np.ma.masked_array(img_cube,cube_mask)
+
+# Save valid data to IFF (full) matrix
+flat_cube = cube.data[~cube.mask]
+local_IFF = np.reshape(flat_cube, [valid_len, n_acts])
+
+loc_IFF = np.array(local_IFF)
+
+# Plot IFF data on segments
+glob_img = np.zeros(np.size(dm.global_mask))
+point_glob_img = np.zeros(np.size(dm.global_mask))
+for kk in range(n_acts):
+    glob_img[dm.hex_valid_ids[kk]] = loc_IFF[:,kk]
+    point_glob_img[dm.hex_valid_ids[kk]] = hexA.IFF[:,kk]
+    
+dm.plot_wavefront(glob_img, 'Actuator Influence Functions')
+dm.plot_wavefront(point_glob_img, 'Point-like Influence Functions')
+
+last_IFF = np.zeros_like(hexA.local_mask)
+last_IFF[~hexA.local_mask] = loc_IFF[:,-1]#hexA.IFF[:,-1]#
+last_IFF = np.reshape(last_IFF, np.shape(hexA.local_mask))
+last_IFF = np.ma.masked_array(last_IFF, hexA.local_mask)
+plt.figure()
+plt.imshow(last_IFF, origin = 'lower', cmap = 'inferno')
+plt.colorbar()
+
+# #####
+# def generate_hex_mask(npix = int(2**9)):
+#     L = npix/(1.+2.*COS60)
+#     half_npix = int(npix/2)
+    
+#     # Consider points in the upper right of the hexagon
+#     mask_ul = np.fromfunction(lambda i,j: i >=  np.minimum(j/COS60,L)*SIN60, [half_npix,half_npix])
+
+#     mask = np.zeros([npix,npix], dtype=bool)
+
+#     mask[half_npix:,0:half_npix] = mask_ul # upper right
+#     mask[half_npix:,half_npix:] = np.flip(mask_ul,1) # upper left
+#     mask[0:half_npix,:] = np.flip(mask[half_npix:,:],0) # lower
+    
+#     return mask
