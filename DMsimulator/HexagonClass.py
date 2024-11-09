@@ -19,7 +19,6 @@ COS60 = np.cos(np.pi/3.)
 def sum_n(n):
     return int(n*(n+1)/2)
 
-
 def semi_structured_point_cloud(points_per_side):
     """ Defines a structured point cloud with random 
     displacements to act as a point mesh for the hexagon """
@@ -82,11 +81,11 @@ class Hexagon():
         self._define_mesh(self.pps)
 
     
-    def simulate_influence_functions(self):
-        """ Simulate the actuator influence functions 
-        via grid interpolation """
+    def compute_influence_functions(self, n_acts, coords, iff_data):
+        """ Project the actuator influence functions 
+        on the mask via grid interpolation """
         
-        file_path = self.savepath + 'fake_local_influence_function_matrix.fits'
+        file_path = self.savepath + 'local_influence_function_matrix.fits'
         try:
             self.IFF = read_fits(file_path)
             return
@@ -94,18 +93,12 @@ class Hexagon():
             pass
 
         # Grid interpolation
-        coords = self.local_act_coords
         x, y = coords[:, 0], coords[:, 1]
         npix_x, npix_y = np.shape(self.local_mask)  
         new_x = np.linspace(min(x), max(x), npix_y) # x coordinate is the img column!
         new_y = np.linspace(min(y), max(y), npix_x) # y coordinate is the img row!
         gx, gy = np.meshgrid(new_x, new_y)
-        
-        # Actuator data
-        n_acts = len(self.local_act_coords)
-        act_data = np.zeros([n_acts,n_acts])
-        act_data[np.arange(n_acts),np.arange(n_acts)] = 1
-        img_cube = griddata((x, y), act_data, (gx, gy), fill_value = 0.)
+        img_cube = griddata((x, y), iff_data, (gx, gy), fill_value = 0., method = 'linear')
         
         # Masked array
         cube_mask = np.tile(self.local_mask,n_acts)
@@ -118,7 +111,22 @@ class Hexagon():
         local_IFF = np.reshape(flat_cube, [valid_len, n_acts])
         
         self.IFF = np.array(local_IFF)
-
+        
+        # Save to fits
+        write_to_fits(self.IFF, file_path)
+        
+        
+    def simulate_influence_functions(self):
+        """ Simulate the influence functions by 
+        imposing 'perfect' zonal commands """
+        
+        act_coords = self.local_act_coords
+        n_acts = len(act_coords)
+        act_data = np.zeros([n_acts,n_acts])
+        act_data[np.arange(n_acts),np.arange(n_acts)] = 1
+        
+        self.compute_influence_functions(n_acts, act_coords, act_data)
+        
     
     def update_act_coords(self, new_coords):
         """ Changes the local actuator coordinates 

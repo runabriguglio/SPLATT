@@ -25,6 +25,7 @@ class Segment():
         
         self.center = center_coordinates
         self.act_pos = []
+        self.wavefront = []
         
 
 class DM():
@@ -344,4 +345,43 @@ class DM():
 
         # Save to fits
         write_to_fits(self.hex_centers, file_path)
+        
+        
+        # def draw_hex_outline(self):
+        #     """ Plots the hexagons' outline and the inscribed circle """
+        
+        #     hex_sides = np.zeros([8,2])
+        #     hex_sides[0,:] = np.array([-2*COS60, 0.])
+        #     hex_sides[1,:] = np.array([-0.5, SIN60])
+        #     hex_sides[2,:] = np.array([-hex_sides[1,0],hex_sides[1,1]])
+        #     hex_sides[3,:] = -hex_sides[0,:]
+        #     hex_sides[4,:] = -hex_sides[1,:]
+        #     hex_sides[5,:] = -hex_sides[2,:]
+        #     hex_sides[6,:] = hex_sides[0,:]
+        #     hex_sides[-1,:] = np.array([None,None])
+            
+        #     plt.figure()
+        #     plt.grid('on')
+            
+        #     rep_c_coords = np.tile(self.hex_centers,len(hex_sides))
+        #     rep_c_coords = rep_c_coords.flatten()
+        #     hex_sides = hex_sides.flatten()
+        #     rep_hex_sides = np.tile(hex_sides,len(self.hex_centers))
+        #     coords = rep_c_coords + rep_hex_sides 
+        #     coords = np.reshape(coords,[int(len(coords)/2),2])
+        #     plt.plot(coords[:,0],coords[:,1],color='goldenrod')
+                     
+            
+        #     # Plot inscribed cirle
+        #     L = self.gap + 2.*self.hex_side_len*SIN60
+        #     R = np.sqrt((L*self.n_rings)**2 + (self.hex_side_len*(0.5+COS60))**2) - self.hex_side_len*COS60
+        #     x_vec = np.linspace(-R,R,100)
+        #     y_vec = np.sqrt(R**2-x_vec**2)
+            
+        #     plt.plot(x_vec,y_vec,'--',color='green')
+        #     plt.plot(x_vec,-y_vec,'--',color='green')
+                
+        #     plt.axis('equal')
+            
+        #     return coords
         
