@@ -2,6 +2,7 @@ import numpy as np
 import os
 # from scipy.sparse import csr_matrix
 from scipy.interpolate import griddata
+from tps import ThinPlateSpline # for the simulated IFF
 
 from read_config import readConfig
 # from zernike_polynomials import computeZernike as czern
@@ -120,12 +121,54 @@ class Hexagon():
         """ Simulate the influence functions by 
         imposing 'perfect' zonal commands """
         
+        file_path = self.savepath + 'local_influence_function_matrix.fits'
+        try:
+            self.IFF = read_fits(file_path)
+            return
+        except FileNotFoundError:
+            pass
+        
         act_coords = self.local_act_coords
         n_acts = len(act_coords)
-        act_data = np.zeros([n_acts,n_acts])
-        act_data[np.arange(n_acts),np.arange(n_acts)] = 1
+        valid_len = np.sum(1-self.local_mask)
+        # act_data = np.zeros([n_acts,n_acts])
+        # act_data[np.arange(n_acts),np.arange(n_acts)] = 1
         
-        self.compute_influence_functions(n_acts, act_coords, act_data)
+        # self.compute_influence_functions(n_acts, act_coords, act_data)
+        
+        max_x, max_y = np.shape(self.local_mask)
+        
+        pix_coords = np.zeros([max_x*max_y,2])
+        pix_coords[:,0] = np.repeat(np.arange(max_x),max_y)
+        pix_coords[:,1] = np.tile(np.arange(max_y),max_x)
+        
+        act_pix_coords = np.zeros([n_acts,2])
+        act_pix_coords[:,0] = (act_coords[:,1] * self.pix_scale + max_x/2).astype(int)
+        act_pix_coords[:,1] = (act_coords[:,0] * self.pix_scale + max_y/2).astype(int)
+        
+        img_cube = np.zeros([max_x,max_y,n_acts])
+
+        for k in range(n_acts):
+            act_data = np.zeros(n_acts)
+            act_data[k] = 1
+            tps = ThinPlateSpline(alpha=0.0)
+            interpolator = tps.fit(act_pix_coords, act_data)
+            flat_img = tps.transform(pix_coords)
+            img_cube[:,:,k] = np.reshape(flat_img, [max_x,max_y])
+
+        # Masked array
+        cube_mask = np.tile(self.local_mask,n_acts)
+        cube_mask = np.reshape(cube_mask, np.shape(img_cube), order = 'F')
+        cube = np.ma.masked_array(img_cube,cube_mask)
+
+        # Save valid data to IFF (full) matrix
+        flat_cube = cube.data[~cube.mask]
+        local_IFF = np.reshape(flat_cube, [valid_len, n_acts])
+        
+        self.IFF = np.array(local_IFF)
+        
+        # Save to fits
+        write_to_fits(self.IFF, file_path)
         
     
     def update_act_coords(self, new_coords):
