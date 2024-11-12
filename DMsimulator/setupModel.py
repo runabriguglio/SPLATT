@@ -76,6 +76,11 @@ loc_IFF = hexA.IFF
 # plt.axis([950,1000,950,1000])
 # flat_rel_rms = np.std(masked_img_data)/np.std(w_scramble)
 
+# Actuator data
+n_acts = len(hexA.local_act_coords)
+max_x, max_y = np.shape(hexA.local_mask)
+valid_len = np.sum(1-hexA.local_mask)
+
 #Fitting error for a single segment
 k = 1
 hex_k_ids = dm.hex_valid_ids[k]
@@ -94,6 +99,7 @@ for j in np.arange(N_modes):
     # w_mode = modal_img[hex_k_ids]
     w_mode = loc_IM * modes
     cmd = loc_R @ w_mode
+    cmd[n_acts:] = 0*cmd[n_acts:]
     w_cmd = loc_IFF @ cmd
     w = w_mode - w_cmd
     
@@ -129,14 +135,39 @@ def meters_to_pixels(coords, mask = hexA.local_mask, pixel_scale = hexA.pix_scal
     pix_coords[:,1] = (y * pixel_scale + max_x/2).astype(int)
     
     return pix_coords
+
+from rotate_coordinates import rotate_by_60deg as rot60
+from rotate_coordinates import cw_rotate
+
+# Useful variables
+SIN60 = np.sin(np.pi/3.)
+COS60 = np.cos(np.pi/3.)
+
+# 'Ghost' actuators
+k = int((np.sqrt(12*n_acts-3)-3)/6)
+pit = hexA.act_pitch/hexA.hex_len
+rad = hexA.act_radius/hexA.hex_len
+dx = 2*rad+pit
+y = np.linspace(SIN60*k*dx,0.,k+1)
+x = (k+1)*dx - COS60/SIN60 * y
+n = k+1
+p = np.zeros([6*n,2])
+p[0:n,0] = x
+p[0:n,1] = y
+p[n:2*n,:] = rot60(p[0:n,:].T)
+p[2*n:3*n,:] = rot60(p[n:2*n,:].T)
+p[3*n:,:] = cw_rotate(p[0:3*n,:].T,np.array([np.pi]))
+ghost_act_coords = p*hexA.hex_len
+n_ghost_acts = len(ghost_act_coords)
     
 pix_act_coords = meters_to_pixels(hexA.local_act_coords)
+ghost_pix_act_coords = meters_to_pixels(ghost_act_coords)
 plt.figure()
 plt.scatter(pix_act_coords[:,0],pix_act_coords[:,1],s=100)
+plt.scatter(ghost_pix_act_coords[:,0],ghost_pix_act_coords[:,1],s=100)
 plt.axis([0,400,0,346])
 
-R = hexA.act_radius*hexA.pix_scale
-max_x, max_y = np.shape(hexA.local_mask)
+# R = hexA.act_radius*hexA.pix_scale
 
 # act_mask = np.zeros_like(hexA.local_mask)
 # iff_cube = np.zeros([max_x,max_y, len(pix_act_coords)])
@@ -173,11 +204,6 @@ max_x, max_y = np.shape(hexA.local_mask)
 # new_y = np.linspace(min(yy), max(yy), max_x) # y coordinate is the img row!
 # gx, gy = np.meshgrid(new_x, new_y)
 
-# Actuator data
-n_acts = len(pix_act_coords)
-valid_len = np.sum(1-hexA.local_mask)
-img_cube = np.zeros([max_x,max_y,n_acts])
-
 # from scipy.interpolate import griddata
 # act_data = iff_cube.data[~iff_cube.mask]
 # act_data = np.reshape(act_data, [len(xx),n_acts])
@@ -189,33 +215,39 @@ pix_coords[:,1] = np.tile(np.arange(max_y),max_x)
 
 from scipy.interpolate import CloughTocher2DInterpolator as interp2D
 
-real_pix_coords = pix_act_coords.copy()
-real_pix_coords[:,0] = pix_act_coords[:,1]
-real_pix_coords[:,1] = pix_act_coords[:,0]
+real_pix_coords = np.zeros([n_acts+n_ghost_acts,2])
+real_pix_coords[:n_acts,0] = pix_act_coords[:,1]
+real_pix_coords[:n_acts,1] = pix_act_coords[:,0]
+real_pix_coords[n_acts:,0] = ghost_pix_act_coords[:,1]
+real_pix_coords[n_acts:,1] = ghost_pix_act_coords[:,0]
 
-for k in range(n_acts):
-    act_data = np.zeros(n_acts)
+N = n_acts+n_ghost_acts
+img_cube = np.zeros([max_x,max_y,N])
+
+for k in range(N):
+    act_data = np.zeros(n_acts+n_ghost_acts)
     act_data[k] = 1
-    interpolator = interp2D(real_pix_coords, act_data, fill_value = 0., tol = 1e-8)
+    interpolator = interp2D(real_pix_coords, act_data, tol = 1e-8)
     flat_img = interpolator(pix_coords)
     img_cube[:,:,k] = np.reshape(flat_img, [max_x,max_y])
 
 
 # Masked array
-cube_mask = np.tile(hexA.local_mask,n_acts)
+cube_mask = np.tile(hexA.local_mask,N)
 cube_mask = np.reshape(cube_mask, np.shape(img_cube), order = 'F')
 cube = np.ma.masked_array(img_cube,cube_mask)
 
 # Save valid data to IFF (full) matrix
 flat_cube = cube.data[~cube.mask]
-local_IFF = np.reshape(flat_cube, [valid_len, n_acts])
+local_IFF = np.reshape(flat_cube, [valid_len, N])
 
 loc_IFF = np.array(local_IFF)
 
 # Plot IFF data on segments
+n_hex = len(dm.hex_valid_ids)
 glob_img = np.zeros(np.size(dm.global_mask))
 point_glob_img = np.zeros(np.size(dm.global_mask))
-for kk in range(37):
+for kk in range(n_hex):
     glob_img[dm.hex_valid_ids[kk]] = loc_IFF[:,kk]
     point_glob_img[dm.hex_valid_ids[kk]] = hexA.IFF[:,kk]
     

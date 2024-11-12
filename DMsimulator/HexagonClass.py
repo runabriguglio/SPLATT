@@ -182,14 +182,11 @@ class Hexagon():
         
         # Normalize quantities by hexagon side length (hex_len)
         L = self.hex_len
-        act_rad = self.act_radius/L
+        rad = self.act_radius/L
+        pitch = self.act_pitch/L
         
-        #pitch = self.act_pitch/L
-        #acts_per_side = (1+pitch)/(2*act_rad + pitch)
-        # dx = (1-2*act_rad)/(acts_per_side-1)
-        
-        dx = self.act_pitch/L
-        acts_per_side = (1+dx)/(2*act_rad + dx) + 1
+        acts_per_side = (1+pitch)/(2*rad + pitch) #+ 1
+        dx = 2*rad+pitch
         
         acts_per_side = int(acts_per_side)
         n_acts_tri = sum_n(acts_per_side)
@@ -208,8 +205,11 @@ class Hexagon():
             p[3*n:,:] = cw_rotate(p[0:3*n,:].T,np.array([np.pi]))
             act_coords[1+sum_n(k)*6:1+sum_n(k+1)*6,:] = p
             
+        # Rescaling
+        act_coords = act_coords*self.hex_len #*(acts_per_side)/(acts_per_side-1)
+            
         # Save result
-        self.local_act_coords = act_coords*self.hex_len*(acts_per_side)/(acts_per_side-1)
+        self.local_act_coords = act_coords
         write_to_fits(act_coords, file_path)
 
         # self._simulate_influence_functions()
