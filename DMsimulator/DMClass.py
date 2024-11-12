@@ -21,11 +21,75 @@ class Segment():
     """ Class defining the single segment
     with center coordinates and actuator displacements """
     
-    def __init__(self, center_coordinates):
+    def __init__(self, segment_id, center_coordinates, segment_mask):
         
+        self.id = segment_id
+        self.mask = segment_mask
         self.center = center_coordinates
+        self.wavefront = np.zeros(np.sum(1-self.mask))
+        
         self.act_pos = []
-        self.wavefront = []
+        
+        
+    def wavefront(self):
+        """ Plots an image of the segment's current shape 
+        on the local segment mask """
+        
+        # Project wavefront on mask
+        mask = self.mask.copy()
+        flat_mask = mask.flatten()
+        image = np.zeros(np.size(flat_mask))
+        image[~flat_mask] = self.wavefront
+        image = np.reshape(image, np.shape(mask))
+        image = np.ma.masked_array(image, mask)
+        
+        # Plot image
+        plt.figure()
+        plt.imshow(image, origin = 'lower', cmap = 'inferno')
+        plt.colorbar()
+        plt.title('Segment ' + str(self.id) + ' shape')
+        
+        
+    def get_position(self):
+        """ Wrapper to read the current 
+        position of the segments's actuators """
+        
+        pos = self.act_pos
+        return pos
+    
+    
+    def set_position(self, pos_cmd, absolute_pos = True):
+        """ Command the position of the 
+        segments's actuators in absolute (default) or relative terms"""
+        
+        old_pos = self.act_pos
+        
+        if absolute_pos:
+            new_pos = pos_cmd
+        else:
+            new_pos = pos_cmd + old_pos
+
+        self.act_pos = new_pos
+        # self.wavefront += IFF @ (new_pos-old_pos)
+        
+        return new_pos
+    
+    
+    # def flat_cmd(self):
+        
+    #     # Compute cmd and wavefront change
+    #     act_cmd = R @ self.wavefront
+    #     delta_wf = IM @ act_cmd
+        
+    #     # Update act position and wavefront
+    #     self.act_pos += act_cmd
+    #     self.wavefront += delta_wf
+        
+    #     flat_rms = np.std(self.wavefront)
+        
+    #     return flat_rms#, act_cmd
+        
+        
         
 
 class DM():
@@ -246,7 +310,7 @@ class DM():
         self.segments = []
         
         for k,coords in enumerate(self.hex_centers):
-            self.segments.append(Segment(coords))
+            self.segments.append(Segment(k, coords, self.local_mask))
             # local_INTMAT = self.int_mat[:,N_modes*k:N_modes*(k+1)]
             
             
