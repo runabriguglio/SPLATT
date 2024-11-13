@@ -81,7 +81,7 @@ class DM():
             flat_img = masked_img.data.flatten()
             # Save values in segments' wavefront
             for k in range(n_hex):
-                self.segment[k].wf = flat_img[self.hex_valid_ids[k]]
+                self.segment[k].shape = flat_img[self.hex_valid_ids[k]]
                 
             return masked_img
         
@@ -110,6 +110,10 @@ class DM():
         # n_glob_modes = np.shape(self.glob_int_mat)[1]
         # glob_mode_vec = np.random.randn(n_glob_modes)
         # flat_img += self.glob_int_mat*glob_mode_vec
+        
+        # Save values in segments' wavefront
+        for k in range(n_hex):
+            self.segment[k].shape = flat_img[self.hex_valid_ids[k]]
         
         # Reshape and mask image
         img = np.reshape(flat_img, np.shape(self.global_mask))

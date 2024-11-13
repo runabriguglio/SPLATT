@@ -28,7 +28,7 @@ class Segment():
         mask = self.mask.copy()
         flat_mask = mask.flatten()
         image = np.zeros(np.size(flat_mask))
-        image[~flat_mask] = self.wf
+        image[~flat_mask] = self.shape
         image = np.reshape(image, np.shape(mask))
         image = np.ma.masked_array(image, mask)
         
@@ -59,7 +59,7 @@ class Segment():
             new_pos = pos_cmd + old_pos
 
         self.act_pos = new_pos
-        # self.wavefront += IFF @ (new_pos-old_pos)
+        self.shape += self.IFF @ (new_pos-old_pos)
         
         return new_pos
     

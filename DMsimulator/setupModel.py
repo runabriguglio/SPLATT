@@ -41,6 +41,9 @@ def dm_system_setup(TN):
     w_scramble = scrambled_img.flatten()
     dm.plot_wavefront(w_scramble, 'Segment scramble')
     
+    # Global influence functions and global reconstructor
+    #TBI
+    
     return dm
 
 
