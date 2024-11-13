@@ -51,7 +51,7 @@ def semi_structured_point_cloud(points_per_side):
     return points
 
 
-class LocalMatrixCalculator():
+class Calculator():
     """ Class defining the single hexagonal segment parameters """
 
     def __init__(self, TN):
@@ -176,13 +176,13 @@ class LocalMatrixCalculator():
         
         # Save to fits
         write_to_fits(self.sim_IFF, file_path)
-
-
+        
+        
     def _define_mask(self):
         """ Forms the hexagonal mask to be placed 
         at the given hexagonal coordinates """
 
-        file_path = self.savepath + 'hexagon_mask.fits'
+        file_path = self.savepath + 'local_mask.fits'
         try:
             self.local_mask = read_fits(file_path, is_bool = True)
             return 
@@ -215,8 +215,8 @@ class LocalMatrixCalculator():
 
         file_path = self.savepath + 'local_act_coords.fits'
         try:
-            local_act_coords = read_fits(file_path)
-            return local_act_coords
+            self.local_act_coords = read_fits(file_path)
+            return self.local_act_coords
         except FileNotFoundError:
             pass
         
@@ -246,12 +246,12 @@ class LocalMatrixCalculator():
             act_coords[1+sum_n(k)*6:1+sum_n(k+1)*6,:] = p
             
         # Rescaling
-        act_coords = act_coords*self.hex_len #*(acts_per_side)/(acts_per_side-1)
+        self.local_act_coords = act_coords*self.hex_len #*(acts_per_side)/(acts_per_side-1)
             
         # Save result
-        write_to_fits(act_coords, file_path)
+        write_to_fits(self.local_act_coords, file_path)
         
-        return local_act_coords
+        return self.local_act_coords
 
 
     def _define_mesh(self, act_coords, points_per_side):

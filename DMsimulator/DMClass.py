@@ -9,88 +9,15 @@ from rotate_coordinates import cw_rotate as crot
 from read_and_write_fits import write_to_fits
 from read_and_write_fits import read_fits 
 
+from SegmentClass import Segment
+from LocalMatrixCalculator import Calculator
+
 # Useful variables
 SIN60 = np.sin(np.pi/3.)
 COS60 = np.cos(np.pi/3.)
 
 def n_hexagons(n_rings):
     return int(1 + (6 + n_rings*6)*n_rings/2)
-
-
-class Segment():
-    """ Class defining the single segment
-    with center coordinates and actuator displacements """
-    
-    def __init__(self, segment_id, center_coordinates, segment_mask):
-        
-        self.id = segment_id
-        self.mask = segment_mask
-        self.center = center_coordinates
-        self.wavefront = np.zeros(np.sum(1-self.mask))
-        
-        self.act_pos = []
-        
-        
-    def wavefront(self):
-        """ Plots an image of the segment's current shape 
-        on the local segment mask """
-        
-        # Project wavefront on mask
-        mask = self.mask.copy()
-        flat_mask = mask.flatten()
-        image = np.zeros(np.size(flat_mask))
-        image[~flat_mask] = self.wavefront
-        image = np.reshape(image, np.shape(mask))
-        image = np.ma.masked_array(image, mask)
-        
-        # Plot image
-        plt.figure()
-        plt.imshow(image, origin = 'lower', cmap = 'inferno')
-        plt.colorbar()
-        plt.title('Segment ' + str(self.id) + ' shape')
-        
-        
-    def get_position(self):
-        """ Wrapper to read the current 
-        position of the segments's actuators """
-        
-        pos = self.act_pos
-        return pos
-    
-    
-    def set_position(self, pos_cmd, absolute_pos = True):
-        """ Command the position of the 
-        segments's actuators in absolute (default) or relative terms"""
-        
-        old_pos = self.act_pos
-        
-        if absolute_pos:
-            new_pos = pos_cmd
-        else:
-            new_pos = pos_cmd + old_pos
-
-        self.act_pos = new_pos
-        # self.wavefront += IFF @ (new_pos-old_pos)
-        
-        return new_pos
-    
-    
-    # def flat_cmd(self):
-        
-    #     # Compute cmd and wavefront change
-    #     act_cmd = R @ self.wavefront
-    #     delta_wf = IM @ act_cmd
-        
-    #     # Update act position and wavefront
-    #     self.act_pos += act_cmd
-    #     self.wavefront += delta_wf
-        
-    #     flat_rms = np.std(self.wavefront)
-        
-    #     return flat_rms#, act_cmd
-        
-        
-        
 
 class DM():
     """ Class defining the segmented deformable mirror """
@@ -115,9 +42,12 @@ class DM():
         except FileExistsError: # Folder already existing
             pass
         
-        self._compute_segment_centers()
+        self.LMC = Calculator(TN)
+        
+        self.local_mask = self.LMC.local_mask
         self._define_global_valid_ids()
         self._assemble_global_mask()
+        self._compute_segment_centers()
         self._define_segment_array()
         
         
@@ -142,14 +72,21 @@ class DM():
         """ Defines an initial segment scramble
         returning a masked array image """
         
+        n_hex = n_hexagons(self.n_rings)
+        
         file_path = self.savepath + 'segment_scramble.fits'
         try:
             masked_img = read_fits(file_path, is_ma = True)
+            
+            flat_img = masked_img.data.flatten()
+            # Save values in segments' wavefront
+            for k in range(n_hex):
+                self.segment[k].wf = flat_img[self.hex_valid_ids[k]]
+                
             return masked_img
+        
         except FileNotFoundError:
             pass
-        
-        n_hex = n_hexagons(self.n_rings)
         
         # Retrieve number of modes from the interaction matrix
         n_modes = int(np.shape(self.int_mat)[1]/n_hex)
@@ -177,7 +114,7 @@ class DM():
         # Reshape and mask image
         img = np.reshape(flat_img, np.shape(self.global_mask))
         masked_img = np.ma.masked_array(img, self.global_mask)
-        
+    
         # Save to fits
         write_to_fits(masked_img, file_path)
         return masked_img
@@ -260,6 +197,11 @@ class DM():
         data_list.append(self.int_mat.indptr)
         write_to_fits(data_list, file_path)
         
+        # Distribute data to single segments
+        for k in range(n_hex):
+            row_ids = self.hex_valid_ids[k]
+            self.segment.IM = np.array(self.int_mat[row_ids,n_modes*k:n_modes*(k+1)])
+        
         
     def _assemble_global_mask(self):
         """ Assembles the global segmented mask from
@@ -307,20 +249,20 @@ class DM():
         containing their center coordinates and the
         actuator positions """
         
-        self.segments = []
+        self.segment = []
+        self.LMC.simulate_influence_functions()
+        IFF = self.LMC.sim_IFF # local influence function
+        Rec = np.linalg.pinv(IFF) # local reconstructor
         
         for k,coords in enumerate(self.hex_centers):
-            self.segments.append(Segment(k, coords, self.local_mask))
-            # local_INTMAT = self.int_mat[:,N_modes*k:N_modes*(k+1)]
+            self.segment.append(Segment(k, coords, self.LMC))
+            self.segment[k].IFF = IFF
+            self.segment[k].R = Rec
             
             
     def _define_global_valid_ids(self):
         """ Finds the full aperture image (containing all segments)
         row and column indices for the segments images """
-                  
-        # Read local mask file
-        local_mask_path = self.savepath + 'hexagon_mask.fits'
-        self.local_mask = read_fits(local_mask_path, is_bool = True)
         
         file_path = self.savepath + 'segments_indices.fits'
         try:
