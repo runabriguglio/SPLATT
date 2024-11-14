@@ -64,12 +64,12 @@ class DM():
         if title_str is not None:
             plt.title(title_str)
             
-        # # Add a colorbar
-        # plt.colorbar()
-        # fig.set_clim([min(wavefront), max(wavefront)])
+        # Add a colorbar
+        plt.colorbar()
+        fig.set_clim([min(wavefront), max(wavefront)])
         
         
-    def segment_scramble(self):
+    def segment_scramble(self, mode_amp = 10e-6 ):
         """ Defines an initial segment scramble
         returning a masked array image """
         
@@ -103,6 +103,9 @@ class DM():
         
         # Modulate on the probability
         mode_vec = mode_vec * prob_vec_rep
+        
+        # Amplitude
+        mode_vec *= mode_amp
         
         # Matrix product
         flat_img = self.int_mat*mode_vec
@@ -166,46 +169,115 @@ class DM():
         
         
     def compute_interaction_matrix(self,n_modes):
-        """ Computes the interaction matrix: 
-            [n_pixels,n_hexes*n_modes] """
+
             
-        n_hex = n_hexagons(self.n_rings)
-        int_mat_shape = [np.size(self.global_mask),n_modes*n_hex]
+        # n_hex = n_hexagons(self.n_rings)
+        # int_mat_shape = [np.size(self.global_mask),n_modes*n_hex]
             
-        file_path = self.savepath + str(n_modes) + 'modes_interaction_matrix.fits'
-        try:
-            self.int_mat = read_fits(file_path, sparse_shape = int_mat_shape)
-            return
-        except FileNotFoundError:
-            pass
+        # file_path = self.savepath + str(n_modes) + 'modes_interaction_matrix.fits'
+        # try:
+        #     self.int_mat = read_fits(file_path, sparse_shape = int_mat_shape)
+        #     return
+        # except FileNotFoundError:
+        #     pass
+        
+        # hex_data_len = np.sum(1-self.local_mask)
+        # row_modes = np.zeros([hex_data_len*n_modes])
+        # for j in range(n_modes):
+        #     row_modes[hex_data_len*j:hex_data_len*(j+1)] = czern(j+1, self.local_mask)
+            
+        # row_indices = np.tile(self.hex_valid_ids,n_modes)
+        # row = row_indices.flatten()
+        
+        # mode_indices = np.arange(int(n_modes*n_hex))
+        # col = np.repeat(mode_indices,hex_data_len)
+        
+        # data = np.tile(row_modes,n_hex)
+    
+        # self.int_mat = csr_matrix((data, (row,col)),  
+        #                           int_mat_shape)
+        
+        # # Save to fits
+        # data_list = []
+        # data_list.append(self.int_mat.data)
+        # data_list.append(self.int_mat.indices)
+        # data_list.append(self.int_mat.indptr)
+        # write_to_fits(data_list, file_path)
         
         hex_data_len = np.sum(1-self.local_mask)
-        row_modes = np.zeros([hex_data_len*n_modes])
+        file_name = str(n_modes) + 'modes_interaction_matrix'
+        local_modes = np.zeros([hex_data_len*n_modes])
         for j in range(n_modes):
-            row_modes[hex_data_len*j:hex_data_len*(j+1)] = czern(j+1, self.local_mask)
+            local_modes[hex_data_len*j:hex_data_len*(j+1)] = czern(j+1, self.local_mask)
             
-        row_indices = np.tile(self.hex_valid_ids,n_modes)
-        row = row_indices.flatten()
-        
-        mode_indices = np.arange(int(n_modes*n_hex))
-        col = np.repeat(mode_indices,hex_data_len)
-        
-        data = np.tile(row_modes,n_hex)
-    
-        self.int_mat = csr_matrix((data, (row,col)),  
-                                  int_mat_shape)
-        
-        # Save to fits
-        data_list = []
-        data_list.append(self.int_mat.data)
-        data_list.append(self.int_mat.indices)
-        data_list.append(self.int_mat.indptr)
-        write_to_fits(data_list, file_path)
+        self.int_mat = self._distribute_local_to_global(local_modes, file_name)
         
         # Distribute data to single segments
+        n_hex = n_hexagons(self.n_rings)
         for k in range(n_hex):
             row_ids = self.hex_valid_ids[k]
             self.segment[k].IM = np.array(self.int_mat[row_ids,n_modes*k:n_modes*(k+1)])
+            
+            
+    def assemble_IFF_and_R_matrices(self):
+        
+        # Define local quantities
+        self.LMC.simulate_influence_functions()
+        IFF = self.LMC.sim_IFF # local influence function
+        Rec = self.LMC.compute_reconstructor(IFF) # local reconstructor
+        
+        for k in range(len(self.hex_centers)):
+            self.segment[k].IFF = IFF
+            self.segment[k].R = Rec
+         
+        # Assemble global matrices
+        
+        IFF_file_name = 'global_influence_functions_matrix'
+        R_file_name = 'global_reconstructor_matrix'
+        
+        self.IFF = self._distribute_local_to_global((IFF).astype(np.float32), IFF_file_name)
+        self.R = self._distribute_local_to_global((Rec).astype(np.float32), R_file_name)
+    
+        
+    def _distribute_local_to_global(self, local_data, file_name):
+          
+        
+        hex_data_len = np.sum(1-self.local_mask)
+        n_hex = n_hexagons(self.n_rings)
+        
+        if len(np.shape(local_data)) > 1: # flatten local_data if matrix
+            local_data = local_data.flatten()
+            
+        N = int(len(local_data)/hex_data_len)
+        
+        mat_shape = [np.size(self.global_mask),N*n_hex]
+            
+        file_path = self.savepath + file_name + '.fits'
+        try:
+            mat = read_fits(file_path, sparse_shape = mat_shape)
+            return mat
+        except FileNotFoundError:
+            pass
+            
+        row_indices = np.tile(self.hex_valid_ids, N)
+        row = row_indices.flatten()
+        
+        val_indices = np.arange(int(N*n_hex))
+        col = np.repeat(val_indices, hex_data_len)
+        
+        data = np.tile(local_data, n_hex)
+        
+        mat = csr_matrix((data, (row,col)), mat_shape)
+        
+        # Save to fits
+        data_list = []
+        data_list.append(mat.data)
+        data_list.append(mat.indices)
+        data_list.append(mat.indptr)
+        write_to_fits(data_list, file_path)
+        
+        return mat
+        
         
         
     def _assemble_global_mask(self):

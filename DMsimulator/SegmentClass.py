@@ -19,7 +19,7 @@ class Segment():
         self.act_pix_size = LMC.act_radius*LMC.pix_scale
         
         
-    def wavefront(self):
+    def surface(self):
         """ Plots an image of the segment's current shape 
         on the local segment mask """
         
@@ -46,7 +46,7 @@ class Segment():
         x,y = self.act_coords[:,0], self.act_coords[:,1] 
         
         plt.figure()
-        plt.scatter(x,y,c=pos, s=100)
+        plt.scatter(x,y,c=pos, s=100, cmap='inferno')
         plt.colorbar()
         plt.title('Segment ' + str(self.id) + ' actuator command')
         
@@ -70,35 +70,80 @@ class Segment():
         return new_pos
     
     
-    def flatten(self):
-        """ Computes and applies the flat command
-        for the current segment shape """
+    def flatten(self, offset = None):
+        """
+        Computes and applies the flat command
+        for the current segment shape minus a given offset
+
+        Parameters
+        ----------
+        offset : TYPE, optional
+            DESCRIPTION. The default is None.
+
+        Returns
+        -------
+        act_cmd : TYPE
+            DESCRIPTION.
+        flat_rms : TYPE
+            DESCRIPTION.
+
+        """
         
-        act_cmd = self._apply_shape(-self.shape)
-        flat_rms = np.std(self.shape)
+        delta_shape = -self.shape
         
-        return act_cmd, flat_rms
+        if offset is not None:
+            delta_shape += offset
+            
+        act_cmd = self.R @ delta_shape
+        self.mirror_command(act_cmd)
     
     
-    def mirror_command(self, mode_amps):
-        """ Computes and applies a modal amplitude
+    def mirror_command(self, cmd_amps, zonal:bool = True):
+        """ Computes and applies a zonal/modal amplitude
         command to the segment """
         
-        # length check
-        n_modes = np.shape(self.IM)[1]
-        if len(mode_amps) < n_modes:
-            amps = np.zeros(n_modes)
-            amps[:len(mode_amps)] = mode_amps
-            mode_amps = amps
+        if zonal is False: # convert modal to zonal
+            
+            mode_amps = cmd_amps.copy() # rename
+            
+            # length check
+            n_modes = np.shape(self.IM)[1]
+            if len(mode_amps) < n_modes:
+                amps = np.zeros(n_modes)
+                amps[:len(mode_amps)] = mode_amps
+                mode_amps = amps
         
-        shape = self.IM @ mode_amps
-        self._apply_shape(shape)
+            shape = self.IM @ mode_amps
+            cmd_amps = self.R @ shape
+            
+        # Update actuator position
+        self.act_pos += cmd_amps
         
-        fitting_err = np.std(self.shape - shape)
-        
-        return fitting_err
+        # Update mirror shape
+        delta_shape = self.IFF @ cmd_amps
+        self.shape += delta_shape
     
-    def update_act_coords(self, new_act_coords, simulate = True):
+    
+    def update_act_coords(self, new_act_coords, simulate:bool = True):
+        """
+        Updates the actuator coordinates to new_act_coordinates 
+        (resetting their position to zero) and computes the 
+        
+
+        Parameters
+        ----------
+        new_act_coords : ndarray([n_acts,2])
+            Vector containing the new actuator coordinates.
+        simulate : bool, optional
+            Variable for the simulation of the IFF
+            rather than their (computationally expensive)
+            FE simulation. The default is True.
+
+        Returns
+        -------
+        None.
+
+        """
         
         # Actuator data
         self.act_coords = new_act_coords
@@ -111,20 +156,6 @@ class Segment():
             
         self.R = np.linalg.pinv(self.IFF)
         
-        
-    def _apply_shape(self, shape):
-        """ Computes and applies a shape 
-        command to the segment"""
-        
-        # Compute cmd and wavefront change
-        act_cmd = self.R @ shape
-        delta_wf = self.IFF @ act_cmd
-        
-        # Update act position and wavefront
-        self.act_pos += act_cmd
-        self.shape += delta_wf
-        
-        return act_cmd
     
     
     

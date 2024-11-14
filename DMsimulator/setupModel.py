@@ -15,7 +15,7 @@ def dm_system_setup(TN):
     plt.title('Global Mask')
     
     # Global interaction matrix
-    N_global_modes = 4
+    N_global_modes = 11
     dm.compute_global_interaction_matrix(N_global_modes)
     glob_INTMAT = dm.glob_int_mat
     tiptilt = [0,1,1,0]
@@ -42,7 +42,7 @@ def dm_system_setup(TN):
     dm.plot_wavefront(w_scramble, 'Segment scramble')
     
     # Global influence functions and global reconstructor
-    #TBI
+    dm.assemble_IFF_and_R_matrices()
     
     return dm
 

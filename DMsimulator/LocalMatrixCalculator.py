@@ -75,7 +75,10 @@ class Calculator():
         # Run initialization functions
         self._define_mask()
         self._initialize_act_coords()
-
+        
+    @staticmethod
+    def compute_reconstructor(IFF):
+        return np.linalg.pinv(IFF)
     
     def compute_influence_functions(self, act_coords = None):
         """ Project the actuator influence functions 
