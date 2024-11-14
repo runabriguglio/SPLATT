@@ -3,7 +3,7 @@ import numpy as np
 
 config = configparser.ConfigParser(inline_comment_prefixes=('#', ';'))
 
-def readConfig(path):
+def read_config(path):
     config.read(path)
 
      # DM configuration parameters

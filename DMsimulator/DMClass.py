@@ -3,11 +3,11 @@ import os
 from scipy.sparse import csr_matrix
 import matplotlib.pyplot as plt
 
-from read_config import readConfig
-from zernike_polynomials import computeZernike as czern
-from rotate_coordinates import cw_rotate as crot
-from read_and_write_fits import write_to_fits
-from read_and_write_fits import read_fits 
+from ReadConfig import read_config
+from ZernikePolynomials import compute_zernike as czern
+from RotateCoordinates import cw_rotate as crot
+from ReadWriteFits import write_to_fits
+from ReadWriteFits import read_fits 
 
 from SegmentClass import Segment
 from LocalMatrixCalculator import Calculator
@@ -26,7 +26,7 @@ class DM():
         
         # Read configuration files
         config_path = './config_par_' + TN + '.yaml'
-        dm_par, opt_par = readConfig(config_path)
+        dm_par, opt_par = read_config(config_path)
         
         self.gap = dm_par[0]
         self.hex_side_len = dm_par[1]
@@ -43,8 +43,9 @@ class DM():
             pass
         
         self.LMC = Calculator(TN)
-        
         self.local_mask = self.LMC.local_mask
+        
+        self._compute_segment_centers()
         self._define_global_valid_ids()
         self._assemble_global_mask()
         self._compute_segment_centers()
@@ -204,7 +205,7 @@ class DM():
         # Distribute data to single segments
         for k in range(n_hex):
             row_ids = self.hex_valid_ids[k]
-            self.segment.IM = np.array(self.int_mat[row_ids,n_modes*k:n_modes*(k+1)])
+            self.segment[k].IM = np.array(self.int_mat[row_ids,n_modes*k:n_modes*(k+1)])
         
         
     def _assemble_global_mask(self):

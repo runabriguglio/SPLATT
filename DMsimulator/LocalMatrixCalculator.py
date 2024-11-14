@@ -4,12 +4,12 @@ import os
 from scipy.interpolate import griddata
 from tps import ThinPlateSpline # for the simulated IFF
 
-from read_config import readConfig
-from read_and_write_fits import write_to_fits
-from read_and_write_fits import read_fits 
+from ReadConfig import read_config
+from ReadWriteFits import write_to_fits
+from ReadWriteFits import read_fits 
 
-from rotate_coordinates import rotate_by_60deg as rot60
-from rotate_coordinates import cw_rotate
+from RotateCoordinates import rotate_by_60deg as rot60
+from RotateCoordinates import cw_rotate
 
 # Useful variables
 SIN60 = np.sin(np.pi/3.)
@@ -58,7 +58,7 @@ class Calculator():
 
         # Read configuration files
         config_path = './config_par_' + TN + '.yaml'
-        dm_par, opt_par = readConfig(config_path)
+        dm_par, opt_par = read_config(config_path)
 
         self.hex_len = dm_par[1]
         self.pix_scale = opt_par[0]

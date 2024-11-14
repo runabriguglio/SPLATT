@@ -1,7 +1,7 @@
 import numpy as np
 # import matplotlib.pyplot as plt
 
-def computeZernike(noll_number, mask):
+def compute_zernike(noll_number, mask):
     """ Defines the Zernike polynomials identified by the Noll number in input
     on a mask (boolean array). The polynomials are computed in a circle
     inscribed in the mask, and the masked data is then normalized on the 

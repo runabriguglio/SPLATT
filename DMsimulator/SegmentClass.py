@@ -1,8 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-
 class Segment():
     """ Class defining the single segment
     with center coordinates and actuator displacements """
@@ -18,6 +16,7 @@ class Segment():
         
         self.act_coords = LMC.local_act_coords
         self.act_pos = np.zeros(len(self.act_coords))
+        self.act_pix_size = LMC.act_radius*LMC.pix_scale
         
         
     def wavefront(self):
@@ -44,6 +43,13 @@ class Segment():
         position of the segments's actuators """
         
         pos = self.act_pos
+        x,y = self.act_coords[:,0], self.act_coords[:,1] 
+        
+        plt.figure()
+        plt.scatter(x,y,c=pos, s=100)
+        plt.colorbar()
+        plt.title('Segment ' + str(self.id) + ' actuator command')
+        
         return pos
     
     
@@ -92,13 +98,17 @@ class Segment():
         
         return fitting_err
     
-    def update_act_coords(self, new_act_coords):
+    def update_act_coords(self, new_act_coords, simulate = True):
         
         # Actuator data
         self.act_coords = new_act_coords
         self.act_pos = np.zeros(len(self.act_coords))
         
-        self.IFF = self.LMC.simulate_influence_functions(new_act_coords)
+        if simulate:
+            self.IFF = self.LMC.simulate_influence_functions(new_act_coords)
+        else:
+            self.IFF = self.LMC.compute_influence_functions(new_act_coords)
+            
         self.R = np.linalg.pinv(self.IFF)
         
         
