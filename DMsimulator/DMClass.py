@@ -19,7 +19,7 @@ COS60 = np.cos(np.pi/3.)
 def n_hexagons(n_rings):
     return int(1 + (6 + n_rings*6)*n_rings/2)
 
-class DM():
+class SegmentedMirror():
     """ Class defining the segmented deformable mirror """
 
     def __init__(self, TN):
@@ -46,9 +46,9 @@ class DM():
         self.local_mask = self.LMC.local_mask
         
         self._compute_segment_centers()
+        self._initialize_global_actuator_coordinates()
         self._define_global_valid_ids()
         self._assemble_global_mask()
-        self._compute_segment_centers()
         self._define_segment_array()
         
         
@@ -66,7 +66,6 @@ class DM():
             
         # Add a colorbar
         plt.colorbar()
-        fig.set_clim([min(wavefront), max(wavefront)])
         
         
     def segment_scramble(self, mode_amp = 10e-6 ):
@@ -125,7 +124,7 @@ class DM():
     
         # Save to fits
         write_to_fits(masked_img, file_path)
-        return masked_img
+        self.shape = masked_img.data[~masked_img.mask]
         
         
     def compute_global_interaction_matrix(self,n_modes):
@@ -169,40 +168,6 @@ class DM():
         
         
     def compute_interaction_matrix(self,n_modes):
-
-            
-        # n_hex = n_hexagons(self.n_rings)
-        # int_mat_shape = [np.size(self.global_mask),n_modes*n_hex]
-            
-        # file_path = self.savepath + str(n_modes) + 'modes_interaction_matrix.fits'
-        # try:
-        #     self.int_mat = read_fits(file_path, sparse_shape = int_mat_shape)
-        #     return
-        # except FileNotFoundError:
-        #     pass
-        
-        # hex_data_len = np.sum(1-self.local_mask)
-        # row_modes = np.zeros([hex_data_len*n_modes])
-        # for j in range(n_modes):
-        #     row_modes[hex_data_len*j:hex_data_len*(j+1)] = czern(j+1, self.local_mask)
-            
-        # row_indices = np.tile(self.hex_valid_ids,n_modes)
-        # row = row_indices.flatten()
-        
-        # mode_indices = np.arange(int(n_modes*n_hex))
-        # col = np.repeat(mode_indices,hex_data_len)
-        
-        # data = np.tile(row_modes,n_hex)
-    
-        # self.int_mat = csr_matrix((data, (row,col)),  
-        #                           int_mat_shape)
-        
-        # # Save to fits
-        # data_list = []
-        # data_list.append(self.int_mat.data)
-        # data_list.append(self.int_mat.indices)
-        # data_list.append(self.int_mat.indptr)
-        # write_to_fits(data_list, file_path)
         
         hex_data_len = np.sum(1-self.local_mask)
         file_name = str(n_modes) + 'modes_interaction_matrix'
@@ -327,14 +292,14 @@ class DM():
         actuator positions """
         
         self.segment = []
-        self.LMC.simulate_influence_functions()
-        IFF = self.LMC.sim_IFF # local influence function
-        Rec = np.linalg.pinv(IFF) # local reconstructor
+        # self.LMC.simulate_influence_functions()
+        # IFF = self.LMC.sim_IFF # local influence function
+        # Rec = np.linalg.pinv(IFF) # local reconstructor
         
         for k,coords in enumerate(self.hex_centers):
             self.segment.append(Segment(k, coords, self.LMC))
-            self.segment[k].IFF = IFF
-            self.segment[k].R = Rec
+            # self.segment[k].IFF = IFF
+            # self.segment[k].R = Rec
             
             
     def _define_global_valid_ids(self):
@@ -387,6 +352,18 @@ class DM():
         
         # Save to fits
         write_to_fits([self.hex_valid_ids,self.global_row_idx,self.global_col_idx], file_path)
+        
+        
+    def _initialize_global_actuator_coordinates(self):
+        
+        n_hex = n_hexagons(self.n_rings)
+        local_coords = self.LMC.local_act_coords.copy()
+        n_acts = len(local_coords)
+        
+        self.act_coords = np.tile(local_coords, n_hex)
+        self.act_coords += np.repeat(self.hex_centers, n_acts)
+        
+        self.act_pos = np.zeros(n_acts*n_hex)
         
         
     def _compute_segment_centers(self):

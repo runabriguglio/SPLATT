@@ -2,12 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # from HexagonClass import Hexagon
-from DMClass import DM
+from DMClass import SegmentedMirror
 
 def dm_system_setup(TN):
     
     # Build segmented deformable mirror
-    dm = DM(TN)
+    dm = SegmentedMirror(TN)
     
     # Plot global mask
     plt.figure()
