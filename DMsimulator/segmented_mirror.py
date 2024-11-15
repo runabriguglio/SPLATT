@@ -3,14 +3,15 @@ import os
 from scipy.sparse import csr_matrix
 import matplotlib.pyplot as plt
 
-from ReadConfig import read_config
-from ZernikePolynomials import compute_zernike as czern
-from RotateCoordinates import cw_rotate as crot
-from ReadWriteFits import write_to_fits
-from ReadWriteFits import read_fits 
+from read_configuration import read_config
+from zernike_polynomials import compute_zernike as czern
+from rotate_coordinates import cw_rotate as crot
+from read_and_write_fits import write_to_fits
+from read_and_write_fits import read_fits 
+from read_and_write_fits import write_csr_to_fits
 
-from SegmentClass import Segment
-from LocalMatrixCalculator import Calculator
+from mirror_segments import Segment
+from local_influence_functions_calculator import Calculator
 
 # Useful variables
 SIN60 = np.sin(np.pi/3.)
@@ -89,7 +90,7 @@ class SegmentedMirror():
             pass
         
         # Retrieve number of modes from the interaction matrix
-        n_modes = int(np.shape(self.int_mat)[1]/n_hex)
+        n_modes = int(np.shape(self.IM)[1]/n_hex)
         
         # Generate random mode coefficients
         mode_vec = np.random.randn(n_hex*n_modes)
@@ -107,7 +108,7 @@ class SegmentedMirror():
         mode_vec *= mode_amp
         
         # Matrix product
-        flat_img = self.int_mat*mode_vec
+        flat_img = self.IM*mode_vec
         
         # # Global modes
         # n_glob_modes = np.shape(self.glob_int_mat)[1]
@@ -127,7 +128,7 @@ class SegmentedMirror():
         self.shape = masked_img.data[~masked_img.mask]
         
         
-    def compute_global_interaction_matrix(self,n_modes):
+    def compute_global_interaction_matrix(self, n_modes):
         """ Computes the global interaction matrix: 
             [n_pixels,n_modes] """
             
@@ -135,13 +136,14 @@ class SegmentedMirror():
             
         file_path = self.savepath + str(n_modes) + 'modes_global_interaction_matrix.fits'
         try:
-            self.glob_int_mat = read_fits(file_path, sparse_shape = int_mat_shape)
+            self.glob_IM = read_fits(file_path, sparse_shape = int_mat_shape)
             return
         except FileNotFoundError:
             pass
         
         data_len = np.sum(1-self.global_mask)
         modes_data = np.zeros([data_len*n_modes])
+        
         for j in range(n_modes):
             modes_data[data_len*j:data_len*(j+1)] = czern(j+1, self.global_mask)
             
@@ -155,19 +157,15 @@ class SegmentedMirror():
         mode_indices = np.arange(n_modes)
         col = np.repeat(mode_indices,data_len)
     
-        self.glob_int_mat = csr_matrix((modes_data, (row,col)),  
+        self.glob_IM = csr_matrix((modes_data, (row,col)),  
                                   int_mat_shape)
         
         # Save to fits
-        data_list = []
-        data_list.append(self.glob_int_mat.data)
-        data_list.append(self.glob_int_mat.indices)
-        data_list.append(self.glob_int_mat.indptr)
-        write_to_fits(data_list, file_path)
+        write_csr_to_fits(self.glob_IM, file_path)
         
         
         
-    def compute_interaction_matrix(self,n_modes):
+    def compute_interaction_matrix(self, n_modes):
         
         hex_data_len = np.sum(1-self.local_mask)
         file_name = str(n_modes) + 'modes_interaction_matrix'
@@ -175,13 +173,13 @@ class SegmentedMirror():
         for j in range(n_modes):
             local_modes[hex_data_len*j:hex_data_len*(j+1)] = czern(j+1, self.local_mask)
             
-        self.int_mat = self._distribute_local_to_global(local_modes, file_name)
+        self.IM = self._distribute_local_to_global(local_modes, file_name)
         
         # Distribute data to single segments
         n_hex = n_hexagons(self.n_rings)
         for k in range(n_hex):
             row_ids = self.hex_valid_ids[k]
-            self.segment[k].IM = np.array(self.int_mat[row_ids,n_modes*k:n_modes*(k+1)])
+            self.segment[k].IM = self.IM[row_ids,n_modes*k:n_modes*(k+1)].toarray()
             
             
     def assemble_IFF_and_R_matrices(self):
@@ -200,22 +198,24 @@ class SegmentedMirror():
         IFF_file_name = 'global_influence_functions_matrix'
         R_file_name = 'global_reconstructor_matrix'
         
-        self.IFF = self._distribute_local_to_global((IFF).astype(np.float32), IFF_file_name)
-        self.R = self._distribute_local_to_global((Rec).astype(np.float32), R_file_name)
-    
+        self.IFF = self._distribute_local_to_global(IFF, IFF_file_name)
+        self.R = self._distribute_local_to_global(Rec, R_file_name)
+        
         
     def _distribute_local_to_global(self, local_data, file_name):
-          
         
         hex_data_len = np.sum(1-self.local_mask)
         n_hex = n_hexagons(self.n_rings)
         
-        if len(np.shape(local_data)) > 1: # flatten local_data if matrix
+        data_shape = np.shape(local_data)
+        if len(data_shape) > 1: #  local_data is a matrix
             local_data = local_data.flatten()
             
         N = int(len(local_data)/hex_data_len)
-        
+                
         mat_shape = [np.size(self.global_mask),N*n_hex]
+        if data_shape[0] < hex_data_len: # e.g. for the reconstructor [Nacts,Npix]
+            mat_shape = [N*n_hex, np.size(self.global_mask)]
             
         file_path = self.savepath + file_name + '.fits'
         try:
@@ -232,14 +232,13 @@ class SegmentedMirror():
         
         data = np.tile(local_data, n_hex)
         
-        mat = csr_matrix((data, (row,col)), mat_shape)
+        if data_shape[0] < hex_data_len: # e.g. for the reconstructor [Nacts,Npix]
+            mat = csr_matrix((data, (col,row)), mat_shape)
+        else:
+            mat = csr_matrix((data, (row,col)), mat_shape)
         
         # Save to fits
-        data_list = []
-        data_list.append(mat.data)
-        data_list.append(mat.indices)
-        data_list.append(mat.indptr)
-        write_to_fits(data_list, file_path)
+        write_csr_to_fits(mat, file_path)
         
         return mat
         
@@ -292,14 +291,9 @@ class SegmentedMirror():
         actuator positions """
         
         self.segment = []
-        # self.LMC.simulate_influence_functions()
-        # IFF = self.LMC.sim_IFF # local influence function
-        # Rec = np.linalg.pinv(IFF) # local reconstructor
         
         for k,coords in enumerate(self.hex_centers):
             self.segment.append(Segment(k, coords, self.LMC))
-            # self.segment[k].IFF = IFF
-            # self.segment[k].R = Rec
             
             
     def _define_global_valid_ids(self):
@@ -357,11 +351,13 @@ class SegmentedMirror():
     def _initialize_global_actuator_coordinates(self):
         
         n_hex = n_hexagons(self.n_rings)
-        local_coords = self.LMC.local_act_coords.copy()
-        n_acts = len(local_coords)
+        local_coords = self.LMC.local_act_coords.flatten()
+        n_acts = len(self.LMC.local_act_coords)
         
-        self.act_coords = np.tile(local_coords, n_hex)
-        self.act_coords += np.repeat(self.hex_centers, n_acts)
+        rep_act_coords = np.tile(local_coords, n_hex)
+        rep_hex_centers = np.repeat(self.hex_centers.flatten(), n_acts)
+        rep_act_coords += rep_hex_centers 
+        self.act_coords = np.reshape(rep_act_coords, [n_acts*n_hex,2])
         
         self.act_pos = np.zeros(n_acts*n_hex)
         
@@ -407,41 +403,4 @@ class SegmentedMirror():
         write_to_fits(self.hex_centers, file_path)
         
         
-        # def draw_hex_outline(self):
-        #     """ Plots the hexagons' outline and the inscribed circle """
-        
-        #     hex_sides = np.zeros([8,2])
-        #     hex_sides[0,:] = np.array([-2*COS60, 0.])
-        #     hex_sides[1,:] = np.array([-0.5, SIN60])
-        #     hex_sides[2,:] = np.array([-hex_sides[1,0],hex_sides[1,1]])
-        #     hex_sides[3,:] = -hex_sides[0,:]
-        #     hex_sides[4,:] = -hex_sides[1,:]
-        #     hex_sides[5,:] = -hex_sides[2,:]
-        #     hex_sides[6,:] = hex_sides[0,:]
-        #     hex_sides[-1,:] = np.array([None,None])
-            
-        #     plt.figure()
-        #     plt.grid('on')
-            
-        #     rep_c_coords = np.tile(self.hex_centers,len(hex_sides))
-        #     rep_c_coords = rep_c_coords.flatten()
-        #     hex_sides = hex_sides.flatten()
-        #     rep_hex_sides = np.tile(hex_sides,len(self.hex_centers))
-        #     coords = rep_c_coords + rep_hex_sides 
-        #     coords = np.reshape(coords,[int(len(coords)/2),2])
-        #     plt.plot(coords[:,0],coords[:,1],color='goldenrod')
-                     
-            
-        #     # Plot inscribed cirle
-        #     L = self.gap + 2.*self.hex_side_len*SIN60
-        #     R = np.sqrt((L*self.n_rings)**2 + (self.hex_side_len*(0.5+COS60))**2) - self.hex_side_len*COS60
-        #     x_vec = np.linspace(-R,R,100)
-        #     y_vec = np.sqrt(R**2-x_vec**2)
-            
-        #     plt.plot(x_vec,y_vec,'--',color='green')
-        #     plt.plot(x_vec,-y_vec,'--',color='green')
-                
-        #     plt.axis('equal')
-            
-        #     return coords
         

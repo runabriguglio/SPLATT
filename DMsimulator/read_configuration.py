@@ -1,20 +1,37 @@
 import configparser
 import numpy as np
 
+# setup configparser
 config = configparser.ConfigParser(inline_comment_prefixes=('#', ';'))
 
 def read_config(path):
+    """
+    Returns a list of parameters read from a configuration .yaml file
+
+    Parameters
+    ----------
+    path : string
+        Complete path to the configuration file.
+
+    Returns
+    -------
+    dm_par : list
+        Deformable mirror parameters list.
+    opt_par : list
+        Optical parameters list.
+
+    """
     config.read(path)
 
      # DM configuration parameters
     dm_conf = config['DM']
-    g = dm_conf['hex_gap']
+    gap = dm_conf['hex_gap']
     l_hex = dm_conf['hex_side']
     n_rings = dm_conf['n_rings']
     act_pitch = dm_conf['act_pitch']
     act_r = dm_conf['act_radius']
 
-    dm_par = np.array([g, l_hex, n_rings, act_pitch, act_r])
+    dm_par = np.array([gap, l_hex, n_rings, act_pitch, act_r])
     dm_par = dm_par.astype(float)
 
     # Optical configuration parameters

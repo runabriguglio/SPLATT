@@ -1,8 +1,37 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.sparse import csr_matrix
+from segmented_mirror import SegmentedMirror
 
-# from HexagonClass import Hexagon
-from DMClass import SegmentedMirror
+
+def matmul(matrix, vector):
+    """
+    Simple function to perform matrix multiplication
+    for both sparse and regular matrices
+
+    Parameters
+    ----------
+    matrix : TYPE
+        DESCRIPTION.
+    vector : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    res : TYPE
+        DESCRIPTION.
+
+    """
+    
+    if isinstance(matrix, csr_matrix):
+       res = matrix * vector
+       res = np.array(res[:,0])
+    else:
+        res = matrix @ vector
+        
+    return res
+
+
 
 def dm_system_setup(TN):
     
@@ -17,15 +46,17 @@ def dm_system_setup(TN):
     # Global interaction matrix
     N_global_modes = 11
     dm.compute_global_interaction_matrix(N_global_modes)
-    glob_INTMAT = dm.glob_int_mat
-    tiptilt = [0,1,1,0]
+    glob_INTMAT = dm.glob_IM
+    tiptilt = np.zeros(N_global_modes)
+    tiptilt[1] = 1
+    tiptilt[2] = 1
     wf = glob_INTMAT * tiptilt
     dm.plot_wavefront(wf, 'Global Tip/Tilt')
     
     # Interaction matrix
     N_modes = 11
     dm.compute_interaction_matrix(N_modes)
-    INTMAT = dm.int_mat
+    INTMAT = dm.IM
     n_hex = int(np.shape(INTMAT)[1]/N_modes)
     cmd_ids = np.arange(N_modes-1)+1
     cmd_ids = np.tile(cmd_ids,int(np.ceil(n_hex/(N_modes-1))))
@@ -37,15 +68,46 @@ def dm_system_setup(TN):
     dm.plot_wavefront(flat_img, 'Zernike modes')
     
     # Initial segment scramble
-    scrambled_img = dm.segment_scramble()
-    w_scramble = scrambled_img.flatten()
-    dm.plot_wavefront(w_scramble, 'Segment scramble')
+    dm.segment_scramble()
+    # w_scramble = scrambled_img.flatten()
+    # dm.plot_wavefront(w_scramble, 'Segment scramble')
     
     # Global influence functions and global reconstructor
     dm.assemble_IFF_and_R_matrices()
     
     return dm
 
+
+def fitting_error(mask, IM, IFF, R):
+    
+    N_modes = np.shape(IM)[1]
+    RMS_vec = np.zeros(N_modes)
+    
+    for k in range(N_modes):
+        des_shape = IM[:,k]
+        act_cmd = matmul(R,des_shape)
+        act_shape = matmul(IFF,act_cmd)
+        shape_err = des_shape-act_shape
+        RMS_vec[k] = np.std(shape_err)
+        
+        img = np.zeros(np.size(mask))
+        flat_mask = mask.flatten()
+        img[~flat_mask] = shape_err
+        img = np.reshape(img, np.shape(mask))
+        img = np.ma.masked_array(img, mask)
+        plt.figure()
+        plt.imshow(img, origin = 'lower', cmap = 'inferno')
+        plt.title('Mode ' + str(k) + ' shape error\n RMS: ' + str(RMS_vec[k]) )
+        plt.colorbar()
+        
+    plt.figure()
+    plt.plot(RMS_vec,'o')
+    plt.xlabel('Mode index')
+    plt.ylabel('Shape RMS')
+    plt.title('Fitting error')
+    plt.grid('on')
+    
+    return RMS_vec
 
 
 # # Actuator data

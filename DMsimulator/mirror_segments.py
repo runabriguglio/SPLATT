@@ -46,7 +46,7 @@ class Segment():
         x,y = self.act_coords[:,0], self.act_coords[:,1] 
         
         plt.figure()
-        plt.scatter(x,y,c=pos, s=100, cmap='inferno')
+        plt.scatter(x,y,c=pos, s=self.act_pix_size**2, cmap='inferno')
         plt.colorbar()
         plt.title('Segment ' + str(self.id) + ' actuator command')
         

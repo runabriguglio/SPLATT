@@ -1,15 +1,14 @@
 import numpy as np
 import os
-# from scipy.sparse import csr_matrix
 from scipy.interpolate import griddata
 from tps import ThinPlateSpline # for the simulated IFF
 
-from ReadConfig import read_config
-from ReadWriteFits import write_to_fits
-from ReadWriteFits import read_fits 
+from read_configuration import read_config
+from read_and_write_fits import write_to_fits
+from read_and_write_fits import read_fits 
 
-from RotateCoordinates import rotate_by_60deg as rot60
-from RotateCoordinates import cw_rotate
+from rotate_coordinates import rotate_by_60deg as rot60
+from rotate_coordinates import cw_rotate
 
 # Useful variables
 SIN60 = np.sin(np.pi/3.)

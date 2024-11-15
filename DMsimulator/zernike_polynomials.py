@@ -1,20 +1,40 @@
 import numpy as np
 # import matplotlib.pyplot as plt
 
-def compute_zernike(noll_number, mask):
-    """ Defines the Zernike polynomials identified by the Noll number in input
-    on a mask (boolean array). The polynomials are computed in a circle
-    inscribed in the mask, and the masked data is then normalized on the 
-    valid area as follows:
-    data = ma.data[~ma.mask], data = (data - mean(data))/std(data)"""
+def compute_zernike(noll_number:int, mask, scale_length = None):
+    """
+    Defines the Zernike polynomials identified by the Noll number in input
+    on a given mask.
+    The polynomials are computed on the circle inscribed in the mask by default,
+    or on a circle of radius scale_length if the corresponding input is given
+    Masked data is then normalized as follows:
+    data = ma.data[~ma.mask], data = (data - mean(data))/std(data)
+
+    Parameters
+    ----------
+    noll_number : int
+        Noll number of the desired Zernike polynomial.
+    mask : matrix bool
+        Mask of the desired image.
+
+    Returns
+    -------
+    masked_data : masked array
+        Zernike polynomial projected on the mask.
+
+    """
 
     X,Y = np.shape(mask)
-    
+
     # Determine circle radius on to which define the Zernike
-    r = np.max([X,Y])/2
+    if scale_length is not None:
+        r = scale_length
+    else:
+        r = np.max([X,Y])/2
+
     theta = lambda i,j: np.arctan2((j-Y/2.)/r,(i-X/2.)/r)
     rho = lambda i,j: np.sqrt(((j-Y/2.)/r)**2+((i-X/2.)/r)**2)
-    
+
     match noll_number:
         case 1: # Piston
             mode = np.ones([X,Y])
@@ -45,7 +65,7 @@ def compute_zernike(noll_number, mask):
     masked_mode = np.ma.masked_array(mode,mask)
 
     masked_data = masked_mode.data[~masked_mode.mask]
-    
+
     # masked_mode = (masked_mode - np.mean(masked_data))/np.std(masked_data)
     # plt.figure()
     # plt.imshow(masked_mode,origin='lower')
@@ -53,5 +73,5 @@ def compute_zernike(noll_number, mask):
     # Normalization: null mean and unit STD
     if noll_number > 1:
         masked_data = (masked_data - np.mean(masked_data))/np.std(masked_data)
-        
+
     return masked_data

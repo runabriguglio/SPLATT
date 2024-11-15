@@ -1,33 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.sparse import csr_matrix
-
-def matmul(matrix, vector):
-    """
-    Simple function to perform matrix multiplication
-    for both sparse and regular matrices
-
-    Parameters
-    ----------
-    matrix : TYPE
-        DESCRIPTION.
-    vector : TYPE
-        DESCRIPTION.
-
-    Returns
-    -------
-    res : TYPE
-        DESCRIPTION.
-
-    """
-    
-    if isinstance(matrix, csr_matrix):
-       res = matrix * vector
-    else:
-        res = matrix @ vector
-        
-    return res
-
+from utilities import matmul
 
 
 class DeformableMirror():
