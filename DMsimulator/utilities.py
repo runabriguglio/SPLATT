@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.sparse import csr_matrix
 from segmented_mirror import SegmentedMirror
+from read_and_write_fits import write_to_fits
 
 
 def matmul(matrix, vector):
@@ -88,6 +89,10 @@ def fitting_error(mask, IM, IFF, R):
     N_modes = np.shape(IM)[1]
     RMS_vec = np.zeros(N_modes)
     
+    flat_img = np.zeros(np.size(mask))
+    flat_mask = mask.flatten()
+    cube = np.zeros([N_modes,np.shape(mask)[0],np.shape(mask)[1]])
+    
     for k in range(N_modes):
         des_shape = IM[:,k]
         act_cmd = matmul(R,des_shape)
@@ -98,11 +103,10 @@ def fitting_error(mask, IM, IFF, R):
             shape_err = shape_err[:,0]
         RMS_vec[k] = np.std(shape_err)
         
-        img = np.zeros(np.size(mask))
-        flat_mask = mask.flatten()
-        img[~flat_mask] = shape_err
-        img = np.reshape(img, np.shape(mask))
+        flat_img[~flat_mask] = shape_err
+        img = np.reshape(flat_img, np.shape(mask))
         img = np.ma.masked_array(img, mask)
+        cube[k] = img
         plt.figure()
         plt.imshow(img, origin = 'lower', cmap = 'inferno')
         plt.colorbar()
@@ -114,6 +118,8 @@ def fitting_error(mask, IM, IFF, R):
     plt.ylabel('Shape RMS')
     plt.title('Fitting error')
     plt.grid('on')
+    
+    write_to_fits(cube,'cube_global_fitted_modes.fits')
     
     return RMS_vec
 

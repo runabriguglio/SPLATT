@@ -186,8 +186,6 @@ class SegmentedMirror():
         # Distribute data to single segments
         n_hex = n_hexagons(self.n_rings)
         for k in range(n_hex):
-            # row_ids = self.hex_valid_ids[k]
-            # self.segment[k].IM = self.IM[row_ids,n_modes*k:n_modes*(k+1)].toarray()
             row_ids = self.valid_ids[k]
             self.segment[k].IM = self.IM[row_ids,n_modes*k:n_modes*(k+1)].toarray()
             
@@ -221,7 +219,7 @@ class SegmentedMirror():
         IFF_file_name = self.savepath + 'global_influence_functions_matrix.fits'
         R_file_name = self.savepath + 'global_reconstructor_matrix.fits'
         
-        self.IFF = self._distribute_local_to_global(local_IFF, IFF_file_name)
+        self.IFF = self._distribute_local_to_global(local_IFF.flatten(order='F'), IFF_file_name)
         self.R = self._distribute_local_to_global(Rec, R_file_name)
         
         
@@ -231,16 +229,18 @@ class SegmentedMirror():
         n_hex = n_hexagons(self.n_rings)
         
         data_shape = np.shape(local_data)
-        if len(data_shape) > 1: #  local_data is a matrix
-            local_data = local_data.flatten()
             
-        N = int(len(local_data)/hex_data_len)
+        N = int(np.size(local_data)/hex_data_len)
         glob_data_len = np.sum(1-self.global_mask)
         mat_shape = [glob_data_len,N*n_hex]
         
-        if data_shape[0] < hex_data_len: # e.g. for the reconstructor [Nacts,Npix]
-            mat_shape = [N*n_hex, glob_data_len]
-            
+        if len(data_shape) > 1: #  local_data is a matrix
+            if data_shape[0] < hex_data_len: # Reconstructor [Nacts,Npix]
+                mat_shape = [N*n_hex, glob_data_len]
+            # else: # IFF [Npix,Nacts]
+            #     local_data = local_data.T
+            local_data = local_data.flatten()
+                  
         try:
             mat = read_fits(file_path, sparse_shape = mat_shape)
             return mat
@@ -354,58 +354,6 @@ class SegmentedMirror():
         
         for k,coords in enumerate(self.hex_centers):
             self.segment.append(Segment(k, coords, self.LMC))
-            
-            
-    # def _define_global_valid_ids(self):
-    #     """ Finds the full aperture image (containing all segments)
-    #     row and column indices for the segments images """
-        
-    #     file_path = self.savepath + 'segments_indices.fits'
-    #     try:
-    #         out = read_fits(file_path, list_len = 3)
-    #         self.hex_valid_ids = out[0]
-    #         self.global_row_idx = out[1]
-    #         self.global_col_idx = out[2]
-    #         return
-    #     except FileNotFoundError:
-    #         pass
-        
-    #     # Height of hex + gap
-    #     L = self.gap + 2.*self.hex_side_len*SIN60
-        
-    #     # Full mask dimensions
-    #     Ny = (L*self.n_rings + self.hex_side_len*SIN60)*2*self.pix_scale
-    #     Nx = (L*self.n_rings*SIN60 + self.hex_side_len*(0.5+COS60))*2*self.pix_scale
-    #     self.Ntot = np.array([Nx,Ny])
-
-    #     # Hexagon centers pixel coordinates
-    #     self.pix_coords = self.hex_centers*self.pix_scale + self.Ntot/2.
-        
-    #     My,Mx = np.shape(self.local_mask)
-    #     x = np.arange(Mx,dtype=int)
-    #     y = np.arange(My,dtype=int)
-    #     X,Y = np.meshgrid(x,y)
-    #     local_X = X[~self.local_mask]
-    #     local_Y = Y[~self.local_mask]
-    #     local_row_idx = local_Y - int(My/2)
-    #     local_col_idx = local_X - int(Mx/2)
-
-    #     n_hex = n_hexagons(self.n_rings)
-    #     rep_local_row = np.tile(local_row_idx,n_hex)
-    #     rep_local_col = np.tile(local_col_idx,n_hex)
-        
-    #     valid_len = np.sum(1-self.local_mask)
-    #     rep_pix_coords = np.repeat(self.pix_coords, valid_len, axis = 0)
-        
-    #     self.global_row_idx = (rep_local_row + rep_pix_coords[:,1]).astype(int)
-    #     self.global_col_idx = (rep_local_col + rep_pix_coords[:,0]).astype(int)
-        
-    #     # Save valid hexagon indices
-    #     hex_idx = self.global_col_idx + self.global_row_idx*int(Nx)
-    #     self.hex_valid_ids = np.reshape(hex_idx,[n_hex,valid_len])
-        
-    #     # Save to fits
-    #     write_to_fits([self.hex_valid_ids,self.global_row_idx,self.global_col_idx], file_path)
         
         
     def _initialize_global_actuator_coordinates(self):
