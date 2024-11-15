@@ -48,7 +48,7 @@ class SegmentedMirror():
         
         self._compute_segment_centers()
         self._initialize_global_actuator_coordinates()
-        self._define_global_valid_ids()
+        # self._define_global_valid_ids()
         self._assemble_global_mask()
         self._define_segment_array()
         
@@ -57,15 +57,20 @@ class SegmentedMirror():
         """ Plots an image on the global mask 
         given a wavefront """
         
-        full_img = np.reshape(wavefront, np.shape(self.global_mask))
-        img = np.ma.masked_array(full_img, self.global_mask)
+        # full_img = np.reshape(wavefront, np.shape(self.global_mask))
+        # img = np.ma.masked_array(full_img, self.global_mask)
+        
+        img = np.zeros(np.size(self.global_mask))
+        flat_mask = self.global_mask.flatten()
+        img[~flat_mask] = wavefront
+        img = np.reshape(img, np.shape(self.global_mask))
+        img = np.ma.masked_array(img, self.global_mask)
 
         plt.figure()
         plt.imshow(img, origin = 'lower', cmap='inferno')
         if title_str is not None:
             plt.title(title_str)
             
-        # Add a colorbar
         plt.colorbar()
         
         
@@ -74,6 +79,7 @@ class SegmentedMirror():
         returning a masked array image """
         
         n_hex = n_hexagons(self.n_rings)
+        # hex_data_len = np.sum(1-self.local_mask)
         
         file_path = self.savepath + 'segment_scramble.fits'
         try:
@@ -82,9 +88,10 @@ class SegmentedMirror():
             flat_img = masked_img.data.flatten()
             # Save values in segments' wavefront
             for k in range(n_hex):
-                self.segment[k].shape = flat_img[self.hex_valid_ids[k]]
+                row_ids = self.valid_ids[k]
+                self.segment[k].shape = flat_img[row_ids]
                 
-            return masked_img
+            self.shape = masked_img.data[~masked_img.mask]
         
         except FileNotFoundError:
             pass
@@ -117,10 +124,14 @@ class SegmentedMirror():
         
         # Save values in segments' wavefront
         for k in range(n_hex):
-            self.segment[k].shape = flat_img[self.hex_valid_ids[k]]
+            row_ids = self.valid_ids[k]
+            self.segment[k].shape = flat_img[row_ids]
         
         # Reshape and mask image
-        img = np.reshape(flat_img, np.shape(self.global_mask))
+        img = np.zeros(np.size(self.global_mask))
+        flat_mask = self.global_mask.flatten()
+        img[~flat_mask] = flat_img
+        img = np.reshape(img, np.shape(self.global_mask))
         masked_img = np.ma.masked_array(img, self.global_mask)
     
         # Save to fits
@@ -132,7 +143,7 @@ class SegmentedMirror():
         """ Computes the global interaction matrix: 
             [n_pixels,n_modes] """
             
-        int_mat_shape = [np.size(self.global_mask),n_modes]
+        int_mat_shape = [np.sum(1-self.global_mask),n_modes]
             
         file_path = self.savepath + str(n_modes) + 'modes_global_interaction_matrix.fits'
         try:
@@ -147,10 +158,7 @@ class SegmentedMirror():
         for j in range(n_modes):
             modes_data[data_len*j:data_len*(j+1)] = czern(j+1, self.global_mask)
             
-        mask = self.global_mask.copy()
-        flat_mask = mask.flatten()
-        ids = np.arange(len(flat_mask))
-        valid_ids = ids[ids[~flat_mask]]
+        valid_ids = np.arange(data_len)
         row_indices = np.tile(valid_ids,n_modes)
         row = row_indices.flatten()
         
@@ -168,7 +176,7 @@ class SegmentedMirror():
     def compute_interaction_matrix(self, n_modes):
         
         hex_data_len = np.sum(1-self.local_mask)
-        file_name = str(n_modes) + 'modes_interaction_matrix'
+        file_name = self.savepath + str(n_modes) + 'modes_interaction_matrix.fits'
         local_modes = np.zeros([hex_data_len*n_modes])
         for j in range(n_modes):
             local_modes[hex_data_len*j:hex_data_len*(j+1)] = czern(j+1, self.local_mask)
@@ -178,31 +186,46 @@ class SegmentedMirror():
         # Distribute data to single segments
         n_hex = n_hexagons(self.n_rings)
         for k in range(n_hex):
-            row_ids = self.hex_valid_ids[k]
+            # row_ids = self.hex_valid_ids[k]
+            # self.segment[k].IM = self.IM[row_ids,n_modes*k:n_modes*(k+1)].toarray()
+            row_ids = self.valid_ids[k]
             self.segment[k].IM = self.IM[row_ids,n_modes*k:n_modes*(k+1)].toarray()
             
             
     def assemble_IFF_and_R_matrices(self):
         
-        # Define local quantities
-        self.LMC.simulate_influence_functions()
-        IFF = self.LMC.sim_IFF # local influence function
-        Rec = self.LMC.compute_reconstructor(IFF) # local reconstructor
+        # Local matrices
+        local_IFF_path = self.savepath + 'local_influence_functions_matrix.fits'
+        local_R_path = self.savepath + 'local_reconstructor_matrix.fits'
+        
+        # Read/compute local IFF
+        try:
+            local_IFF = read_fits(local_IFF_path)
+        except FileNotFoundError:
+            self.LMC.simulate_influence_functions()
+            local_IFF = self.LMC.sim_IFF
+            write_to_fits(local_IFF, local_IFF_path)
+        
+        # Read/compute local Reconstructor
+        try:
+            Rec = read_fits(local_R_path)
+        except FileNotFoundError:
+            Rec = self.LMC.compute_reconstructor(local_IFF) 
+            write_to_fits(Rec, local_R_path)
         
         for k in range(len(self.hex_centers)):
-            self.segment[k].IFF = IFF
+            self.segment[k].IFF = local_IFF
             self.segment[k].R = Rec
          
         # Assemble global matrices
+        IFF_file_name = self.savepath + 'global_influence_functions_matrix.fits'
+        R_file_name = self.savepath + 'global_reconstructor_matrix.fits'
         
-        IFF_file_name = 'global_influence_functions_matrix'
-        R_file_name = 'global_reconstructor_matrix'
-        
-        self.IFF = self._distribute_local_to_global(IFF, IFF_file_name)
+        self.IFF = self._distribute_local_to_global(local_IFF, IFF_file_name)
         self.R = self._distribute_local_to_global(Rec, R_file_name)
         
         
-    def _distribute_local_to_global(self, local_data, file_name):
+    def _distribute_local_to_global(self, local_data, file_path):
         
         hex_data_len = np.sum(1-self.local_mask)
         n_hex = n_hexagons(self.n_rings)
@@ -212,19 +235,24 @@ class SegmentedMirror():
             local_data = local_data.flatten()
             
         N = int(len(local_data)/hex_data_len)
-                
-        mat_shape = [np.size(self.global_mask),N*n_hex]
+        glob_data_len = np.sum(1-self.global_mask)
+        mat_shape = [glob_data_len,N*n_hex]
+        
         if data_shape[0] < hex_data_len: # e.g. for the reconstructor [Nacts,Npix]
-            mat_shape = [N*n_hex, np.size(self.global_mask)]
+            mat_shape = [N*n_hex, glob_data_len]
             
-        file_path = self.savepath + file_name + '.fits'
         try:
             mat = read_fits(file_path, sparse_shape = mat_shape)
             return mat
         except FileNotFoundError:
             pass
-            
-        row_indices = np.tile(self.hex_valid_ids, N)
+        
+        # # # row_indices = np.tile(self.hex_valid_ids, N)
+        # # valid_ids = np.arange(glob_data_len)
+        # # row_indices = np.tile(valid_ids, N)
+        # valid_ids = np.arange(hex_data_len)
+        # row_indices = np.tile(valid_ids, N*n_hex)
+        row_indices = np.tile(self.valid_ids, N)
         row = row_indices.flatten()
         
         val_indices = np.arange(int(N*n_hex))
@@ -248,9 +276,11 @@ class SegmentedMirror():
         """ Assembles the global segmented mask from
         the local mask data """
         
-        file_path = self.savepath + 'global_mask.fits'
+        mask_file_path = self.savepath + 'global_mask.fits'
+        ids_file_path = self.savepath + 'valid_ids.fits'
         try:
-            self.global_mask = read_fits(file_path, is_bool = True)
+            self.global_mask = read_fits(mask_file_path, is_bool = True)
+            self.valid_ids = read_fits(ids_file_path)
             return
         except FileNotFoundError:
             pass
@@ -259,67 +289,13 @@ class SegmentedMirror():
         L = self.gap + 2.*self.hex_side_len*SIN60
         
         # Full mask dimensions
-        Ny = (L*self.n_rings + self.hex_side_len*SIN60)*2*self.pix_scale
-        Nx = (L*self.n_rings*SIN60 + self.hex_side_len*(0.5+COS60))*2*self.pix_scale
+        Ny = np.ceil((L*self.n_rings + self.hex_side_len*SIN60)*2*self.pix_scale)
+        Nx = np.ceil((L*self.n_rings*SIN60 + self.hex_side_len*(0.5+COS60))*2*self.pix_scale)
         mask_shape = np.array([int(Ny),int(Nx)])
         mask = np.zeros(mask_shape, dtype = bool)
         
         # Hexagon centers pixel coordinates
         pix_coords = self.hex_centers*self.pix_scale + np.array([Nx,Ny])/2.
-        
-        valid_len = np.sum(1-self.local_mask)
-        rep_pix_coords = np.repeat(pix_coords, valid_len, axis = 0)
-        
-        # Data
-        data = np.ones(len(rep_pix_coords), dtype=bool)
-        
-        # Sparse matrix assembly
-        sparse_mat = csr_matrix((data, (self.global_row_idx, self.global_col_idx)),  
-                                  mask_shape, dtype=bool)
-        mask += sparse_mat
-            
-        self.global_mask = np.array(~mask)
-        
-        # Save to fits
-        write_to_fits((self.global_mask).astype(np.uint8), file_path)
-        
-        
-        
-    def _define_segment_array(self):
-        """ Builds an array of Segment class objects,
-        containing their center coordinates and the
-        actuator positions """
-        
-        self.segment = []
-        
-        for k,coords in enumerate(self.hex_centers):
-            self.segment.append(Segment(k, coords, self.LMC))
-            
-            
-    def _define_global_valid_ids(self):
-        """ Finds the full aperture image (containing all segments)
-        row and column indices for the segments images """
-        
-        file_path = self.savepath + 'segments_indices.fits'
-        try:
-            out = read_fits(file_path, list_len = 3)
-            self.hex_valid_ids = out[0]
-            self.global_row_idx = out[1]
-            self.global_col_idx = out[2]
-            return
-        except FileNotFoundError:
-            pass
-        
-        # Height of hex + gap
-        L = self.gap + 2.*self.hex_side_len*SIN60
-        
-        # Full mask dimensions
-        Ny = (L*self.n_rings + self.hex_side_len*SIN60)*2*self.pix_scale
-        Nx = (L*self.n_rings*SIN60 + self.hex_side_len*(0.5+COS60))*2*self.pix_scale
-        Ntot = np.array([Nx,Ny])
-
-        # Hexagon centers pixel coordinates
-        self.pix_coords = self.hex_centers*self.pix_scale + Ntot/2.
         
         My,Mx = np.shape(self.local_mask)
         x = np.arange(Mx,dtype=int)
@@ -334,30 +310,118 @@ class SegmentedMirror():
         rep_local_row = np.tile(local_row_idx,n_hex)
         rep_local_col = np.tile(local_col_idx,n_hex)
         
-        valid_len = np.sum(1-self.local_mask)
-        rep_pix_coords = np.repeat(self.pix_coords, valid_len, axis = 0)
+        hex_data_len = np.sum(1-self.local_mask)
+        rep_pix_coords = np.repeat(pix_coords, hex_data_len, axis = 0)
         
-        self.global_row_idx = (rep_local_row + rep_pix_coords[:,1]).astype(int)
-        self.global_col_idx = (rep_local_col + rep_pix_coords[:,0]).astype(int)
+        global_row_idx = (rep_local_row + rep_pix_coords[:,1]).astype(int)
+        global_col_idx = (rep_local_col + rep_pix_coords[:,0]).astype(int)
         
         # Save valid hexagon indices
-        hex_idx = self.global_col_idx + self.global_row_idx*int(Nx)
-        self.hex_valid_ids = np.reshape(hex_idx,[n_hex,valid_len])
+        hex_idx = global_col_idx + global_row_idx*int(Nx)
+        hex_valid_ids = np.reshape(hex_idx,[n_hex,hex_data_len])
+
+        # Data
+        data = np.ones(len(rep_pix_coords), dtype=bool)
+        
+        # Sparse matrix assembly
+        sparse_mat = csr_matrix((data, (global_row_idx, global_col_idx)),  
+                                  mask_shape, dtype=bool)
+        mask += sparse_mat
+            
+        self.global_mask = np.array(~mask)
+        
+        # Save valid hexagon indices
+        global_data_len = np.sum(1-self.global_mask)
+        flat_ids = np.arange(global_data_len)
+        flat_img = np.zeros(np.size(self.global_mask))
+        flat_mask = (self.global_mask.copy()).flatten()
+        flat_img[~flat_mask] = flat_ids
+        # flat_hex_ids = hex_valid_ids.flatten()
+        self.valid_ids = (flat_img[hex_valid_ids]).astype(int)
         
         # Save to fits
-        write_to_fits([self.hex_valid_ids,self.global_row_idx,self.global_col_idx], file_path)
+        write_to_fits((self.global_mask).astype(np.uint8), mask_file_path)
+        write_to_fits(self.valid_ids, ids_file_path)
+        
+        
+        
+    def _define_segment_array(self):
+        """ Builds an array of Segment class objects,
+        containing their center coordinates and the
+        actuator positions """
+        
+        self.segment = []
+        
+        for k,coords in enumerate(self.hex_centers):
+            self.segment.append(Segment(k, coords, self.LMC))
+            
+            
+    # def _define_global_valid_ids(self):
+    #     """ Finds the full aperture image (containing all segments)
+    #     row and column indices for the segments images """
+        
+    #     file_path = self.savepath + 'segments_indices.fits'
+    #     try:
+    #         out = read_fits(file_path, list_len = 3)
+    #         self.hex_valid_ids = out[0]
+    #         self.global_row_idx = out[1]
+    #         self.global_col_idx = out[2]
+    #         return
+    #     except FileNotFoundError:
+    #         pass
+        
+    #     # Height of hex + gap
+    #     L = self.gap + 2.*self.hex_side_len*SIN60
+        
+    #     # Full mask dimensions
+    #     Ny = (L*self.n_rings + self.hex_side_len*SIN60)*2*self.pix_scale
+    #     Nx = (L*self.n_rings*SIN60 + self.hex_side_len*(0.5+COS60))*2*self.pix_scale
+    #     self.Ntot = np.array([Nx,Ny])
+
+    #     # Hexagon centers pixel coordinates
+    #     self.pix_coords = self.hex_centers*self.pix_scale + self.Ntot/2.
+        
+    #     My,Mx = np.shape(self.local_mask)
+    #     x = np.arange(Mx,dtype=int)
+    #     y = np.arange(My,dtype=int)
+    #     X,Y = np.meshgrid(x,y)
+    #     local_X = X[~self.local_mask]
+    #     local_Y = Y[~self.local_mask]
+    #     local_row_idx = local_Y - int(My/2)
+    #     local_col_idx = local_X - int(Mx/2)
+
+    #     n_hex = n_hexagons(self.n_rings)
+    #     rep_local_row = np.tile(local_row_idx,n_hex)
+    #     rep_local_col = np.tile(local_col_idx,n_hex)
+        
+    #     valid_len = np.sum(1-self.local_mask)
+    #     rep_pix_coords = np.repeat(self.pix_coords, valid_len, axis = 0)
+        
+    #     self.global_row_idx = (rep_local_row + rep_pix_coords[:,1]).astype(int)
+    #     self.global_col_idx = (rep_local_col + rep_pix_coords[:,0]).astype(int)
+        
+    #     # Save valid hexagon indices
+    #     hex_idx = self.global_col_idx + self.global_row_idx*int(Nx)
+    #     self.hex_valid_ids = np.reshape(hex_idx,[n_hex,valid_len])
+        
+    #     # Save to fits
+    #     write_to_fits([self.hex_valid_ids,self.global_row_idx,self.global_col_idx], file_path)
         
         
     def _initialize_global_actuator_coordinates(self):
         
         n_hex = n_hexagons(self.n_rings)
-        local_coords = self.LMC.local_act_coords.flatten()
+        local_coords = self.LMC.local_act_coords
         n_acts = len(self.LMC.local_act_coords)
         
-        rep_act_coords = np.tile(local_coords, n_hex)
-        rep_hex_centers = np.repeat(self.hex_centers.flatten(), n_acts)
-        rep_act_coords += rep_hex_centers 
-        self.act_coords = np.reshape(rep_act_coords, [n_acts*n_hex,2])
+        x_act_coords = np.repeat(local_coords[:,0], n_hex)
+        x_hex_centers = np.tile(self.hex_centers[:,0], n_acts)
+        x_act_coords += x_hex_centers
+        y_act_coords = np.repeat(local_coords[:,1], n_hex)
+        y_hex_centers = np.tile(self.hex_centers[:,1], n_acts)
+        y_act_coords += y_hex_centers
+        act_coords = np.vstack([x_act_coords, y_act_coords])
+        self.act_coords = act_coords.T
         
         self.act_pos = np.zeros(n_acts*n_hex)
         

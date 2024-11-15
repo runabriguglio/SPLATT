@@ -25,7 +25,6 @@ def matmul(matrix, vector):
     
     if isinstance(matrix, csr_matrix):
        res = matrix * vector
-       res = np.array(res[:,0])
     else:
         res = matrix @ vector
         
@@ -69,8 +68,14 @@ def dm_system_setup(TN):
     
     # Initial segment scramble
     dm.segment_scramble()
-    # w_scramble = scrambled_img.flatten()
-    # dm.plot_wavefront(w_scramble, 'Segment scramble')
+    w_scramble = dm.shape.copy()
+    dm.plot_wavefront(w_scramble, 'Segment scramble')
+    
+    # Actuator coordinates
+    plt.figure()
+    plt.scatter(dm.act_coords[:,0],dm.act_coords[:,1],s=1)
+    plt.axis('equal')
+    plt.title('Global actuator locations')
     
     # Global influence functions and global reconstructor
     dm.assemble_IFF_and_R_matrices()
@@ -88,6 +93,9 @@ def fitting_error(mask, IM, IFF, R):
         act_cmd = matmul(R,des_shape)
         act_shape = matmul(IFF,act_cmd)
         shape_err = des_shape-act_shape
+        if isinstance(shape_err, csr_matrix):
+            shape_err = (shape_err).toarray()
+            shape_err = shape_err[:,0]
         RMS_vec[k] = np.std(shape_err)
         
         img = np.zeros(np.size(mask))
@@ -97,8 +105,8 @@ def fitting_error(mask, IM, IFF, R):
         img = np.ma.masked_array(img, mask)
         plt.figure()
         plt.imshow(img, origin = 'lower', cmap = 'inferno')
-        plt.title('Mode ' + str(k) + ' shape error\n RMS: ' + str(RMS_vec[k]) )
         plt.colorbar()
+        plt.title('Mode ' + str(k) + ' shape error\n RMS: ' + str(RMS_vec[k]) )
         
     plt.figure()
     plt.plot(RMS_vec,'o')
@@ -109,58 +117,6 @@ def fitting_error(mask, IM, IFF, R):
     
     return RMS_vec
 
-
-# # Actuator data
-# n_acts = len(hexA.local_act_coords)
-# max_x, max_y = np.shape(dm.local_mask)
-# valid_len = np.sum(1-dm.local_mask)
-
-# #Fitting error for a single segment
-# k = 1
-# hex_k_ids = dm.hex_valid_ids[k]
-# loc_IM = INTMAT[hex_k_ids,N_modes*k:N_modes*(k+1)]
-# loc_R = np.linalg.pinv(loc_IFF, rcond = 1e-15)
-# rel_rms = np.zeros(N_modes)
-
-# wf = np.zeros(np.size(hexA.local_mask))
-# mask = hexA.local_mask.copy()
-# fit_cube_err = []
-# flat_mask = mask.flatten()
-# flat_image = np.zeros(np.size(flat_mask))
-
-# for j in np.arange(N_modes):
-    
-#     modes = np.zeros(N_modes)
-#     modes[j] = 1 
-    
-#     # modal_img = loc_IM * modes
-#     # w_mode = modal_img[hex_k_ids]
-#     w_mode = loc_IM * modes
-#     cmd = loc_R @ w_mode
-#     w_cmd = loc_IFF @ cmd
-#     w = w_mode - w_cmd
-    
-#     rel_rms[j] = np.std(w)#/np.std(w_mode)
-    
-#     flat_image[~flat_mask] = w
-#     image = np.reshape(flat_image, np.shape(hexA.local_mask))
-#     image = np.ma.masked_array(image, hexA.local_mask)
-#     fit_cube_err.append(image)
-#     plt.figure()
-#     plt.imshow(image, origin = 'lower', cmap = 'gray')
-#     plt.title('Mode ' + str(j) + ' residual\n RMS: ' + str(np.std(w)) )
-#     plt.colorbar()
-    
-# plt.figure()
-# plt.plot(rel_rms,'o')
-# plt.grid('on')
-# plt.title('RMS residual fitting error')
-
-# plt.figure()
-# id_err = loc_R @ loc_IFF - np.eye(len(loc_R[:,0]))
-# plt.imshow(id_err, origin='lower')
-# plt.title('Reconstructor error')
-# plt.colorbar()
 
 
 # # Plot IFF data on segments
