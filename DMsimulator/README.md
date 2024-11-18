@@ -9,6 +9,6 @@ corresponding folder before running the simulation
 
 - geometry.py defines the hexagonal segments' geometry (e.g. masks, interaction matrix)
 
-- main.py is where all the fun is happening
+- main_script.py is where all the fun is happening
 
-- all other files are quite self explanatory (I'm sure you can figure out what read_config.py does)
+- all other files are quite self explanatory (I'm sure you can figure out what read_configuration.py does)

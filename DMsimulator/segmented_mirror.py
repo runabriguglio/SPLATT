@@ -48,7 +48,6 @@ class SegmentedMirror():
         
         self._compute_segment_centers()
         self._initialize_global_actuator_coordinates()
-        # self._define_global_valid_ids()
         self._assemble_global_mask()
         self._define_segment_array()
         
@@ -154,9 +153,12 @@ class SegmentedMirror():
         
         data_len = np.sum(1-self.global_mask)
         modes_data = np.zeros([data_len*n_modes])
+        h = (self.gap + 2.*self.hex_side_len*SIN60)*(self.n_rings+1)/2. 
+        d = (self.gap + self.hex_side_len + self.hex_side_len*COS60)*self.n_rings - self.hex_side_len/2.
+        R = np.sqrt(h**2+d**2) # inscribed circle radius
         
         for j in range(n_modes):
-            modes_data[data_len*j:data_len*(j+1)] = czern(j+1, self.global_mask)
+            modes_data[data_len*j:data_len*(j+1)] = czern(j+1, self.global_mask, np.ceil(R*self.pix_scale))
             
         valid_ids = np.arange(data_len)
         row_indices = np.tile(valid_ids,n_modes)
@@ -219,39 +221,36 @@ class SegmentedMirror():
         IFF_file_name = self.savepath + 'global_influence_functions_matrix.fits'
         R_file_name = self.savepath + 'global_reconstructor_matrix.fits'
         
-        self.IFF = self._distribute_local_to_global(local_IFF.flatten(order='F'), IFF_file_name)
+        self.IFF = self._distribute_local_to_global(local_IFF, IFF_file_name)
         self.R = self._distribute_local_to_global(Rec, R_file_name)
         
         
     def _distribute_local_to_global(self, local_data, file_path):
+        """ Function to distribute the local_data matrix
+        from the local mask to the global one """
         
         hex_data_len = np.sum(1-self.local_mask)
-        n_hex = n_hexagons(self.n_rings)
-        
-        data_shape = np.shape(local_data)
-            
-        N = int(np.size(local_data)/hex_data_len)
         glob_data_len = np.sum(1-self.global_mask)
+        
+        n_hex = n_hexagons(self.n_rings)
+        N = int(np.size(local_data)/hex_data_len)
+        
         mat_shape = [glob_data_len,N*n_hex]
         
+        data_shape = np.shape(local_data)
         if len(data_shape) > 1: #  local_data is a matrix
             if data_shape[0] < hex_data_len: # Reconstructor [Nacts,Npix]
                 mat_shape = [N*n_hex, glob_data_len]
-            # else: # IFF [Npix,Nacts]
-            #     local_data = local_data.T
-            local_data = local_data.flatten()
+                local_data = local_data.flatten()
+            else: # IFF [Npix,Nacts]
+                local_data = local_data.flatten(order='F')
                   
         try:
             mat = read_fits(file_path, sparse_shape = mat_shape)
             return mat
         except FileNotFoundError:
             pass
-        
-        # # # row_indices = np.tile(self.hex_valid_ids, N)
-        # # valid_ids = np.arange(glob_data_len)
-        # # row_indices = np.tile(valid_ids, N)
-        # valid_ids = np.arange(hex_data_len)
-        # row_indices = np.tile(valid_ids, N*n_hex)
+                
         row_indices = np.tile(self.valid_ids, N)
         row = row_indices.flatten()
         
@@ -357,6 +356,8 @@ class SegmentedMirror():
         
         
     def _initialize_global_actuator_coordinates(self):
+        """ Initializes and saves the coordinates of the 
+        centers of all actuators on each segment """
         
         n_hex = n_hexagons(self.n_rings)
         local_coords = self.LMC.local_act_coords

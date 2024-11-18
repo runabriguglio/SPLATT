@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.sparse import csr_matrix
 from segmented_mirror import SegmentedMirror
-from read_and_write_fits import write_to_fits
+# from read_and_write_fits import write_to_fits
 
 
 def matmul(matrix, vector):
@@ -64,8 +64,23 @@ def dm_system_setup(TN):
     cmd_ids = cmd_ids + N_modes*np.arange(n_hex)
     modal_cmd = np.zeros(n_hex*N_modes)
     modal_cmd[cmd_ids] = 1
-    flat_img = INTMAT * modal_cmd
-    dm.plot_wavefront(flat_img, 'Zernike modes')
+    flat_shape = INTMAT * modal_cmd
+    dm.plot_wavefront(flat_shape, 'Zernike modes')
+    
+    # Global influence functions and global reconstructor
+    dm.assemble_IFF_and_R_matrices()
+    IFF = dm.IFF
+    
+    R = dm.R
+    cmd_for_zern = R * flat_shape
+    flat_img = IFF * cmd_for_zern
+    dm.plot_wavefront(flat_img, 'Reconstructed Zernike modes')
+    
+    cmd = np.zeros(np.shape(IFF)[1])
+    cmd_ids = np.arange(n_hex)*n_hex + np.arange(n_hex)
+    cmd[cmd_ids] = np.ones(n_hex)
+    flat_img = IFF * cmd
+    dm.plot_wavefront(flat_img, 'Actuators influence functions')
     
     # Initial segment scramble
     dm.segment_scramble()
@@ -77,10 +92,9 @@ def dm_system_setup(TN):
     plt.scatter(dm.act_coords[:,0],dm.act_coords[:,1],s=1)
     plt.axis('equal')
     plt.title('Global actuator locations')
+    plt.grid('on')
     
-    # Global influence functions and global reconstructor
-    dm.assemble_IFF_and_R_matrices()
-    
+
     return dm
 
 
@@ -91,7 +105,7 @@ def fitting_error(mask, IM, IFF, R):
     
     flat_img = np.zeros(np.size(mask))
     flat_mask = mask.flatten()
-    cube = np.zeros([N_modes,np.shape(mask)[0],np.shape(mask)[1]])
+    # cube = np.zeros([N_modes,np.shape(mask)[0],np.shape(mask)[1]])
     
     for k in range(N_modes):
         des_shape = IM[:,k]
@@ -106,7 +120,7 @@ def fitting_error(mask, IM, IFF, R):
         flat_img[~flat_mask] = shape_err
         img = np.reshape(flat_img, np.shape(mask))
         img = np.ma.masked_array(img, mask)
-        cube[k] = img
+        # cube[k] = img
         plt.figure()
         plt.imshow(img, origin = 'lower', cmap = 'inferno')
         plt.colorbar()
@@ -119,26 +133,8 @@ def fitting_error(mask, IM, IFF, R):
     plt.title('Fitting error')
     plt.grid('on')
     
-    write_to_fits(cube,'cube_global_fitted_modes.fits')
+    # write_to_fits(cube,'cube_global_fitted_modes.fits')
     
     return RMS_vec
-
-
-
-# # Plot IFF data on segments
-# n_hex = len(dm.hex_valid_ids)
-# glob_img = np.zeros(np.size(dm.global_mask))
-# point_glob_img = np.zeros(np.size(dm.global_mask))
-# for kk in range(n_hex):
-#     glob_img[dm.hex_valid_ids[kk]] = hexA.sim_IFF[:,kk]#loc_IFF[:,kk]
-#     # point_glob_img[dm.hex_valid_ids[kk]] = hexA.IFF[:,kk]
-    
-# # dm.plot_wavefront(glob_img, 'Actuator Influence Functions')
-# full_img = np.reshape(glob_img, np.shape(dm.global_mask))
-# img = np.ma.masked_array(full_img, dm.global_mask)
-# plt.figure()
-# plt.imshow(img, origin = 'lower', cmap='inferno')
-# # plt.axis([1215,1620,1220,1600])
-# plt.colorbar()
 
 

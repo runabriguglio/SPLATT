@@ -59,8 +59,7 @@ def compute_zernike(noll_number:int, mask, scale_length = None):
         case 11: # Primary spherical
             mode = np.fromfunction(lambda i,j: (rho(i,j)**4-rho(i,j)**2), [X,Y])
         case _:
-            print("Zernike mode too high: not yet implemented")
-            return
+            raise NotImplementedError
 
     masked_mode = np.ma.masked_array(mode,mask)
 
