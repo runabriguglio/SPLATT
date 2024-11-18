@@ -153,12 +153,12 @@ class SegmentedMirror():
         
         data_len = np.sum(1-self.global_mask)
         modes_data = np.zeros([data_len*n_modes])
-        h = (self.gap + 2.*self.hex_side_len*SIN60)*(self.n_rings+1)/2. 
-        d = (self.gap + self.hex_side_len + self.hex_side_len*COS60)*self.n_rings - self.hex_side_len/2.
-        R = np.sqrt(h**2+d**2) # inscribed circle radius
+        # h = (self.gap + 2.*self.hex_side_len*SIN60)*(self.n_rings+1)/2. 
+        # d = (self.gap + self.hex_side_len + self.hex_side_len*COS60)*self.n_rings - self.hex_side_len/2.
+        # R = np.sqrt(h**2+d**2) # inscribed circle radius
         
         for j in range(n_modes):
-            modes_data[data_len*j:data_len*(j+1)] = czern(j+1, self.global_mask, np.ceil(R*self.pix_scale))
+            modes_data[data_len*j:data_len*(j+1)] = czern(j+1, self.global_mask)#, np.ceil(R*self.pix_scale))
             
         valid_ids = np.arange(data_len)
         row_indices = np.tile(valid_ids,n_modes)
