@@ -124,7 +124,7 @@ def fitting_error(mask, IM, IFF, R):
         plt.figure()
         plt.imshow(img, origin = 'lower', cmap = 'inferno')
         plt.colorbar()
-        plt.title('Mode ' + str(k) + ' shape error\n RMS: ' + str(RMS_vec[k]) )
+        plt.title('Mode ' + str(k+1) + ' shape error\n RMS: ' + str(RMS_vec[k]) )
         
     plt.figure()
     plt.plot(RMS_vec,'o')
