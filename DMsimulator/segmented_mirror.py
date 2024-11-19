@@ -73,71 +73,6 @@ class SegmentedMirror():
         plt.colorbar()
         
         
-    def segment_scramble(self, mode_amp = 10e-6 ):
-        """ Defines an initial segment scramble
-        returning a masked array image """
-        
-        n_hex = n_hexagons(self.n_rings)
-        # hex_data_len = np.sum(1-self.local_mask)
-        
-        file_path = self.savepath + 'segment_scramble.fits'
-        try:
-            masked_img = read_fits(file_path, is_ma = True)
-            
-            flat_img = masked_img.data.flatten()
-            # Save values in segments' wavefront
-            for k in range(n_hex):
-                row_ids = self.valid_ids[k]
-                self.segment[k].shape = flat_img[row_ids]
-                
-            self.shape = masked_img.data[~masked_img.mask]
-        
-        except FileNotFoundError:
-            pass
-        
-        # Retrieve number of modes from the interaction matrix
-        n_modes = int(np.shape(self.IM)[1]/n_hex)
-        
-        # Generate random mode coefficients
-        mode_vec = np.random.randn(n_hex*n_modes)
-        
-        # Probability inversely proportional to spatial frequency
-        m = int(np.ceil((np.sqrt(8*n_modes)-1.)/2.))
-        freq_vec = np.repeat(np.arange(m)+1,np.arange(m)+1)
-        prob_vec = 1./freq_vec[:n_modes]
-        prob_vec_rep = np.tile(prob_vec,n_hex)
-        
-        # Modulate on the probability
-        mode_vec = mode_vec * prob_vec_rep
-        
-        # Amplitude
-        mode_vec *= mode_amp
-        
-        # Matrix product
-        flat_img = self.IM*mode_vec
-        
-        # # Global modes
-        # n_glob_modes = np.shape(self.glob_int_mat)[1]
-        # glob_mode_vec = np.random.randn(n_glob_modes)
-        # flat_img += self.glob_int_mat*glob_mode_vec
-        
-        # Save values in segments' wavefront
-        for k in range(n_hex):
-            row_ids = self.valid_ids[k]
-            self.segment[k].shape = flat_img[row_ids]
-        
-        # Reshape and mask image
-        img = np.zeros(np.size(self.global_mask))
-        flat_mask = self.global_mask.flatten()
-        img[~flat_mask] = flat_img
-        img = np.reshape(img, np.shape(self.global_mask))
-        masked_img = np.ma.masked_array(img, self.global_mask)
-    
-        # Save to fits
-        write_to_fits(masked_img, file_path)
-        self.shape = masked_img.data[~masked_img.mask]
-        
-        
     def compute_global_interaction_matrix(self, n_modes):
         """ Computes the global interaction matrix: 
             [n_pixels,n_modes] """
@@ -192,7 +127,7 @@ class SegmentedMirror():
             self.segment[k].IM = self.IM[row_ids,n_modes*k:n_modes*(k+1)].toarray()
             
             
-    def assemble_IFF_and_R_matrices(self):
+    def assemble_IFF_and_R_matrices(self, simulated_IFFs = False):
         
         # Local matrices
         local_IFF_path = self.savepath + 'local_influence_functions_matrix.fits'
@@ -202,7 +137,7 @@ class SegmentedMirror():
         try:
             local_IFF = read_fits(local_IFF_path)
         except FileNotFoundError:
-            self.LMC.simulate_influence_functions()
+            self.LMC.compute_influence_functions(simulated_IFFs)
             local_IFF = self.LMC.sim_IFF
             write_to_fits(local_IFF, local_IFF_path)
         

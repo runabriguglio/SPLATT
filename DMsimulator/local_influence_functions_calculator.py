@@ -79,7 +79,16 @@ class Calculator():
     def compute_reconstructor(IFF):
         return np.linalg.pinv(IFF)
     
-    def compute_influence_functions(self, act_coords = None):
+    def compute_influence_functions(self, simulate_IFFs = False, act_coords = None):
+        """ Wrapper to simulate/compute the influence functions """
+        
+        if simulate_IFFs:
+            self.simulate_influence_functions(act_coords)
+        else:
+            self.simulate_influence_functions(act_coords)
+        
+    
+    def calculate_influence_functions(self, act_coords = None):
         """ Project the actuator influence functions 
         on the mask via grid interpolation """
         
