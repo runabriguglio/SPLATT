@@ -12,7 +12,7 @@ corresponding folder before running the simulation
 - utilities.py contains some high-level wrapper functions for ease of use
 
 - hexagonal_geometry.py contains a class definining the hexagonal segments' geometry (masks, initial actuator location, segment disposition)
-  from the data read in a given configuration file
+  from the data read in the given .yaml configuration file associated to the [TN]
 
 - matrix_calculator.py contains all the functions to deal build different matrices (Zernike, influence functions, reconstructor)
 
