@@ -7,6 +7,7 @@ from segmented_deformable_mirror import SegmentedMirror
 # from hexagonal_geometry import HexGeometry
 from matrix_calculator import matmul
 
+
 def dm_system_setup(TN):
     """
     Performs the basic operations to define a segmented
@@ -48,49 +49,21 @@ def dm_system_setup(TN):
     flat_shape = matmul(INTMAT,modal_cmd)
     sdm.surface(flat_shape, 'Zernike modes')
     
+    # Global influence functions and global reconstructor
+    sdm.initialize_IFF_and_R_matrices(simulate = True)
+    IFF = sdm.IFF
+    R = sdm.R
+    cmd_for_zern = R * flat_shape
+    flat_img = IFF * cmd_for_zern
+    sdm.surface(flat_img, 'Reconstructed Zernike modes')
+    
+    cmd = np.zeros(np.shape(IFF)[1])
+    cmd_ids = np.arange(n_hex)*n_hex + np.arange(n_hex)
+    cmd[cmd_ids] = np.ones(n_hex)
+    flat_img = IFF * cmd
+    sdm.surface(flat_img, 'Actuators influence functions')
     
     return sdm
-
-    
-    
-    
-    
-
-# def dm_system_setup(TN):
-#     """
-#     Performs the basic operations to define a segmented
-#     mirror object from the data in the configuration file
-
-#     Parameters
-#     ----------
-#     TN : string
-#         Configuration file tracking number.
-
-#     Returns
-#     -------
-#     sdm : segmented deformable mirror class
-#         Segmented deformable mirror object.
-
-#     """
-    
-#     # Build segmented deformable mirror
-#     sdm = SegmentedMirror(TN)
-    
-#     # Global influence functions and global reconstructor
-#     sdm.assemble_IFF_and_R_matrices(simulated_IFFs = True)
-#     IFF = sdm.IFF
-#     R = sdm.R
-#     cmd_for_zern = R * flat_shape
-#     flat_img = IFF * cmd_for_zern
-#     sdm.plot_wavefront(flat_img, 'Reconstructed Zernike modes')
-    
-#     cmd = np.zeros(np.shape(IFF)[1])
-#     cmd_ids = np.arange(n_hex)*n_hex + np.arange(n_hex)
-#     cmd[cmd_ids] = np.ones(n_hex)
-#     flat_img = IFF * cmd
-#     sdm.plot_wavefront(flat_img, 'Actuators influence functions')
-
-#     return sdm
 
 
 def fitting_error(mask, IM, IFF, R):
@@ -153,7 +126,7 @@ def fitting_error(mask, IM, IFF, R):
     return RMS_vec
 
 
-def segment_scramble(sdm, mode_amp = 10e-6):
+def segment_scramble(sdm, mode_amp = 10e-6, apply_shape:bool = False):
     """
     Applies a random shape to all segments using
     a random linear combination of Zernike modes,
@@ -165,6 +138,8 @@ def segment_scramble(sdm, mode_amp = 10e-6):
         egmented deformable mirror class.
     mode_amp : float, optional
         Amplitude of the segment scramble. The default is 10e-6.
+    apply_shape : bool, optional
+        Wheter to apply the shape to the sdm or not. The default is False.
 
     Returns
     -------
@@ -200,7 +175,10 @@ def segment_scramble(sdm, mode_amp = 10e-6):
     # glob_mode_vec = np.random.randn(n_glob_modes)
     # flat_img += matmul(sdm.glob_ZM,glob_mode_vec)
     
-    return flat_img
+    sdm.surface(flat_img,'Segment scramble')
+    
+    if apply_shape:
+        sdm.shape = flat_img
     
     
 

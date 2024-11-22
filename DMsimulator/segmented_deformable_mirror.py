@@ -60,51 +60,44 @@ class SegmentedMirror(DM):
         self.ZM = self._distribute_local_to_global(local_ZM, sparse_file_path)
         
         
-    # def _initialize_IFF_matrix(self, simulate:bool = True):
-    #     """ Computes or reads the local influence functions matrix
-    #     distributing the result to all segments and assemling the global
-    #     sparse influence functions matrix """
+    def initialize_IFF_and_R_matrices(self, simulate:bool = True):
+        """ Initializes the local IFF and R matrices (same for all segments)
+        distributing the result to all segments and assemling the global
+        sparse IFF and R matrices """
         
-    #     local_IFF_path = self.savepath + 'local_influence_functions_matrix.fits'
-    #     global_IFF_path = self.savepath + 'global_influence_functions_matrix.fits'
+        # Influence functions
+        local_IFF_path = self.geom.savepath + 'local_influence_functions_matrix.fits'
+        global_IFF_path = self.geom.savepath + 'global_influence_functions_matrix.fits'
         
-    #     # Read/compute local IFF
-    #     try:
-    #         local_IFF = rwf.read_fits(local_IFF_path)
-    #     except FileNotFoundError:
-    #         if simulate:
-    #             local_IFF = matcalc.simulate_influence_functions(self.geom.local_act_coords, self.geom.local_mask, self.geom.pix_scale)
-    #         else:
-    #             local_IFF = matcalc.calculate_influence_functions(self.geom.local_act_coords, self.geom.local_mask)
-    #             rwf.write_to_fits(local_IFF, local_IFF_path)
+        # Read/compute local IFF
+        try:
+            local_IFF = rwf.read_fits(local_IFF_path)
+        except FileNotFoundError:
+            ref_act_coords = self.segment[0].act_coords
+            if simulate:
+                local_IFF = matcalc.simulate_influence_functions(ref_act_coords, self.geom.local_mask, self.geom.pix_scale)
+            else:
+                local_IFF = matcalc.calculate_influence_functions(ref_act_coords, self.geom.local_mask)
+                rwf.write_to_fits(local_IFF, local_IFF_path)
+        
+        # Reconstructor
+        local_R_path = self.geom.savepath + 'local_reconstructor_matrix.fits'
+        global_R_path = self.geom.savepath + 'global_reconstructor_matrix.fits'
+        
+        # Read/compute local R
+        try:
+            local_R = rwf.read_fits(local_R_path)
+        except FileNotFoundError:
+            local_R = matcalc.compute_reconstructor(local_IFF)
+            rwf.write_to_fits(local_R, local_R_path)
     
-    #     # Distribute to all segments
-    #     for k in range(self.geom.n_hex):
-    #         self.segment[k].IFF = local_IFF
+        # Distribute to all segments
+        for k in range(self.geom.n_hex):
+            self.segment[k].IFF = local_IFF
+            self.segment[k].R = local_R
             
-    #     self.IFF = self._distribute_local_to_global(local_IFF, global_IFF_path)
-        
-        
-    # def assemble_R_matrix(self):
-    #     """ Computes or reads the local reconstructor matrix
-    #     distributing the result to all segments and assemling the global
-    #     sparse reconstructor matrix """
-        
-    #     local_R_path = self.savepath + 'local_reconstructor_matrix.fits'
-    #     global_R_path = self.savepath + 'global_reconstructor_matrix.fits'
-        
-    #     # Read/compute local IFF
-    #     try:
-    #         local_R = rwf.read_fits(local_R_path)
-    #     except FileNotFoundError:
-    #         local_R = matcalc.calculate_influence_functions(self.local_act_coords, self.local_mask)
-    #         rwf.write_to_fits(local_R, local_R_path)
-    
-    #     # Distribute to all segments
-    #     for k in range(self.geom.n_hex):
-    #         self.segment[k].R = local_R
-            
-    #     self.R = self._distribute_local_to_global(local_R, global_R_path)
+        self.IFF = self._distribute_local_to_global(local_IFF, global_IFF_path)
+        self.R = self._distribute_local_to_global(local_R, global_R_path)
     
         
         

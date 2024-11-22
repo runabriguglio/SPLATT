@@ -10,8 +10,8 @@ dm = utils.dm_system_setup(config_tn)
 utils.segment_scramble(dm)
 
 seg0 = dm.segment[0]
-local_fit_err = utils.fitting_error(seg0.mask, seg0.IM, seg0.IFF, seg0.R)
+local_fit_err = utils.fitting_error(seg0.mask, seg0.ZM, seg0.IFF, seg0.R)
 
-# global_fit_err = utils.fitting_error(dm.global_mask, dm.glob_IM, dm.IFF, dm.R)
+global_fit_err = utils.fitting_error(dm.mask, dm.glob_ZM, dm.IFF, dm.R)
 
 
