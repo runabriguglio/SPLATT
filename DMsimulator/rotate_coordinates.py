@@ -37,15 +37,3 @@ def cw_rotate(vec, angles):
         rot_vec[:,k*n_pts:(k+1)*n_pts] = np.reshape(aux_vec,[2,n_pts])
 
     return rot_vec.T
-
-
-def rotate_by_60deg(vec):
-    """
-    Wrapper to cw_rotate for a 60° rotation
-
-    """
-
-    angles = np.array([np.pi/3.])
-    rot_vec = cw_rotate(vec, angles)
-
-    return rot_vec
