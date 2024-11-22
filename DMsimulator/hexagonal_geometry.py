@@ -95,7 +95,6 @@ class HexGeometry():
         
         self._define_local_mask()
         self._define_segment_centers()
-        self._determine_valid_ids()
         self._assemble_global_mask()
         
         
@@ -223,16 +222,16 @@ class HexGeometry():
         # Save as private variable and to .fits
         self.hex_centers = hex_centers
         rwf.write_to_fits(hex_centers, file_path)
-
-
-
-    def _determine_valid_ids(self):
-        """ Computes the valid segment indices on
-        the global mask """
+    
+    
+    def _assemble_global_mask(self):
+        """ Assemble the global segmented mask """
         
-        file_path = self.savepath + 'valid_ids.fits'
+        ids_file_path = self.savepath + 'valid_ids.fits'
+        file_path = self.savepath + 'global_mask.fits'
         try:
-            self.valid_ids = rwf.read_fits(file_path)
+            self.global_mask = rwf.read_fits(file_path, is_bool=True)
+            self.valid_ids = rwf.read_fits(ids_file_path)
             return
         except FileNotFoundError:
             pass
@@ -265,35 +264,11 @@ class HexGeometry():
         global_row_idx = (rep_local_row + rep_pix_coords[:,1]).astype(int)
         global_col_idx = (rep_local_col + rep_pix_coords[:,0]).astype(int)
         
-        valid_row_ids = np.reshape(global_row_idx,[self.n_hex,hex_data_len])
-        valid_col_ids = np.reshape(global_col_idx,[self.n_hex,hex_data_len])
-        valid_ids = np.zeros([2,self.n_hex,hex_data_len],dtype = int)
-        valid_ids[0] = valid_row_ids
-        valid_ids[1] = valid_col_ids
-        
-        # Save as private variable and to .fits
-        self.valid_ids = valid_ids
-        rwf.write_to_fits(valid_ids, file_path)
-    
-    
-    def _assemble_global_mask(self):
-        """ Assemble the global segmented mask """
-        
-        file_path = self.savepath + 'global_mask.fits'
-        try:
-            self.global_mask = rwf.read_fits(file_path, is_bool=True)
-            return
-        except FileNotFoundError:
-            pass
-        
-        hex_data_len = np.sum(1-self.local_mask)
+        row_ids = np.reshape(global_row_idx,[self.n_hex,hex_data_len])
+        col_ids = np.reshape(global_col_idx,[self.n_hex,hex_data_len])
         
         # Data
         data = np.ones([self.n_hex,hex_data_len], dtype=bool)
-        
-        # Row and column indices
-        row_ids = self.valid_ids[0]
-        col_ids = self.valid_ids[1]
         
         # Mask definition
         global_mask = np.ones([np.max(row_ids)+1,np.max(col_ids)+1])
@@ -302,4 +277,15 @@ class HexGeometry():
         # Save as private variable and to .fits
         self.global_mask = (global_mask).astype(bool)
         rwf.write_to_fits((global_mask).astype(np.uint8), file_path)
-    
+        
+        # Save valid hexagon indices
+        flat_valid_ids = row_ids*np.shape(global_mask)[1] + col_ids
+        flat_ids = np.arange(np.sum(1-self.global_mask))
+        flat_img = np.zeros(np.size(global_mask))
+        flat_mask = (self.global_mask.copy()).flatten()
+        flat_img[~flat_mask] = flat_ids
+        valid_ids = (flat_img[flat_valid_ids]).astype(int)
+        
+        # Save as private variable and to .fits
+        self.valid_ids = valid_ids
+        rwf.write_to_fits(valid_ids, ids_file_path)

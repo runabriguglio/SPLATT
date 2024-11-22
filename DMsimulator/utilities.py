@@ -27,7 +27,7 @@ def dm_system_setup(TN):
     sdm = SegmentedMirror(TN)
     
     # Global Zernike matrix
-    global_zern_modes = 11
+    global_zern_modes = 7
     sdm.compute_global_zern_matrix(global_zern_modes)
     tiptilt = np.zeros(global_zern_modes)
     tiptilt[1] = 1
@@ -36,7 +36,7 @@ def dm_system_setup(TN):
     sdm.surface(wf, 'Global Tip/Tilt')
     
     # Local Zernike matrix
-    N_modes = 11
+    N_modes = 15
     sdm.compute_local_zern_matrix(N_modes)
     INTMAT = sdm.ZM
     n_hex = int(np.shape(INTMAT)[1]/N_modes)

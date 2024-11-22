@@ -168,17 +168,7 @@ class SegmentedMirror(DM):
         except FileNotFoundError:
             pass
         
-        # Save valid hexagon indices
-        flat_valid_ids = self.geom.valid_ids[0]*np.shape(self.mask)[1] + self.geom.valid_ids[1]
-        
-        global_data_len = np.sum(1-self.mask)
-        flat_ids = np.arange(global_data_len)
-        flat_img = np.zeros(np.size(self.mask))
-        flat_mask = (self.mask.copy()).flatten()
-        flat_img[~flat_mask] = flat_ids
-        masked_ids = (flat_img[flat_valid_ids]).astype(int)
-        
-        row_indices = np.tile(masked_ids, N)
+        row_indices = np.tile(self.geom.valid_ids, N)
         row = row_indices.flatten()
         
         val_indices = np.arange(int(N*self.geom.n_hex))
