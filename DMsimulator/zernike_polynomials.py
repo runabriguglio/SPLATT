@@ -1,9 +1,10 @@
 import numpy as np
+from math import factorial as fac
 # import matplotlib.pyplot as plt
 
 def compute_zernike(noll_number:int, mask, scale_length = None):
     """
-    Defines the Zernike polynomials identified by the Noll number in input
+    Project the Zernike polynomials identified by the Noll number in input
     on a given mask.
     The polynomials are computed on the circle inscribed in the mask by default,
     or on a circle of radius scale_length if the corresponding input is given
@@ -13,17 +14,21 @@ def compute_zernike(noll_number:int, mask, scale_length = None):
     Parameters
     ----------
     noll_number : int
-        Noll number of the desired Zernike polynomial.
+        Noll index of the desired Zernike polynomial.
     mask : matrix bool
         Mask of the desired image.
 
     Returns
     -------
-    masked_data : masked array
-        Zernike polynomial projected on the mask.
+    masked_data : ndarray
+        Flattenned array of the masked values of the Zernike 
+        shape projected on the mask.
 
     """
+    if noll_number < 1:
+        raise ValueError("Noll index must be equal to or greater than 1")
 
+    # Image dimensions
     X,Y = np.shape(mask)
 
     # Determine circle radius on to which define the Zernike
@@ -32,45 +37,124 @@ def compute_zernike(noll_number:int, mask, scale_length = None):
     else:
         r = np.max([X,Y])/2
 
-    theta = lambda i,j: np.arctan2((j-Y/2.)/r,(i-X/2.)/r)
+    # Conversion to polar coordinates on circle of radius r 
+    phi = lambda i,j: np.arctan2((j-Y/2.)/r,(i-X/2.)/r)
     rho = lambda i,j: np.sqrt(((j-Y/2.)/r)**2+((i-X/2.)/r)**2)
+            
+    mode = np.fromfunction(lambda i,j: _zernikel(noll_number, rho(i,j), phi(i,j)), [X,Y])
 
-    match noll_number:
-        case 1: # Piston
-            mode = np.ones([X,Y])
-        case 2: # Tip
-            mode = np.fromfunction(lambda i,j: 2.*j/Y - 1., [X,Y])
-        case 3: # Tilt
-            mode = np.fromfunction(lambda i,j: 2.*i/X - 1., [X,Y])
-        case 4: # Focus
-            mode = np.fromfunction(lambda i,j: ((j-Y/2.)/Y)**2+((i-X/2.)/Y)**2, [X,Y])
-        case 5: # Vertical astigmatism
-            mode = np.fromfunction(lambda i,j: (rho(i,j)**2)*np.cos(2.*theta(i,j)), [X,Y]) #np.cos(2*np.atan2((j-Y/2.)/(i-X/2.)))*((j-Y/2.))**2+((i-X/2.))**2
-        case 6: # Oblique astigmatism
-            mode = np.fromfunction(lambda i,j: (rho(i,j)**2)*np.sin(2.*theta(i,j)), [X,Y])
-        case 7: # Vertical coma
-            mode = np.fromfunction(lambda i,j: (3.*rho(i,j)**3-2.*rho(i,j))*np.sin(theta(i,j)), [X,Y])
-        case 8: # Horizontal coma
-            mode = np.fromfunction(lambda i,j: (3.*rho(i,j)**3-2.*rho(i,j))*np.cos(theta(i,j)), [X,Y])
-        case 9: # Vertical trefoil
-            mode = np.fromfunction(lambda i,j: (rho(i,j)**3)*np.sin(3.*theta(i,j)), [X,Y])
-        case 10: # Oblique trefoil
-            mode = np.fromfunction(lambda i,j: (rho(i,j)**3)*np.cos(3.*theta(i,j)), [X,Y])
-        case 11: # Primary spherical
-            mode = np.fromfunction(lambda i,j: (rho(i,j)**4-rho(i,j)**2), [X,Y])
-        case _:
-            raise NotImplementedError
+    # masked_mode = np.ma.masked_array(mode,mask)
+    # plt.figure();plt.imshow(masked_mode,origin='lower');plt.title('Zernike ' + str(noll_number))
+    # masked_data = masked_mode.data[~masked_mode.mask]
+    
+    masked_data = mode[~mask]
 
-    masked_mode = np.ma.masked_array(mode,mask)
-
-    masked_data = masked_mode.data[~masked_mode.mask]
-
-    # masked_mode = (masked_mode - np.mean(masked_data))/np.std(masked_data)
-    # plt.figure()
-    # plt.imshow(masked_mode,origin='lower')
-
-    # Normalization: null mean and unit STD
+    # Normalization of the masked data: null mean and unit STD
     if noll_number > 1:
         masked_data = (masked_data - np.mean(masked_data))/np.std(masked_data)
 
     return masked_data
+
+
+########### from M4SW ############
+
+def _zernikel(j, rho, phi):
+    """
+    Calculate Zernike polynomial with Noll coordinate j given a grid of radial
+    coordinates rho and azimuthal coordinates phi.
+
+    >>> zernikel(0, 0.12345, 0.231)
+    1.0
+    >>> zernikel(1, 0.12345, 0.231)
+    0.028264010304937772
+    >>> zernikel(6, 0.12345, 0.231)
+    0.0012019069816780774
+    """
+    m, n = _j2mn_noll(j)
+    
+    return _zernike(m, n, rho, phi)
+
+
+def _zernike(m, n, rho, phi):
+    """
+    Calculate Zernike polynomial (m, n) given a grid of radial
+    coordinates rho and azimuthal coordinates phi.
+
+    >>> zernike(3,5, 0.12345, 1.0)
+    0.0073082282475042991
+    >>> zernike(1, 3, 0.333, 5.0)
+    -0.15749545445076085
+    """
+    if (m > 0): return _zernike_rad(m, n, rho) * np.cos(m * phi)
+    if (m < 0): return _zernike_rad(-m, n, rho) * np.sin(-m * phi)
+    return _zernike_rad(0, n, rho)
+
+
+def _zernike_rad(m, n, rho):
+    """
+    Calculate the radial component of Zernike polynomial (m, n)
+    given a grid of radial coordinates rho.
+
+    >>> zernike_rad(3, 3, 0.333)
+    0.036926037000000009
+    >>> zernike_rad(1, 3, 0.333)
+    -0.55522188900000002
+    >>> zernike_rad(3, 5, 0.12345)
+    -0.007382104685237683
+    """
+
+    if (n < 0 or m < 0 or abs(m) > n):
+        raise ValueError
+
+    if ((n-m) % 2):
+        return rho*0.0
+
+    pre_fac = lambda k: (-1.0)**k * fac(n-k) / ( fac(k) * fac( int((n+m)/2.0 - k) ) * fac( int((n-m)/2.0 - k) ) )
+
+    return sum(pre_fac(k) * rho**(n-2.0*k) for k in range((n-m)//2+1))
+
+
+def _j2mn_noll(j):
+    """
+    Find the [n,m] list giving the radial order n and azimuthal order
+    of the Zernike polynomial of Noll index j.
+
+    Parameters:
+        j (int): The Noll index for Zernike polynomials
+
+    Returns:
+        list: n, m values
+    """
+    n = int((-1.+np.sqrt(8*(j-1)+1))/2.)
+    p = (j-(n*(n+1))/2.)
+    k = n%2
+    m = int((p+k)/2.)*2 - k
+
+    if m!=0:
+        if j%2==0:
+            s=1
+        else:
+            s=-1
+        m *= s
+
+    return [m, n]
+
+# def _j2mn_ansi(j):
+#     """
+#     Find the [n,m] list giving the radial order n and azimuthal order
+#     of the Zernike polynomial of ANSI index j.
+
+#     Parameters:
+#         j (int): The ANSI index for Zernike polynomials
+
+#     Returns:
+#         list: n, m values
+#     """
+#     n = 0
+#     while (j > n):
+#         n += 1
+#         j -= n
+
+#     m = -n+2*j
+
+#     return m, n
