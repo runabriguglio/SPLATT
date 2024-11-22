@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from utilities import matmul
 
+from matrix_calculator import matmul
 
 class DeformableMirror():
     
@@ -9,15 +9,18 @@ class DeformableMirror():
         pass
     
             
-    def surface(self):
-        """ Plots an image of the segment's current shape 
-        on the local segment mask """
+    def surface(self, surf2plot = None, plot_title:str = None):
+        """ Plots surf2plot or (default) the segment's
+        current shape on the DM mask """
+        
+        if surf2plot is None:
+            surf2plot = self.shape
         
         # Project wavefront on mask
         mask = self.mask.copy()
         flat_mask = mask.flatten()
         image = np.zeros(np.size(flat_mask))
-        image[~flat_mask] = self.shape
+        image[~flat_mask] = surf2plot
         image = np.reshape(image, np.shape(mask))
         image = np.ma.masked_array(image, mask)
         
@@ -25,6 +28,9 @@ class DeformableMirror():
         plt.figure()
         plt.imshow(image, origin = 'lower', cmap = 'inferno')
         plt.colorbar()
+        
+        if plot_title is not None:
+            plt.title(plot_title)
         
         
     def get_position(self):
@@ -35,7 +41,7 @@ class DeformableMirror():
         x,y = self.act_coords[:,0], self.act_coords[:,1] 
         
         plt.figure()
-        plt.scatter(x,y,c=pos, s=100, cmap='inferno')
+        plt.scatter(x,y, c=pos, s=100, cmap='inferno')
         plt.colorbar()
         
         return pos
@@ -95,13 +101,13 @@ class DeformableMirror():
             mode_amps = cmd_amps.copy() # rename
             
             # length check
-            n_modes = np.shape(self.IM)[1]
+            n_modes = np.shape(self.ZM)[1]
             if len(mode_amps) < n_modes:
                 amps = np.zeros(n_modes)
                 amps[:len(mode_amps)] = mode_amps
                 mode_amps = amps
         
-            shape = matmul(self.IM,mode_amps)
+            shape = matmul(self.ZM,mode_amps)
             cmd_amps = matmul(self.R,shape)
             
         # Update actuator position
