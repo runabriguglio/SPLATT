@@ -3,7 +3,7 @@ from scipy.sparse import csr_matrix
 from tps import ThinPlateSpline # for the simulated IFF
 from scipy.interpolate import griddata
 
-from zernike_polynomials import compute_zernike as czern
+from zernike_polynomials import generate_zernike_matrix as assemble_zern_mat
 from hexagonal_geometry import semi_structured_point_cloud
 
 def matmul(mat, vec):
@@ -102,11 +102,8 @@ def compute_zernike_matrix(mask, n_modes):
     """ Computes the zernike matrix: 
         [n_pixels,n_modes] """
     
-    n_pix = np.sum(1-mask)
-    mat = np.zeros([n_pix,n_modes])
-    
-    for j in range(n_modes):
-        mat[:,j] = czern(j+1, mask)
+    noll_ids = np.arange(n_modes) + 1
+    mat = assemble_zern_mat(noll_ids, mask)
     
     return mat
 

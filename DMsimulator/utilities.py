@@ -3,12 +3,10 @@ import matplotlib.pyplot as plt
 
 from scipy.sparse import csr_matrix
 from segmented_deformable_mirror import SegmentedMirror
-# from read_and_write_fits import write_to_fits
-# from hexagonal_geometry import HexGeometry
 from matrix_calculator import matmul
 
 
-def dm_system_setup(TN):
+def dm_system_setup(TN:str, n_global_zern:int = 11, n_local_zern:int = 11):
     """
     Performs the basic operations to define a segmented
     mirror object from the data in the configuration file
@@ -17,6 +15,10 @@ def dm_system_setup(TN):
     ----------
     TN : string
         Configuration file tracking number.
+    n_global_zern : int, optional
+        Number of Zernike modes for the IM on the global mask. The default is 7.
+    n_local_zern : int, optional
+        Number of Zernike modes for the IM on the single segment. The default is 15.
 
     Returns
     -------
@@ -27,24 +29,22 @@ def dm_system_setup(TN):
     sdm = SegmentedMirror(TN)
     
     # Global Zernike matrix
-    global_zern_modes = 7
-    sdm.compute_global_zern_matrix(global_zern_modes)
-    tiptilt = np.zeros(global_zern_modes)
+    sdm.compute_global_zern_matrix(n_global_zern)
+    tiptilt = np.zeros(n_global_zern)
     tiptilt[1] = 1
     tiptilt[2] = 1
     wf = matmul(sdm.glob_ZM,tiptilt)
     sdm.surface(wf, 'Global Tip/Tilt')
     
     # Local Zernike matrix
-    N_modes = 15
-    sdm.compute_local_zern_matrix(N_modes)
+    sdm.compute_local_zern_matrix(n_local_zern)
     INTMAT = sdm.ZM
-    n_hex = int(np.shape(INTMAT)[1]/N_modes)
-    cmd_ids = np.arange(N_modes-1)+1
-    cmd_ids = np.tile(cmd_ids,int(np.ceil(n_hex/(N_modes-1))))
+    n_hex = int(np.shape(INTMAT)[1]/n_local_zern)
+    cmd_ids = np.arange(n_local_zern-1)+1
+    cmd_ids = np.tile(cmd_ids,int(np.ceil(n_hex/(n_local_zern-1))))
     cmd_ids = cmd_ids[0:n_hex]
-    cmd_ids = cmd_ids + N_modes*np.arange(n_hex)
-    modal_cmd = np.zeros(n_hex*N_modes)
+    cmd_ids = cmd_ids + n_local_zern*np.arange(n_hex)
+    modal_cmd = np.zeros(n_hex*n_local_zern)
     modal_cmd[cmd_ids] = 1
     flat_shape = matmul(INTMAT,modal_cmd)
     sdm.surface(flat_shape, 'Zernike modes')
@@ -57,8 +57,9 @@ def dm_system_setup(TN):
     flat_img = IFF * cmd_for_zern
     sdm.surface(flat_img, 'Reconstructed Zernike modes')
     
-    cmd = np.zeros(np.shape(IFF)[1])
-    cmd_ids = np.arange(n_hex)*n_hex + np.arange(n_hex)
+    n_acts = int(np.shape(IFF)[1]/n_hex)
+    cmd = np.zeros(n_hex*n_acts)
+    cmd_ids = np.arange(n_hex)*n_acts + np.arange(n_hex)
     cmd[cmd_ids] = np.ones(n_hex)
     flat_img = IFF * cmd
     sdm.surface(flat_img, 'Actuators influence functions')
@@ -179,6 +180,7 @@ def segment_scramble(sdm, mode_amp = 10e-6, apply_shape:bool = False):
     
     if apply_shape:
         sdm.shape = flat_img
+        # ...
     
     
 

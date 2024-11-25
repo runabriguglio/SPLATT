@@ -2,7 +2,79 @@ import numpy as np
 from math import factorial as fac
 # import matplotlib.pyplot as plt
 
-def compute_zernike(noll_number:int, mask, scale_length = None):
+def fit_zernike(noll_ids, img:np.ma.masked_array, scale_length:float = None):
+    """
+    Fits the given image with Zernike polynomials of the given indices
+
+    Parameters
+    ----------
+    noll_ids : ndarray(int) [Nzern,]
+        Array of Noll indices to fit.
+        
+    img : np.ma.masked_array
+        The image to fit.
+        
+    scale_length : float, optional
+        The scale length to use for the Zernike fit.
+        The default is the maximum of the image mask shape.
+
+    Returns
+    -------
+    zern_coeffs : ndarray(float) [Nzern,]
+        The array of fitted zernike coefficients.
+        
+    zern_img : ndarray(float) [Npix,]
+        The flattened imaged obtained from the fit.
+
+    """
+    
+    # Image mask
+    img_mask = img.mask
+    img_data = img.data[~img_mask]
+    
+    ZernMat = generate_zernike_matrix(noll_ids, img_mask, scale_length)
+        
+    zern_coeffs = np.linalg.pinv(ZernMat) @ img_data
+    zern_img = ZernMat @ zern_coeffs
+
+    return zern_coeffs, zern_img
+
+
+def generate_zernike_matrix(noll_ids, img_mask, scale_length:float = None):
+    """
+    Generates the interaction matrix of the Zernike modes with Noll index
+    in noll_ids on the mask in input
+
+    Parameters
+    ----------
+    noll_ids : ndarray(int) [Nzern,]
+        Array of Noll indices to fit.
+        
+    img_mask : matrix bool
+        Mask of the desired image.
+        
+    scale_length : float, optional
+        The scale length to use for the Zernike fit.
+        The default is the maximum of the image mask shape.
+
+    Returns
+    -------
+    ZernMat : ndarray(float) [Npix,Nzern]
+        The Zernike interaction matrix of the given indices on the given mask.
+
+    """
+    
+    n_pix = np.sum(1-img_mask)
+    n_zern = len(noll_ids)
+    ZernMat = np.zeros([n_pix,n_zern])
+    
+    for i in range(n_zern):
+        ZernMat[:,i] = _project_zernike_on_mask(noll_ids[i], img_mask, scale_length)
+        
+    return ZernMat
+
+
+def _project_zernike_on_mask(noll_number:int, mask, scale_length:float = None):
     """
     Project the Zernike polynomials identified by the Noll number in input
     on a given mask.
@@ -54,6 +126,8 @@ def compute_zernike(noll_number:int, mask, scale_length = None):
         masked_data = (masked_data - np.mean(masked_data))/np.std(masked_data)
 
     return masked_data
+    
+
 
 
 ########### from M4SW ############
