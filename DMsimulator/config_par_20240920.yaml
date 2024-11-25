@@ -4,12 +4,12 @@ n_rings = 3.          # number of hexagonal segment rings
 hex_side = 1.        # [m] hexagonal side length
 hex_gap = 0.04       # [m] gap between hexagonal segments
 act_pitch = 0.2     # [m] inter-actuator distance
-act_radius = 0.05    # [m] actuator radius
+act_radius = 0.005    # [m] actuator radius
 
 [OPT]
 pixel_scale = 200.  # pixels per meter
+
 # None of the following is currently implemented:
 opt_radius = 20.    # [m] pupil radius
 cw_rot_angle = 0.   # [deg] clockwise pupil rotation angle about optical axis
-pupil_x = 0.        # [m] pupil's center x coordinate
-pupil_y = 0.        # [m] pupil's center y coordinate
+center_segment = 1  # [bool] wheter to include the central hexagonal segment or not
