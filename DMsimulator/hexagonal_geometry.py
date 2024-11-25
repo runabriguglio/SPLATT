@@ -1,7 +1,5 @@
 import os
 import numpy as np
-# from scipy.sparse import csr_matrix
-# from scipy.sparse import bsr_matrix
 
 from read_configuration import read_config
 from rotate_coordinates import cw_rotate
@@ -180,8 +178,7 @@ class HexGeometry():
         self.local_mask = mask
         rwf.write_to_fits((mask).astype(np.uint8), file_path)
         
-        
-        
+          
     def _define_segment_centers(self):
         """ Defines and saves the coordinates of the 
         centers of all hexagonal segments """
@@ -279,12 +276,13 @@ class HexGeometry():
         rwf.write_to_fits((global_mask).astype(np.uint8), file_path)
         
         # Save valid hexagon indices
-        flat_valid_ids = row_ids*np.shape(global_mask)[1] + col_ids
-        flat_ids = np.arange(np.sum(1-self.global_mask))
-        flat_img = np.zeros(np.size(global_mask))
-        flat_mask = (self.global_mask.copy()).flatten()
-        flat_img[~flat_mask] = flat_ids
-        valid_ids = (flat_img[flat_valid_ids]).astype(int)
+        valid_ids = (row_ids*np.shape(global_mask)[1] + col_ids).astype(int)
+        # flat_valid_ids = row_ids*np.shape(global_mask)[1] + col_ids
+        # flat_ids = np.arange(np.sum(1-self.global_mask))
+        # flat_img = np.zeros(np.size(global_mask))
+        # flat_mask = (self.global_mask.copy()).flatten()
+        # flat_img[~flat_mask] = flat_ids
+        # valid_ids = (flat_img[flat_valid_ids]).astype(int)
         
         # Save as private variable and to .fits
         self.valid_ids = valid_ids

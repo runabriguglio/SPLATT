@@ -4,12 +4,13 @@ import matplotlib.pyplot as plt
 from matrix_calculator import matmul
 
 class DeformableMirror():
+    """ This class defines the methods for a generic deformable mirror"""
     
     def __init__(self):
         pass
     
             
-    def surface(self, surf2plot = None, plot_title:str = None):
+    def surface(self, surf2plot = None, plot_title:str = None, is_global:bool = False):
         """ Plots surf2plot or (default) the segment's
         current shape on the DM mask """
         
@@ -18,9 +19,14 @@ class DeformableMirror():
         
         # Project wavefront on mask
         mask = self.mask.copy()
-        flat_mask = mask.flatten()
-        image = np.zeros(np.size(flat_mask))
-        image[~flat_mask] = surf2plot
+        
+        if is_global:
+            pix_ids = ~mask.flatten()
+        else:
+            pix_ids = self.valid_ids.flatten()
+            
+        image = np.zeros(np.size(mask))
+        image[pix_ids] = surf2plot
         image = np.reshape(image, np.shape(mask))
         image = np.ma.masked_array(image, mask)
         
@@ -33,38 +39,21 @@ class DeformableMirror():
             plt.title(plot_title)
         
         
-    def get_position(self):
+    def get_position(self, act_pix_size:float = 10):
         """ Wrapper to read the current 
         position of the segments's actuators """
         
-        pos = self.act_pos
+        pos = self.act_pos.copy()
         x,y = self.act_coords[:,0], self.act_coords[:,1] 
         
         plt.figure()
-        plt.scatter(x,y, c=pos, s=100, cmap='inferno')
+        plt.scatter(x,y, c=pos, s=act_pix_size**2, cmap='inferno')
         plt.colorbar()
         
         return pos
     
     
-    def set_position(self, pos_cmd, absolute_pos = True):
-        """ Command the position of the segments's 
-        actuators in absolute (default) or relative terms"""
-        
-        old_pos = self.act_pos
-        
-        if absolute_pos:
-            new_pos = pos_cmd
-        else:
-            new_pos = pos_cmd + old_pos
-
-        self.act_pos = new_pos
-        self.shape += self.IFF @ (new_pos-old_pos)
-        
-        return new_pos
-    
-    
-    def flatten(self, offset = None):
+    def apply_flat(self, offset = None):
         """
         Computes and applies the flat command
         for the current segment shape minus a given offset
@@ -88,15 +77,22 @@ class DeformableMirror():
         if offset is not None:
             delta_shape += offset
             
-        act_cmd = matmul(self.R,delta_shape)
+        act_cmd = matmul(self.R, delta_shape)
         self.mirror_command(act_cmd)
+        
+        flat_rms = np.std(self.shape)
+        
+        if offset is not None:
+            flat_rms = np.std(self.shape - offset)
+        
+        return act_cmd, flat_rms
     
     
-    def mirror_command(self, cmd_amps, zonal:bool = True):
+    def mirror_command(self, cmd_amps, absolute_delta_pos:bool = False, modal:bool = False):
         """ Computes and applies a zonal/modal amplitude
         command to the segment """
         
-        if zonal is False: # convert modal to zonal
+        if modal: # convert modal to zonal
             
             mode_amps = cmd_amps.copy() # rename
             
@@ -107,13 +103,13 @@ class DeformableMirror():
                 amps[:len(mode_amps)] = mode_amps
                 mode_amps = amps
         
-            shape = matmul(self.ZM,mode_amps)
-            cmd_amps = matmul(self.R,shape)
-            
-        # Update actuator position
-        self.act_pos += cmd_amps
+            shape = matmul(self.ZM, mode_amps)
+            cmd_amps = matmul(self.R, shape)
         
-        # Update mirror shape
-        delta_shape = matmul(self.IFF,cmd_amps)
-        self.shape += delta_shape
+        # Position (zonal) command
+        delta_pos = cmd_amps - absolute_delta_pos * self.act_pos
+
+        # Update positions and shape
+        self.act_pos += delta_pos
+        self.shape += matmul(self.IFF, delta_pos)
 

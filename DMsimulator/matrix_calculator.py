@@ -6,6 +6,7 @@ from scipy.interpolate import griddata
 from zernike_polynomials import generate_zernike_matrix as assemble_zern_mat
 from hexagonal_geometry import semi_structured_point_cloud
 
+
 def matmul(mat, vec):
     """
     Simple function to perform matrix multiplication
@@ -29,7 +30,6 @@ def simulate_influence_functions(act_coords, local_mask, pix_scale):
     imposing 'perfect' zonal commands """
     
     n_acts = len(act_coords)
-    valid_len = np.sum(1-local_mask)
     
     max_x, max_y = np.shape(local_mask)
     
@@ -55,14 +55,8 @@ def simulate_influence_functions(act_coords, local_mask, pix_scale):
     cube_mask = np.tile(local_mask,n_acts)
     cube_mask = np.reshape(cube_mask, np.shape(img_cube), order = 'F')
     cube = np.ma.masked_array(img_cube,cube_mask)
-
-    # Save valid data to IFF (full) matrix
-    flat_cube = cube.data[~cube.mask]
-    local_IFF = np.reshape(flat_cube, [valid_len, n_acts])
     
-    sim_IFF = np.array(local_IFF)
-    
-    return sim_IFF
+    return cube
 
 
 def calculate_influence_functions(act_coords, local_mask, normalized_act_radius):
@@ -88,14 +82,24 @@ def calculate_influence_functions(act_coords, local_mask, normalized_act_radius)
     cube_mask = np.reshape(cube_mask, np.shape(img_cube), order = 'F')
     cube = np.ma.masked_array(img_cube,cube_mask)
     
+    return cube
+
+
+def cube2mat(cube):
+    """ Get influence functions matrix 
+    from the image cube """
+    
+    n_acts = np.shape(cube)[2]
+    valid_len = np.sum(1-cube[:,:,0].mask)
+    
     # Save valid data to IFF (full) matrix
     flat_cube = cube.data[~cube.mask]
-    valid_len = np.sum(1-local_mask)
     local_IFF = np.reshape(flat_cube, [valid_len, n_acts])
     
     IFF = np.array(local_IFF)
     
     return IFF
+    
 
 
 def compute_zernike_matrix(mask, n_modes):
@@ -107,6 +111,35 @@ def compute_zernike_matrix(mask, n_modes):
     
     return mat
 
+
+def get_sparse_ids(block_data_shape, n_hex):
+    """ Computes row and column ids for the sparse
+    csr_matrix assembly """
+    n_row = block_data_shape[0]
+    n_col = block_data_shape[1]
+    
+    row = np.arange(n_row)
+    row = np.tile(row, n_col)
+    row = np.tile(row, n_hex) 
+    
+    col = np.arange(n_col)
+    col = np.repeat(col, n_row)
+    col = np.tile(col, n_hex) 
+    
+    hex_row_n = np.repeat(np.arange(n_hex)*n_row, n_row*n_col)
+    hex_col_n = np.repeat(np.arange(n_hex)*n_col, n_row*n_col)
+
+    hex_row = row + hex_row_n
+    hex_col = col + hex_col_n
+    
+    # ij = np.vstack((hex_row,hex_col))
+    # ij = np.reshape(ij,[2,n_hex,n_row*n_col])
+
+    return hex_row, hex_col 
+    
+    
+    
+    
 
 def _define_mesh(act_coords, points_per_side, normalized_act_radius):
     """ Defines the local mesh point coordinates

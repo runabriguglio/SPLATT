@@ -20,7 +20,6 @@ class SegmentedMirror(DM):
         
         # Define mask and shape
         self.mask = self.geom.global_mask
-        self.shape = np.zeros(np.sum(1-self.mask))
         
         # Initialize segmented array
         self._define_segment_array()
@@ -29,7 +28,7 @@ class SegmentedMirror(DM):
         
     def compute_global_zern_matrix(self, n_modes):
         """ Computes or reads the globl Zernike modes interaction matrix """
-        
+    
         file_path = self.geom.savepath + str(n_modes) + 'modes_global_zernike_mat.fits'
         
         try:
@@ -46,18 +45,20 @@ class SegmentedMirror(DM):
         sparse interaction matrix """
         
         file_path = self.geom.savepath + str(n_modes) + 'modes_local_zernike_mat.fits'
-        sparse_file_path = self.geom.savepath + str(n_modes) + 'modes_global_sparse_zernike_mat.fits'
+        n_pix = np.sum(1-self.geom.local_mask)
+        n_hex = self.geom.n_hex
+        mat_shape = [n_pix*n_hex,n_modes*n_hex]
         
         try:
-            local_ZM = rwf.read_fits(file_path)
+            ZM = rwf.read_fits(file_path, sparse_shape = mat_shape)
         except FileNotFoundError:
-            local_ZM = matcalc.compute_zernike_matrix(self.geom.local_mask, n_modes)
-            rwf.write_to_fits(local_ZM, file_path)
+            loc_ZM = matcalc.compute_zernike_matrix(self.geom.local_mask, n_modes)
+            ZM = self._distribute_local_to_global(loc_ZM)
+            rwf.write_csr_to_fits(ZM, file_path)
         
-        for k in range(self.geom.n_hex):
-            self.segment[k].ZM = local_ZM
-        
-        self.ZM = self._distribute_local_to_global(local_ZM, sparse_file_path)
+        self.ZM = ZM
+        for k,segment in enumerate(self.segment):
+            segment.ZM = (self.ZM[n_pix*k:n_pix*(k+1),n_modes*k:n_modes*(k+1)]).toarray()
         
         
     def initialize_IFF_and_R_matrices(self, simulate:bool = True):
@@ -65,58 +66,57 @@ class SegmentedMirror(DM):
         distributing the result to all segments and assemling the global
         sparse IFF and R matrices """
         
-        # Influence functions
-        local_IFF_path = self.geom.savepath + 'local_influence_functions_matrix.fits'
-        global_IFF_path = self.geom.savepath + 'global_influence_functions_matrix.fits'
+        IFF_path = self.geom.savepath + 'global_influence_functions_matrix.fits'
+        R_path = self.geom.savepath + 'global_reconstructor_matrix.fits'
         
-        # Read/compute local IFF
+        n_pix = np.sum(1-self.geom.local_mask)
+        n_hex = self.geom.n_hex
+        n_acts = int(len(self.act_coords)/n_hex)
+        
+        IFF_shape = [n_pix*n_hex, n_hex*n_acts]
+        R_shape = [n_acts*n_hex, n_hex*n_pix]
+        
+        # Read/compute IFF and R
         try:
-            local_IFF = rwf.read_fits(local_IFF_path)
+            self.IFF = rwf.read_fits(IFF_path, sparse_shape = IFF_shape)
+            self.R = rwf.read_fits(R_path, sparse_shape = R_shape)
+            
         except FileNotFoundError:
-            ref_act_coords = self.segment[0].act_coords
-            if simulate:
-                local_IFF = matcalc.simulate_influence_functions(ref_act_coords, self.geom.local_mask, self.geom.pix_scale)
-            else:
-                local_IFF = matcalc.calculate_influence_functions(ref_act_coords, self.geom.local_mask)
-                rwf.write_to_fits(local_IFF, local_IFF_path)
-        
-        # Reconstructor
-        local_R_path = self.geom.savepath + 'local_reconstructor_matrix.fits'
-        global_R_path = self.geom.savepath + 'global_reconstructor_matrix.fits'
-        
-        # Read/compute local R
-        try:
-            local_R = rwf.read_fits(local_R_path)
-        except FileNotFoundError:
-            local_R = matcalc.compute_reconstructor(local_IFF)
-            rwf.write_to_fits(local_R, local_R_path)
+            loc_IFF, loc_R = self._compute_local_IFF_and_R()
+            
+            self.IFF = self._distribute_local_to_global(loc_IFF)
+            rwf.write_csr_to_fits(self.IFF, IFF_path)
+            
+            self.R = self._distribute_local_to_global(loc_R)
+            rwf.write_csr_to_fits(self.R, R_path)
     
         # Distribute to all segments
-        for k in range(self.geom.n_hex):
-            self.segment[k].IFF = local_IFF
-            self.segment[k].R = local_R
+        for k,segment in enumerate(self.segment):
+            segment.IFF = (self.IFF[n_pix*k:n_pix*(k+1), n_acts*k:n_acts*(k+1)]).toarray()
+            segment.R = (self.R[n_acts*k:n_acts*(k+1), n_pix*k:n_pix*(k+1)]).toarray()
             
-        self.IFF = self._distribute_local_to_global(local_IFF, global_IFF_path)
-        self.R = self._distribute_local_to_global(local_R, global_R_path)
-    
-        
-        
-        
-    def update_global_act_coords(self):
-        """ Reads and saves the positions and (global)
-        coordinates of all actuatrs"""
-        
-        # Initialize actuator positions and coordinates
-        pos = self.segment[0].act_pos
-        coords = self.segment[0].act_coords
-        
-        for k in range(1,self.geom.n_hex):
-            pos = np.vstack([pos, self.segment[k].act_pos])
-            glob_coords = self.segment[k].act_coords + self.segment[k].center
-            coords = np.vstack([coords, glob_coords])
             
-        self.act_pos = pos
-        self.act_coords = coords
+    def _compute_local_IFF_and_R(self, segment_id:int = 0, simulate:bool = True):
+        """ Reads or computes the IFF image cube for the given segment_id,
+        returns the local IFF and Reconstructor matrices """
+        
+        file_path = self.geom.savepath + 'Segment' + str(segment_id) + 'IFF_image_cube.fits'
+        
+        try:
+            IFF_cube = rwf.read_fits(file_path, is_ma = True)
+            
+        except FileNotFoundError:
+            ref_act_coords = self.segment[segment_id].act_coords
+            if simulate:
+                IFF_cube = matcalc.simulate_influence_functions(ref_act_coords, self.geom.local_mask, self.geom.pix_scale)
+            else:
+                IFF_cube = matcalc.calculate_influence_functions(ref_act_coords, self.geom.local_mask, self.geom.act_radius/self.geom.hex_side_len)
+            rwf.write_to_fits(IFF_cube, file_path)
+        
+        loc_IFF = matcalc.cube2mat(IFF_cube)
+        loc_R = matcalc.compute_reconstructor(loc_IFF)
+        
+        return loc_IFF, loc_R
         
         
     def _define_segment_array(self):
@@ -124,10 +124,18 @@ class SegmentedMirror(DM):
         containing their center coordinates and the
         actuator positions """
         
+        loc_mask = self.geom.local_mask
+        
+        local_ids = np.arange(np.size(loc_mask))
+        local_valid_ids = local_ids[~loc_mask.flatten()]
+        
+        self.valid_ids = self.geom.valid_ids
+        
+        # Initialize segment array
         self.segment = []
         
         for k,coords in enumerate(self.geom.hex_centers):
-            self.segment.append(Segment(coords, self.geom.local_mask))
+            self.segment.append(Segment(coords, self.geom.local_mask, local_valid_ids))
             
             
     def _initialize_actuator_coordinates(self):
@@ -136,129 +144,37 @@ class SegmentedMirror(DM):
         
         local_act_coords = self.geom.initialize_segment_act_coords()
         
-        for k in range(self.geom.n_hex):
-            self.segment[k].update_act_coords(local_act_coords)
+        n_acts = len(local_act_coords)
+        n_hex = self.geom.n_hex
+        n_pix = np.sum(1-self.geom.local_mask)
+        
+        self.shape = np.zeros(np.sum(1-self.mask))
+        self.act_coords = np.tile(local_act_coords,(n_hex,1))
+        self.act_pos = np.zeros(n_hex*n_acts)
+        
+        for k, segment in enumerate(self.segment):
+            segment.act_coords = local_act_coords
+            segment.act_pos = self.act_pos[n_acts*k:n_acts*(k+1)]
+            segment.shape = self.shape[n_pix*k:n_pix*(k+1)]
+            self.act_coords[n_acts*k:n_acts*(k+1),:] += segment.center
             
-        self.update_global_act_coords()
-
-                
-    def _distribute_local_to_global(self, local_data, file_path):
+            
+    def _distribute_local_to_global(self, local_mat):
         """ Function to distribute the local_data matrix
         from the local mask to the global one """
         
-        hex_data_len = np.sum(1-self.geom.local_mask)
-        glob_data_len = np.sum(1-self.mask)
+        mat_shape = np.shape(local_mat)
+        n_hex = self.geom.n_hex
+        sparse_shape = np.dot(n_hex,mat_shape)
         
-        N = int(np.size(local_data)/hex_data_len)
-        
-        mat_shape = [glob_data_len,N*self.geom.n_hex]
-        
-        data_shape = np.shape(local_data)
-        
-        if len(data_shape) > 1: #  local_data is a matrix
-            if data_shape[0] < hex_data_len: # Reconstructor [Nacts,Npix]
-                mat_shape = [N*self.geom.n_hex, glob_data_len]
-                local_data = local_data.flatten()
-            else: # IFF [Npix,Nacts]
-                local_data = local_data.flatten(order='F')
-                  
-        try:
-            mat = rwf.read_fits(file_path, sparse_shape = mat_shape)
-            return mat
-        except FileNotFoundError:
-            pass
-        
-        row_indices = np.tile(self.geom.valid_ids, N)
-        row = row_indices.flatten()
-        
-        val_indices = np.arange(int(N*self.geom.n_hex))
-        col = np.repeat(val_indices, hex_data_len)
-        
-        data = np.tile(local_data, self.geom.n_hex)
-        
-        if data_shape[0] < hex_data_len: # e.g. for the reconstructor [Nacts,Npix]
-            mat = csr_matrix((data, (col,row)), mat_shape)
-        else:
-            mat = csr_matrix((data, (row,col)), mat_shape)
-        
-        # Save to fits
-        rwf.write_csr_to_fits(mat, file_path)
-        
-        return mat
-        
-    
-
-        
+        row, col = matcalc.get_sparse_ids(mat_shape, n_hex)
+        local_data = local_mat.flatten(order = 'F')
             
-    # def assemble_IFF_and_R_matrices(self, simulated_IFFs = False):
+        data = np.tile(local_data,n_hex)
         
-    #     # Local matrices
-    #     local_IFF_path = self.savepath + 'local_influence_functions_matrix.fits'
-    #     local_R_path = self.savepath + 'local_reconstructor_matrix.fits'
+        sparse_mat = csr_matrix((data, (row,col)), sparse_shape)
         
+        return sparse_mat
 
-        
-    #     # Read/compute local Reconstructor
-    #     try:
-    #         Rec = read_fits(local_R_path)
-    #     except FileNotFoundError:
-    #         Rec = self.LMC.compute_reconstructor(local_IFF) 
-    #         write_to_fits(Rec, local_R_path)
-        
-
-    #         self.segment[k].R = Rec
-         
-    #     # Assemble global matrices
-    #     IFF_file_name = self.savepath + 'global_influence_functions_matrix.fits'
-    #     R_file_name = self.savepath + 'global_reconstructor_matrix.fits'
-        
-    #     self.IFF = self._distribute_local_to_global(local_IFF, IFF_file_name)
-    #     self.R = self._distribute_local_to_global(Rec, R_file_name)
-        
-        
-    # def _distribute_local_to_global(self, local_data, file_path):
-    #     """ Function to distribute the local_data matrix
-    #     from the local mask to the global one """
-        
-    #     hex_data_len = np.sum(1-self.local_mask)
-    #     glob_data_len = np.sum(1-self.global_mask)
-        
-    #     n_hex = n_hexagons(self.n_rings)
-    #     N = int(np.size(local_data)/hex_data_len)
-        
-    #     mat_shape = [glob_data_len,N*n_hex]
-        
-    #     data_shape = np.shape(local_data)
-    #     if len(data_shape) > 1: #  local_data is a matrix
-    #         if data_shape[0] < hex_data_len: # Reconstructor [Nacts,Npix]
-    #             mat_shape = [N*n_hex, glob_data_len]
-    #             local_data = local_data.flatten()
-    #         else: # IFF [Npix,Nacts]
-    #             local_data = local_data.flatten(order='F')
-                  
-    #     try:
-    #         mat = rwf.read_fits(file_path, sparse_shape = mat_shape)
-    #         return mat
-    #     except FileNotFoundError:
-    #         pass
-                
-    #     row_indices = np.tile(self.valid_ids, N)
-    #     row = row_indices.flatten()
-        
-    #     val_indices = np.arange(int(N*n_hex))
-    #     col = np.repeat(val_indices, hex_data_len)
-        
-    #     data = np.tile(local_data, n_hex)
-        
-    #     if data_shape[0] < hex_data_len: # e.g. for the reconstructor [Nacts,Npix]
-    #         mat = csr_matrix((data, (col,row)), mat_shape)
-    #     else:
-    #         mat = csr_matrix((data, (row,col)), mat_shape)
-        
-    #     # Save to fits
-    #     rwf.write_csr_to_fits(mat, file_path)
-        
-    #     return mat
-        
         
         
