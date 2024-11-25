@@ -26,17 +26,20 @@ def dm_system_setup(TN:str, n_global_zern:int = 11, n_local_zern:int = 11):
         Segmented deformable mirror object.
 
     """
+    print('Initializing segmented mirror class ...')
     sdm = SegmentedMirror(TN)
     
     # Global Zernike matrix
+    print('Computing ' + str(n_global_zern) + ' modes global Zernike interaction matrix ...')
     sdm.compute_global_zern_matrix(n_global_zern)
     tiptilt = np.zeros(n_global_zern)
     tiptilt[1] = 1
     tiptilt[2] = 1
     wf = matmul(sdm.glob_ZM,tiptilt)
-    sdm.surface(wf, 'Global Tip/Tilt')
+    sdm.surface(wf, plot_title='Global Tip/Tilt', is_global=True)
     
     # Local Zernike matrix
+    print('Computing ' + str(n_local_zern) + ' modes local Zernike interaction matrix ...')
     sdm.compute_local_zern_matrix(n_local_zern)
     INTMAT = sdm.ZM
     n_hex = int(np.shape(INTMAT)[1]/n_local_zern)
@@ -50,6 +53,7 @@ def dm_system_setup(TN:str, n_global_zern:int = 11, n_local_zern:int = 11):
     sdm.surface(flat_shape, 'Zernike modes')
     
     # Global influence functions and global reconstructor
+    print('Initializing influence functions and reconstructor matrices ...')
     sdm.initialize_IFF_and_R_matrices(simulate = True)
     IFF = sdm.IFF
     R = sdm.R
@@ -179,7 +183,7 @@ def segment_scramble(sdm, mode_amp = 10e-6, apply_shape:bool = False):
     sdm.surface(flat_img,'Segment scramble')
     
     if apply_shape:
-        sdm.shape = flat_img
+        sdm.shape += flat_img
         # ...
     
     

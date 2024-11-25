@@ -7,8 +7,6 @@ from scipy.sparse import csr_matrix
 def write_csr_to_fits(matrix:csr_matrix, file_path):
 
     data_list = []
-    # print('Warning! Saving ' + file_path + ' as float32 to save disk space!')
-    # data_list.append((matrix.data).astype(np.float32)) # edit this if your machine is better than mine
     data_list.append(matrix.data)
     data_list.append((matrix.indices).astype(np.int32))
     data_list.append((matrix.indptr).astype(np.int32))
