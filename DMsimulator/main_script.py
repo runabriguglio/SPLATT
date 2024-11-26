@@ -11,21 +11,6 @@ utils.segment_scramble(dm, apply_shape=True)
 
 # Fitting errors
 seg0 = dm.segment[0]
-local_fit_err = utils.fitting_error(seg0.mask, seg0.ZM, seg0.IFF, seg0.R)
+local_fit_err = utils.fitting_error_plots(seg0.mask, seg0.ZM, seg0.IFF, seg0.R)
 
-global_fit_err = utils.fitting_error(dm.mask, dm.glob_ZM, dm.IFF, dm.R)
-
-
-# class Test():
-    
-#     def __init__(self):
-#         self.a = np.arange(15)
-
-# class Test2():
-    
-#     def __init__(self,a):
-        
-#         self.b = a[2:5]
-        
-# test = Test()
-# test2 = Test2(test.a)
+global_fit_err = utils.fitting_error_plots(dm.mask, dm.glob_ZM, dm.IFF, dm.R)

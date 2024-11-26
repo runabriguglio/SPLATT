@@ -36,7 +36,7 @@ def dm_system_setup(TN:str, n_global_zern:int = 11, n_local_zern:int = 11):
     tiptilt[1] = 1
     tiptilt[2] = 1
     wf = matmul(sdm.glob_ZM,tiptilt)
-    sdm.surface(wf, plot_title='Global Tip/Tilt', is_global=True)
+    sdm.surface(wf, 'Global Tip/Tilt')
     
     # Local Zernike matrix
     print('Computing ' + str(n_local_zern) + ' modes local Zernike interaction matrix ...')
@@ -71,16 +71,17 @@ def dm_system_setup(TN:str, n_global_zern:int = 11, n_local_zern:int = 11):
     return sdm
 
 
-def fitting_error(mask, IM, IFF, R):
+def fitting_error_plots(mask, IM, IFF, R):
     """
-    Computes the fitting error for the reconstructor on a mask
+    Computes the fitting error for the reconstructor on a mask,
+    plotting the N = np.shape(IM)[1] residual images
 
     Parameters
     ----------
     mask : bool ndarray [Npix,]
         Boolean mask of the flattened image.
     IM : float ndarray [Npix,Nmodes]
-        Interaction matrix from the Zernike modes.
+        Interaction matrix of the images to fit.
     IFF : float ndarray [Npix,Nacts]
         Influence functions matrix from actuators data.
     R : float ndarray [Nacts,Npix]
@@ -94,14 +95,14 @@ def fitting_error(mask, IM, IFF, R):
 
     """
     
-    N_modes = np.shape(IM)[1]
-    RMS_vec = np.zeros(N_modes)
+    N = np.shape(IM)[1]
+    RMS_vec = np.zeros(N)
     
     flat_img = np.zeros(np.size(mask))
     flat_mask = mask.flatten()
     # cube = np.zeros([N_modes,np.shape(mask)[0],np.shape(mask)[1]])
     
-    for k in range(N_modes):
+    for k in range(N):
         des_shape = IM[:,k]
         act_cmd = matmul(R,des_shape)
         act_shape = matmul(IFF,act_cmd)
@@ -110,7 +111,11 @@ def fitting_error(mask, IM, IFF, R):
         if isinstance(shape_err, csr_matrix):
             shape_err = (shape_err).toarray()
             shape_err = shape_err[:,0]
-        RMS_vec[k] = np.std(shape_err) 
+            
+        shape_RMS = np.std(des_shape)
+        if shape_RMS < 1e-15: # avoid division by zero
+            shape_RMS = 1
+        RMS_vec[k] = np.std(shape_err)/shape_RMS
         
         flat_img[~flat_mask] = shape_err
         img = np.reshape(flat_img, np.shape(mask))
@@ -127,6 +132,38 @@ def fitting_error(mask, IM, IFF, R):
     plt.ylabel('Shape RMS')
     plt.title('Fitting error')
     plt.grid('on')
+    
+    return RMS_vec
+
+
+def fitting_error(IM, IFF, R):
+    """
+    Computes the fitting error for the reconstructor
+
+    Parameters
+    ----------
+    IM : float ndarray [Npix,Nmodes]
+        Interaction matrix of the images to fit.
+    IFF : float ndarray [Npix,Nacts]
+        Influence functions matrix from actuators data.
+    R : float ndarray [Nacts,Npix]
+        Reconstructor matrix (IFF pseudo-inverse).
+
+    Returns
+    -------
+    RMS_vec : float ndarray [Nmodes,]
+        Vector of ratios of the STDs of the reconstructed
+        image and the desired image from the IM.
+
+    """
+    
+    act_cmds = matmul(R,IM)
+    act_shapes = matmul(IFF,act_cmds)
+    res_shapes = IM - act_shapes
+    
+    img_rms = np.std(IM,axis = 0)
+    img_rms[img_rms < 1e-15] = np.ones(len(img_rms[img_rms < 1e-15])) # avoid division by 0
+    RMS_vec = np.std(res_shapes,axis = 0)/img_rms
     
     return RMS_vec
 

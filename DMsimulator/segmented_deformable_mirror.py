@@ -35,7 +35,12 @@ class SegmentedMirror(DM):
             self.glob_ZM = rwf.read_fits(file_path)
             return
         except FileNotFoundError:
-            self.glob_ZM = matcalc.compute_zernike_matrix(self.mask, n_modes)
+            mask = self.mask.copy()
+            scrambled_ZM = matcalc.compute_zernike_matrix(mask, n_modes)
+            ids = np.zeros(np.size(mask),dtype=int)
+            ids[~mask.flatten()] = np.arange(np.sum(1-mask))
+            scrambled_ids = ids[self.valid_ids.flatten()]
+            self.glob_ZM = scrambled_ZM[scrambled_ids,:]
             rwf.write_to_fits(self.glob_ZM, file_path)
             
         
@@ -82,11 +87,13 @@ class SegmentedMirror(DM):
             self.R = rwf.read_fits(R_path, sparse_shape = R_shape)
             
         except FileNotFoundError:
-            loc_IFF, loc_R = self._compute_local_IFF_and_R()
+            IFF_cube = self._compute_local_IFF_cube()
             
+            loc_IFF = matcalc.cube2mat(IFF_cube)
             self.IFF = self._distribute_local_to_global(loc_IFF)
             rwf.write_csr_to_fits(self.IFF, IFF_path)
             
+            loc_R = matcalc.compute_reconstructor(loc_IFF)
             self.R = self._distribute_local_to_global(loc_R)
             rwf.write_csr_to_fits(self.R, R_path)
     
@@ -96,27 +103,52 @@ class SegmentedMirror(DM):
             segment.R = (self.R[n_acts*k:n_acts*(k+1), n_pix*k:n_pix*(k+1)]).toarray()
             
             
-    def _compute_local_IFF_and_R(self, segment_id:int = 0, simulate:bool = True):
-        """ Reads or computes the IFF image cube for the given segment_id,
-        returns the local IFF and Reconstructor matrices """
+    def _compute_local_IFF_cube(self, segment_id:int = None, simulate:bool = True):
+        """ Reads or computes the IFF image cube for the actuator
+        coordinates of the segment with given segment_id"""
         
-        file_path = self.geom.savepath + 'Segment' + str(segment_id) + 'IFF_image_cube.fits'
+        if segment_id is None:
+            file_name = 'REF'
+            segment_id = 0
+        else:
+            file_name = 'segment' + str(segment_id)
         
-        try:
-            IFF_cube = rwf.read_fits(file_path, is_ma = True)
+        file_path = self.geom.savepath + file_name + '_IFF_image_cube.fits'
+        
+        if file_name == 'REF':
+            try:
+                IFF_cube = rwf.read_fits(file_path, is_ma = True)
+                return IFF_cube
+            except FileNotFoundError:
+                pass
+        
+        ref_act_coords = self.segment[segment_id].act_coords
+        if simulate:
+            IFF_cube = matcalc.simulate_influence_functions(ref_act_coords, self.geom.local_mask, self.geom.pix_scale)
+        else:
+            IFF_cube = matcalc.calculate_influence_functions(ref_act_coords, self.geom.local_mask, self.geom.act_radius/self.geom.hex_side_len)
+        rwf.write_to_fits(IFF_cube, file_path)
+        
+        return IFF_cube
             
-        except FileNotFoundError:
-            ref_act_coords = self.segment[segment_id].act_coords
-            if simulate:
-                IFF_cube = matcalc.simulate_influence_functions(ref_act_coords, self.geom.local_mask, self.geom.pix_scale)
-            else:
-                IFF_cube = matcalc.calculate_influence_functions(ref_act_coords, self.geom.local_mask, self.geom.act_radius/self.geom.hex_side_len)
-            rwf.write_to_fits(IFF_cube, file_path)
+            
+    # def _compute_local_IFF_and_R(self, segment_id:int, simulate:bool = True):
+    #     """ Reads or computes the IFF image cube for the given segment_id,
+    #     returns the local IFF and Reconstructor matrices """
         
-        loc_IFF = matcalc.cube2mat(IFF_cube)
-        loc_R = matcalc.compute_reconstructor(loc_IFF)
+    #     file_path = self.geom.savepath + 'segment' + str(segment_id) + '_IFF_image_cube.fits'
         
-        return loc_IFF, loc_R
+    #     ref_act_coords = self.segment[segment_id].act_coords
+    #     if simulate:
+    #         IFF_cube = matcalc.simulate_influence_functions(ref_act_coords, self.geom.local_mask, self.geom.pix_scale)
+    #     else:
+    #         IFF_cube = matcalc.calculate_influence_functions(ref_act_coords, self.geom.local_mask, self.geom.act_radius/self.geom.hex_side_len)
+    #     rwf.write_to_fits(IFF_cube, file_path)
+        
+    #     loc_IFF = matcalc.cube2mat(IFF_cube)
+    #     loc_R = matcalc.compute_reconstructor(loc_IFF)
+        
+    #     return loc_IFF, loc_R
         
         
     def _define_segment_array(self):

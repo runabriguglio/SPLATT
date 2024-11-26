@@ -10,7 +10,7 @@ class DeformableMirror():
         pass
     
             
-    def surface(self, surf2plot = None, plot_title:str = None, is_global:bool = False):
+    def surface(self, surf2plot = None, plt_title:str = None):
         """ Plots surf2plot or (default) the segment's
         current shape on the DM mask """
         
@@ -20,10 +20,10 @@ class DeformableMirror():
         # Project wavefront on mask
         mask = self.mask.copy()
         
-        if is_global:
-            pix_ids = ~mask.flatten()
-        else:
-            pix_ids = self.valid_ids.flatten()
+        # if is_global:
+        #     pix_ids = ~mask.flatten()
+        # else:
+        pix_ids = self.valid_ids.flatten()
             
         image = np.zeros(np.size(mask))
         image[pix_ids] = surf2plot
@@ -35,8 +35,10 @@ class DeformableMirror():
         plt.imshow(image, origin = 'lower', cmap = 'inferno')
         plt.colorbar()
         
-        if plot_title is not None:
-            plt.title(plot_title)
+        if plt_title is None:
+            plt_title = 'RMS: ' + str(np.std(self.shape))
+            
+        plt.title(plt_title)
         
         
     def get_position(self, act_pix_size:float = 10):
