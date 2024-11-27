@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from scipy.sparse import csr_matrix
 from segmented_deformable_mirror import SegmentedMirror
 from matrix_calculator import matmul
+from read_and_write_fits import write_to_fits
 
 
 def dm_system_setup(TN:str, n_global_zern:int = 11, n_local_zern:int = 11):
@@ -63,15 +64,18 @@ def dm_system_setup(TN:str, n_global_zern:int = 11, n_local_zern:int = 11):
     
     n_acts = int(np.shape(IFF)[1]/n_hex)
     cmd = np.zeros(n_hex*n_acts)
-    cmd_ids = np.arange(n_hex)*n_acts + np.arange(n_hex)
-    cmd[cmd_ids] = np.ones(n_hex)
+    cmd_ids = np.arange(n_acts)
+    cmd_ids = np.tile(cmd_ids,int(np.ceil(n_hex/(n_acts))))
+    cmd_ids = cmd_ids[0:n_hex]
+    cmd_ids = cmd_ids + n_acts*np.arange(n_hex)
+    cmd[cmd_ids] = 1 #np.ones(n_hex)
     flat_img = IFF * cmd
     sdm.surface(flat_img, 'Actuators influence functions')
     
     return sdm
 
 
-def fitting_error_plots(mask, IM, IFF, R):
+def fitting_error_plots(mask, IM, IFF, R, pix_ids = None):
     """
     Computes the fitting error for the reconstructor on a mask,
     plotting the N = np.shape(IM)[1] residual images
@@ -86,6 +90,8 @@ def fitting_error_plots(mask, IM, IFF, R):
         Influence functions matrix from actuators data.
     R : float ndarray [Nacts,Npix]
         Reconstructor matrix (IFF pseudo-inverse).
+    pix_ids : ndarray(int), optional
+        The indices of the valid pixel indices on the mask. The default is None.
 
     Returns
     -------
@@ -117,7 +123,10 @@ def fitting_error_plots(mask, IM, IFF, R):
             shape_RMS = 1
         RMS_vec[k] = np.std(shape_err)/shape_RMS
         
-        flat_img[~flat_mask] = shape_err
+        if pix_ids is None:
+            pix_ids = ~flat_mask
+            
+        flat_img[pix_ids] = shape_err
         img = np.reshape(flat_img, np.shape(mask))
         img = np.ma.masked_array(img, mask)
         # cube[k] = img
@@ -221,7 +230,7 @@ def segment_scramble(sdm, mode_amp = 10e-6, apply_shape:bool = False):
     
     if apply_shape:
         sdm.shape += flat_img
-        # ...
+        write_to_fits(flat_img, sdm.geom.savepath + 'initial_segment_scramble.fits')
     
     
 

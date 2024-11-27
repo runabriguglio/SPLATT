@@ -30,8 +30,9 @@ def read_config(path):
     n_rings = dm_conf['n_rings']
     act_pitch = dm_conf['act_pitch']
     act_r = dm_conf['act_radius']
+    center = dm_conf['center_segment']
 
-    dm_par = np.array([gap, l_hex, n_rings, act_pitch, act_r])
+    dm_par = np.array([gap, l_hex, n_rings, act_pitch, act_r, center])
     dm_par = dm_par.astype(float)
 
     # Optical configuration parameters

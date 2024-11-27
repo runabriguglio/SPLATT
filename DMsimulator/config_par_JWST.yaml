@@ -1,14 +1,14 @@
 
 [DM]
-n_rings = 3.          # number of hexagonal segment rings
-hex_side = 1.        # [m] hexagonal side length
+n_rings = 2.          # number of hexagonal segment rings
+hex_side = 0.93        # [m] hexagonal side length
 hex_gap = 0.04       # [m] gap between hexagonal segments
-act_pitch = 0.2     # [m] inter-actuator distance
+act_pitch = 0.6     # [m] inter-actuator distance
 act_radius = 0.005    # [m] actuator radius
-center_segment = 1  # [bool] wheter to include the central hexagonal segment or not
+center_segment = 0  # [bool] wheter to include the central hexagonal segment or not
 
 [OPT]
-pixel_scale = 200.  # pixels per meter
+pixel_scale = 256.  # pixels per meter
 
 # None of the following is currently implemented:
 opt_radius = 20.    # [m] pupil radius

@@ -76,6 +76,7 @@ class HexGeometry():
         self.n_rings = int(dm_par[2])
         self.act_pitch = dm_par[3]
         self.act_radius = dm_par[4]
+        self.center_bool = bool(dm_par[5])
 
         self.pix_scale = opt_par[0]
         
@@ -103,7 +104,7 @@ class HexGeometry():
 
         Returns
         -------
-        local_act_coords : ndarray [2,Nacts]
+        local_act_coords : ndarray [Nacts,2]
             The x,y cordinates of the actuators on the hexagonal segment.
 
         """
@@ -120,10 +121,10 @@ class HexGeometry():
         rad = self.act_radius/L
         pitch = self.act_pitch/L
         
-        acts_per_side = (1+pitch)/(2*rad + pitch) #+ 1
+        acts_per_side = (1+pitch)/(2*rad + pitch) 
         dx = 2*rad+pitch
         
-        acts_per_side = int(acts_per_side)
+        acts_per_side = int(acts_per_side-1)
         n_acts_tri = sum_n(acts_per_side)
         
         act_coords = np.zeros([n_acts_tri*6+1,2])
@@ -141,7 +142,7 @@ class HexGeometry():
             act_coords[1+sum_n(k)*6:1+sum_n(k+1)*6,:] = p
             
         # Rescaling
-        local_act_coords = act_coords*self.hex_side_len #*(acts_per_side)/(acts_per_side-1)
+        local_act_coords = act_coords*self.hex_side_len
             
         # Save result
         rwf.write_to_fits(local_act_coords, file_path)
@@ -197,7 +198,9 @@ class HexGeometry():
         L = self.gap + 2.*self.hex_side_len*SIN60
         angles = np.pi/3. * (np.arange(5)+1)
         
-        for ring_ctr in range(self.n_rings):
+        ring_vec = np.arange(self.n_rings)
+        
+        for ring_ctr in ring_vec:
             
             hex_ctr = n_hexagons(ring_ctr)
             ring_ctr += 1
@@ -215,6 +218,10 @@ class HexGeometry():
                     aux[1] = hex_centers[hex_ctr,1] - (j+1)*shift
                     hex_centers[hex_ctr+j+1,:] = aux
                     hex_centers[hex_ctr+j+1+ring_ctr:hex_ctr+j+1+6*ring_ctr:ring_ctr,:] = cw_rotate(aux, angles)
+                    
+        if self.center_bool is False: # remove center segment
+            hex_centers = hex_centers[1:]
+            self.n_hex -= 1
     
         # Save as private variable and to .fits
         self.hex_centers = hex_centers
@@ -277,13 +284,14 @@ class HexGeometry():
         
         # Save valid hexagon indices
         valid_ids = (row_ids*np.shape(global_mask)[1] + col_ids).astype(int)
+        
+        # Save as private variable and to .fits
+        self.valid_ids = valid_ids
+        rwf.write_to_fits(valid_ids, ids_file_path)
+        
         # flat_valid_ids = row_ids*np.shape(global_mask)[1] + col_ids
         # flat_ids = np.arange(np.sum(1-self.global_mask))
         # flat_img = np.zeros(np.size(global_mask))
         # flat_mask = (self.global_mask.copy()).flatten()
         # flat_img[~flat_mask] = flat_ids
         # valid_ids = (flat_img[flat_valid_ids]).astype(int)
-        
-        # Save as private variable and to .fits
-        self.valid_ids = valid_ids
-        rwf.write_to_fits(valid_ids, ids_file_path)

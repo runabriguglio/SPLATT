@@ -40,6 +40,7 @@ def simulate_influence_functions(act_coords, local_mask, pix_scale):
     act_pix_coords = np.zeros([n_acts,2])
     act_pix_coords[:,0] = (act_coords[:,1] * pix_scale + max_x/2).astype(int)
     act_pix_coords[:,1] = (act_coords[:,0] * pix_scale + max_y/2).astype(int)
+    print(act_pix_coords)
     
     img_cube = np.zeros([max_x,max_y,n_acts])
 
