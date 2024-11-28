@@ -1,10 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from scipy.sparse import csr_matrix
+# from scipy.sparse import csr_matrix
 from segmented_deformable_mirror import SegmentedMirror
+from hexagonal_geometry import HexGeometry
 from matrix_calculator import matmul
-from read_and_write_fits import write_to_fits
+import read_and_write_fits as myfits
 
 
 def dm_system_setup(TN:str, n_global_zern:int = 11, n_local_zern:int = 11):
@@ -27,8 +28,11 @@ def dm_system_setup(TN:str, n_global_zern:int = 11, n_local_zern:int = 11):
         Segmented deformable mirror object.
 
     """
+    print('Defining mirror geometry ...')
+    geom = HexGeometry(TN)
+    
     print('Initializing segmented mirror class ...')
-    sdm = SegmentedMirror(TN)
+    sdm = SegmentedMirror(geom)
     
     # Global Zernike matrix
     print('Computing ' + str(n_global_zern) + ' modes global Zernike interaction matrix ...')
@@ -43,7 +47,7 @@ def dm_system_setup(TN:str, n_global_zern:int = 11, n_local_zern:int = 11):
     print('Computing ' + str(n_local_zern) + ' modes local Zernike interaction matrix ...')
     sdm.compute_local_zern_matrix(n_local_zern)
     INTMAT = sdm.ZM
-    n_hex = int(np.shape(INTMAT)[1]/n_local_zern)
+    n_hex = np.shape(INTMAT)[0]
     cmd_ids = np.arange(n_local_zern-1)+1
     cmd_ids = np.tile(cmd_ids,int(np.ceil(n_hex/(n_local_zern-1))))
     cmd_ids = cmd_ids[0:n_hex]
@@ -58,18 +62,18 @@ def dm_system_setup(TN:str, n_global_zern:int = 11, n_local_zern:int = 11):
     sdm.initialize_IFF_and_R_matrices(simulate = True)
     IFF = sdm.IFF
     R = sdm.R
-    cmd_for_zern = R * flat_shape
-    flat_img = IFF * cmd_for_zern
+    cmd_for_zern = matmul(R,flat_shape)
+    flat_img = matmul(IFF,cmd_for_zern)
     sdm.surface(flat_img, 'Reconstructed Zernike modes')
     
-    n_acts = int(np.shape(IFF)[1]/n_hex)
+    n_acts = np.shape(IFF)[2]
     cmd = np.zeros(n_hex*n_acts)
     cmd_ids = np.arange(n_acts)
     cmd_ids = np.tile(cmd_ids,int(np.ceil(n_hex/(n_acts))))
     cmd_ids = cmd_ids[0:n_hex]
     cmd_ids = cmd_ids + n_acts*np.arange(n_hex)
     cmd[cmd_ids] = 1 #np.ones(n_hex)
-    flat_img = IFF * cmd
+    flat_img = matmul(IFF,cmd)
     sdm.surface(flat_img, 'Actuators influence functions')
     
     return sdm
@@ -101,7 +105,7 @@ def fitting_error_plots(mask, IM, IFF, R, pix_ids = None):
 
     """
     
-    N = np.shape(IM)[1]
+    N = np.shape(IM)[-1]
     RMS_vec = np.zeros(N)
     
     flat_img = np.zeros(np.size(mask))
@@ -114,9 +118,9 @@ def fitting_error_plots(mask, IM, IFF, R, pix_ids = None):
         act_shape = matmul(IFF,act_cmd)
         shape_err = des_shape-act_shape
         
-        if isinstance(shape_err, csr_matrix):
-            shape_err = (shape_err).toarray()
-            shape_err = shape_err[:,0]
+        # if isinstance(shape_err, csr_matrix):
+        #     shape_err = (shape_err).toarray()
+        #     shape_err = shape_err[:,0]
             
         shape_RMS = np.std(des_shape)
         if shape_RMS < 1e-15: # avoid division by zero
@@ -197,40 +201,45 @@ def segment_scramble(sdm, mode_amp = 10e-6, apply_shape:bool = False):
     None.
 
     """
-    Nsegments = sdm.geom.n_hex
-    ZMat = sdm.ZM
+    file_name = sdm.geom.savepath + 'initial_segment_scramble.fits'
     
-    # Retrieve number of modes from the interaction matrix
-    n_modes = int(np.shape(ZMat)[1]/Nsegments)
-    
-    # Generate random mode coefficients
-    mode_vec = np.random.randn(Nsegments*n_modes)
-    
-    # Probability inversely proportional to spatial frequency
-    m = int(np.ceil((np.sqrt(8*n_modes)-1.)/2.))
-    freq_vec = np.repeat(np.arange(m)+1,np.arange(m)+1)
-    prob_vec = 1./freq_vec[:n_modes]
-    prob_vec_rep = np.tile(prob_vec,Nsegments)
-    
-    # Modulate on the probability
-    mode_vec = mode_vec * prob_vec_rep
-    
-    # Amplitude
-    mode_vec *= mode_amp
-    
-    # Matrix product
-    flat_img = matmul(ZMat,mode_vec)
-    
-    # # Global modes
-    # n_glob_modes = np.shape(sdm.glob_int_mat)[1]
-    # glob_mode_vec = np.random.randn(n_glob_modes)
-    # flat_img += matmul(sdm.glob_ZM,glob_mode_vec)
+    try:
+        flat_img = myfits.read_fits(file_name)
+    except FileNotFoundError:
+        Nsegments = sdm.geom.n_hex
+        ZMat = sdm.ZM
+        
+        # Retrieve number of modes from the interaction matrix
+        n_modes = np.shape(ZMat)[-1]
+        
+        # Generate random mode coefficients
+        mode_vec = np.random.randn(Nsegments*n_modes)
+        
+        # Probability inversely proportional to spatial frequency
+        m = int(np.ceil((np.sqrt(8*n_modes)-1.)/2.))
+        freq_vec = np.repeat(np.arange(m)+1,np.arange(m)+1)
+        prob_vec = 1./freq_vec[:n_modes]
+        prob_vec_rep = np.tile(prob_vec,Nsegments)
+        
+        # Modulate on the probability
+        mode_vec = mode_vec * prob_vec_rep
+        
+        # Amplitude
+        mode_vec *= mode_amp
+        
+        # Matrix product
+        flat_img = matmul(ZMat,mode_vec)
+        
+        # # Global modes
+        # n_glob_modes = np.shape(sdm.glob_int_mat)[1]
+        # glob_mode_vec = np.random.randn(n_glob_modes)
+        # flat_img += matmul(sdm.glob_ZM,glob_mode_vec)
     
     sdm.surface(flat_img,'Segment scramble')
     
     if apply_shape:
         sdm.shape += flat_img
-        write_to_fits(flat_img, sdm.geom.savepath + 'initial_segment_scramble.fits')
+        myfits.write_to_fits(flat_img, file_name)
     
     
 

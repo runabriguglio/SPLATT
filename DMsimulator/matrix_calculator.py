@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.sparse import csr_matrix
+# from scipy.sparse import csr_matrix
 from tps import ThinPlateSpline # for the simulated IFF
 from scipy.interpolate import griddata
 
@@ -10,11 +10,18 @@ from hexagonal_geometry import semi_structured_point_cloud
 def matmul(mat, vec):
     """
     Simple function to perform matrix multiplication
-    for both sparse and regular matrices
+    for both block matrices (saved as an array of
+    matrices) and regular matrices
     """
     
-    if isinstance(mat, csr_matrix):
-       res = mat * vec
+    if len(np.shape(mat)) == 3: # Array of matrices
+        id_ctr = 0 
+        n_hex, n_pix, N = np.shape(mat)
+        res = np.zeros(n_pix*n_hex)
+        for n, mat_n in enumerate(mat):
+            ids = np.arange(id_ctr, id_ctr+N)
+            res[n_pix*n:n_pix*(n+1)] = mat_n @ vec[ids]
+            id_ctr += N
     else:
         res = mat @ vec
         
@@ -113,30 +120,27 @@ def compute_zernike_matrix(mask, n_modes):
     return mat
 
 
-def get_sparse_ids(block_data_shape, n_hex):
-    """ Computes row and column ids for the sparse
-    csr_matrix assembly """
-    n_row = block_data_shape[0]
-    n_col = block_data_shape[1]
+# def get_sparse_ids(block_data_shape, n_hex):
+#     """ Computes row and column ids for the sparse
+#     csr_matrix assembly """
+#     n_row = block_data_shape[0]
+#     n_col = block_data_shape[1]
     
-    row = np.arange(n_row)
-    row = np.tile(row, n_col)
-    row = np.tile(row, n_hex) 
+#     row = np.arange(n_row)
+#     row = np.tile(row, n_col)
+#     row = np.tile(row, n_hex) 
     
-    col = np.arange(n_col)
-    col = np.repeat(col, n_row)
-    col = np.tile(col, n_hex) 
+#     col = np.arange(n_col)
+#     col = np.repeat(col, n_row)
+#     col = np.tile(col, n_hex) 
     
-    hex_row_n = np.repeat(np.arange(n_hex)*n_row, n_row*n_col)
-    hex_col_n = np.repeat(np.arange(n_hex)*n_col, n_row*n_col)
+#     hex_row_n = np.repeat(np.arange(n_hex)*n_row, n_row*n_col)
+#     hex_col_n = np.repeat(np.arange(n_hex)*n_col, n_row*n_col)
 
-    hex_row = row + hex_row_n
-    hex_col = col + hex_col_n
-    
-    # ij = np.vstack((hex_row,hex_col))
-    # ij = np.reshape(ij,[2,n_hex,n_row*n_col])
+#     hex_row = row + hex_row_n
+#     hex_col = col + hex_col_n
 
-    return hex_row, hex_col 
+#     return hex_row, hex_col 
     
     
     

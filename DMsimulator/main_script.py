@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 
 import utilities as utils
 
-# config_tn = '20240920'
-config_tn = 'JWST'
+config_tn = '20240920'
+# config_tn = 'JWST'
 dm = utils.dm_system_setup(config_tn)
 
 # Segment Scramble
