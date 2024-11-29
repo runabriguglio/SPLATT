@@ -1,5 +1,4 @@
 import numpy as np
-# from scipy.sparse import csr_matrix
 from tps import ThinPlateSpline # for the simulated IFF
 from scipy.interpolate import griddata
 
@@ -47,7 +46,6 @@ def simulate_influence_functions(act_coords, local_mask, pix_scale):
     act_pix_coords = np.zeros([n_acts,2])
     act_pix_coords[:,0] = (act_coords[:,1] * pix_scale + max_x/2).astype(int)
     act_pix_coords[:,1] = (act_coords[:,0] * pix_scale + max_y/2).astype(int)
-    print(act_pix_coords)
     
     img_cube = np.zeros([max_x,max_y,n_acts])
 
@@ -117,33 +115,7 @@ def compute_zernike_matrix(mask, n_modes):
     noll_ids = np.arange(n_modes) + 1
     mat = assemble_zern_mat(noll_ids, mask)
     
-    return mat
-
-
-# def get_sparse_ids(block_data_shape, n_hex):
-#     """ Computes row and column ids for the sparse
-#     csr_matrix assembly """
-#     n_row = block_data_shape[0]
-#     n_col = block_data_shape[1]
-    
-#     row = np.arange(n_row)
-#     row = np.tile(row, n_col)
-#     row = np.tile(row, n_hex) 
-    
-#     col = np.arange(n_col)
-#     col = np.repeat(col, n_row)
-#     col = np.tile(col, n_hex) 
-    
-#     hex_row_n = np.repeat(np.arange(n_hex)*n_row, n_row*n_col)
-#     hex_col_n = np.repeat(np.arange(n_hex)*n_col, n_row*n_col)
-
-#     hex_row = row + hex_row_n
-#     hex_col = col + hex_col_n
-
-#     return hex_row, hex_col 
-    
-    
-    
+    return mat   
     
 
 def _define_mesh(act_coords, points_per_side, normalized_act_radius):
@@ -172,5 +144,7 @@ def _define_mesh(act_coords, points_per_side, normalized_act_radius):
 def _compute_iff_data(mesh):
     raise NotImplementedError("Function not yet implemented! Use the spline interpolation for IFF")
 
+
+    
 
     

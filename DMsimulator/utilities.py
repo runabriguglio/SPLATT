@@ -1,11 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-# from scipy.sparse import csr_matrix
 from segmented_deformable_mirror import SegmentedMirror
 from hexagonal_geometry import HexGeometry
 from matrix_calculator import matmul
-import read_and_write_fits as myfits
+import my_fits_package as myfits
+# import read_and_write_fits as myfits
 
 
 def dm_system_setup(TN:str, n_global_zern:int = 11, n_local_zern:int = 11):
@@ -117,10 +117,6 @@ def fitting_error_plots(mask, IM, IFF, R, pix_ids = None):
         act_cmd = matmul(R,des_shape)
         act_shape = matmul(IFF,act_cmd)
         shape_err = des_shape-act_shape
-        
-        # if isinstance(shape_err, csr_matrix):
-        #     shape_err = (shape_err).toarray()
-        #     shape_err = shape_err[:,0]
             
         shape_RMS = np.std(des_shape)
         if shape_RMS < 1e-15: # avoid division by zero
@@ -229,6 +225,7 @@ def segment_scramble(sdm, mode_amp = 10e-6, apply_shape:bool = False):
         
         # Matrix product
         flat_img = matmul(ZMat,mode_vec)
+        myfits.write_to_fits(flat_img, file_name)
         
         # # Global modes
         # n_glob_modes = np.shape(sdm.glob_int_mat)[1]
@@ -239,7 +236,55 @@ def segment_scramble(sdm, mode_amp = 10e-6, apply_shape:bool = False):
     
     if apply_shape:
         sdm.shape += flat_img
-        myfits.write_to_fits(flat_img, file_name)
+        
+        
+def update_act_coords_on_ring(dm, n_ring:int):
+    """
+    Update the coordinates of all segments on a given ring on a 
+    segmented deformable mirror
+
+    Parameters
+    ----------
+    dm : segmented deformable mirror class
+        The segmented deformable mirror object.
+    n_ring : int
+        The integer ring number, the segments on which will have their coordinates updated.
+
+    Returns
+    -------
+    None.
+
+    """
+    print("Updating actuator coordinates on ring, hang tight...")
+    n_hexagons = lambda n: int(1 + (6 + n*6)*n/2)
+    
+    # Get hex ring ids
+    if n_ring > 0:
+        hex_ids_on_ring = np.arange(n_hexagons(n_ring-1),n_hexagons(n_ring))-1+dm.geom.center_bool
+    
+    # Define new coordinates from the old ones
+    old_coords = dm.segment[0].act_coords - dm.segment[0].center
+    d = np.sqrt(old_coords[:,0]**2+old_coords[:,1]**2)
+    thr = 0.8
+    new_coords = old_coords.copy()
+    new_coords[d>thr] = old_coords[d>thr]*0.9
+    
+    # Plot to check new coordinates
+    c_hex = dm.geom.hex_outline
+    plt.figure()
+    plt.plot(c_hex[0],c_hex[1]) 
+    plt.scatter(new_coords[:,0],new_coords[:,1])
+    
+    # Update coordinates accordingly
+    do_save = 0
+    if n_ring > 0:
+        for hex_id in hex_ids_on_ring:
+            
+            if hex_id == hex_ids_on_ring[-1]:
+                do_save = 1
+            dm.update_act_coords(hex_id,new_coords,do_save)
+    else:
+        dm.update_act_coords(0,new_coords)
     
     
 

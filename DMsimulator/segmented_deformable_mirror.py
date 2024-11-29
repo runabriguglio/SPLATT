@@ -1,12 +1,11 @@
 import numpy as np
 # import matplotlib.pyplot as plt
-# from scipy.sparse import csr_matrix
-# from scipy.sparse import bsr_matrix
 
 from mirror_segment import Segment
 # from hexagonal_geometry import HexGeometry
 import matrix_calculator as matcalc
-import read_and_write_fits as rwf
+# import read_and_write_fits as myfits
+import my_fits_package as myfits
 
 from deformable_mirror import DeformableMirror as DM
 
@@ -32,7 +31,7 @@ class SegmentedMirror(DM):
         file_path = self.geom.savepath + str(n_modes) + 'modes_global_zernike_mat.fits'
         
         try:
-            self.glob_ZM = rwf.read_fits(file_path)
+            self.glob_ZM = myfits.read_fits(file_path)
             return
         except FileNotFoundError:
             mask = self.mask.copy()
@@ -41,7 +40,7 @@ class SegmentedMirror(DM):
             ids[~mask.flatten()] = np.arange(np.sum(1-mask))
             scrambled_ids = ids[self.valid_ids.flatten()]
             self.glob_ZM = scrambled_ZM[scrambled_ids,:]
-            rwf.write_to_fits(self.glob_ZM, file_path)
+            myfits.write_to_fits(self.glob_ZM, file_path)
             
         
     def compute_local_zern_matrix(self, n_modes):
@@ -50,57 +49,47 @@ class SegmentedMirror(DM):
         sparse interaction matrix """
         
         file_path = self.geom.savepath + str(n_modes) + 'modes_local_zernike_mat.fits'
-        # n_pix = np.sum(1-self.geom.local_mask)
-        # n_hex = self.geom.n_hex
-        # mat_shape = [n_pix*n_hex, n_modes*n_hex]
         
         try:
-            ZM = rwf.read_fits(file_path)#, sparse_shape = mat_shape)
+            ZM = myfits.read_fits(file_path)
         except FileNotFoundError:
             loc_ZM = matcalc.compute_zernike_matrix(self.geom.local_mask, n_modes)
-            ZM = np.tile(loc_ZM,(self.geom.n_hex,1,1))#self._distribute_local_to_global(loc_ZM)
-            rwf.write_to_fits(ZM, file_path)#rwf.write_csr_to_fits(ZM, file_path)
+            ZM = np.tile(loc_ZM,(self.geom.n_hex,1,1))
+            myfits.write_to_fits(ZM, file_path)
         
         self.ZM = ZM
         for k,segment in enumerate(self.segment):
-            segment.ZM = self.ZM[k]#(self.ZM[n_pix*k:n_pix*(k+1),n_modes*k:n_modes*(k+1)]).toarray()
-        
+            segment.ZM = self.ZM[k]
+            
         
     def initialize_IFF_and_R_matrices(self, simulate:bool = True):
         """ Initializes the local IFF and R matrices (same for all segments)
         distributing the result to all segments and assemling the global
         sparse IFF and R matrices """
         
-        IFF_path = self.geom.savepath + 'global_influence_functions_matrix.fits'
-        R_path = self.geom.savepath + 'global_reconstructor_matrix.fits'
-        
-        # n_pix = np.sum(1-self.geom.local_mask)
-        # n_hex = self.geom.n_hex
-        # n_acts = int(len(self.act_coords)/n_hex)
-        
-        # IFF_shape = [n_pix*n_hex, n_hex*n_acts]
-        # R_shape = [n_acts*n_hex, n_hex*n_pix]
+        self.IFF_path = self.geom.savepath + 'global_influence_functions_matrix.fits'
+        self.R_path = self.geom.savepath + 'global_reconstructor_matrix.fits'
         
         # Read/compute IFF and R
         try:
-            self.IFF = rwf.read_fits(IFF_path)#, sparse_shape = IFF_shape)
-            self.R = rwf.read_fits(R_path)#, sparse_shape = R_shape)
+            self.IFF = myfits.read_fits(self.IFF_path)
+            self.R = myfits.read_fits(self.R_path)
             
         except FileNotFoundError:
             IFF_cube = self._compute_local_IFF_cube()
             
             loc_IFF = matcalc.cube2mat(IFF_cube)
-            self.IFF = np.tile(loc_IFF,(self.geom.n_hex,1,1))#self._distribute_local_to_global(loc_IFF)
-            rwf.write_to_fits(self.IFF, IFF_path)#rwf.write_csr_to_fits(self.IFF, IFF_path)
+            self.IFF = np.tile(loc_IFF,(self.geom.n_hex,1,1))
+            myfits.write_to_fits(self.IFF, self.IFF_path)
             
             loc_R = matcalc.compute_reconstructor(loc_IFF)
-            self.R = np.tile(loc_R,(self.geom.n_hex,1,1))#self._distribute_local_to_global(loc_R)
-            rwf.write_to_fits(self.R, R_path)#rwf.write_csr_to_fits(self.R, R_path)
+            self.R = np.tile(loc_R,(self.geom.n_hex,1,1))
+            myfits.write_to_fits(self.R, self.R_path)
     
         # Distribute to all segments
         for k,segment in enumerate(self.segment):
-            segment.IFF = self.IFF[k]#(self.IFF[n_pix*k:n_pix*(k+1), n_acts*k:n_acts*(k+1)]).toarray()
-            segment.R = self.R[k]#(self.R[n_acts*k:n_acts*(k+1), n_pix*k:n_pix*(k+1)]).toarray()
+            segment.IFF = self.IFF[k]
+            segment.R = self.R[k]
             
             
     def _compute_local_IFF_cube(self, segment_id:int = None, simulate:bool = True):
@@ -117,7 +106,7 @@ class SegmentedMirror(DM):
         
         if file_name == 'REF':
             try:
-                IFF_cube = rwf.read_fits(file_path, is_ma = True)
+                IFF_cube = myfits.read_fits(file_path, is_ma = True)
                 return IFF_cube
             except FileNotFoundError:
                 pass
@@ -127,12 +116,12 @@ class SegmentedMirror(DM):
             IFF_cube = matcalc.simulate_influence_functions(ref_act_coords, self.geom.local_mask, self.geom.pix_scale)
         else:
             IFF_cube = matcalc.calculate_influence_functions(ref_act_coords, self.geom.local_mask, self.geom.act_radius/self.geom.hex_side_len)
-        rwf.write_to_fits(IFF_cube, file_path)
+        myfits.write_to_fits(IFF_cube, file_path)
         
         return IFF_cube
             
             
-    def update_act_coords(self, segment_id:int, new_act_coords):
+    def update_act_coords(self, segment_id:int, new_act_coords, do_save:bool = True):
         """ Updates the actuator coordinates of the segment with given
         segment_id, updating the IFF and R matrices accordingly """
         
@@ -150,7 +139,8 @@ class SegmentedMirror(DM):
         act_ids = np.arange(segment_id*n_acts,(segment_id+1)*n_acts)
         
         # Update actuator coordinates
-        self.segment[segment_id].act_coords = new_act_coords
+        old_act_coords = self.segment[segment_id].act_coords# - self.segment[segment_id].center
+        self.segment[segment_id].act_coords += new_act_coords - old_act_coords
         self.act_coords[act_ids] = new_act_coords + self.segment[segment_id].center
         
         # Compute IFF and R matrices
@@ -158,25 +148,24 @@ class SegmentedMirror(DM):
         loc_IFF = matcalc.cube2mat(IFF_cube)
         loc_R = matcalc.compute_reconstructor(loc_IFF)
         
-        # n_pix = np.sum(1-self.segment[segment_id].mask)
-        # pix_ids = np.arange(segment_id*n_pix,(segment_id+1)*n_pix)
-        
         # Update IFF and R matrices
         # using += in order to update global at the same time
         old_IFF = self.segment[segment_id].IFF
         self.segment[segment_id].IFF += loc_IFF - old_IFF 
         old_R = self.segment[segment_id].R
         self.segment[segment_id].R += loc_R - old_R
-        # self.IFF[pix_ids, act_ids] = loc_IFF
-        # self.R[act_ids, pix_ids] = loc_R
         
         # Reset shape and position
         self.segment[segment_id].shape *= 0
         self.segment[segment_id].act_pos *= 0
+        
+        # Save to .fits
+        if do_save:
+            myfits.write_to_fits(self.IFF, self.IFF_path)
+            myfits.write_to_fits(self.R, self.R_path)
+            myfits.write_to_fits(self.act_coords, self.coords_path)
             
                 
-        
-        
     def _define_segment_array(self):
         """ Builds an array of Segment class objects,
         containing their center coordinates and the
@@ -200,39 +189,26 @@ class SegmentedMirror(DM):
         """ Initializes the local actuator coordinates 
         for all segments in the mirror """
         
+        self.coords_path = self.geom.savepath + 'global_actuator_coordinates.fits'
+        
         local_act_coords = self.geom.initialize_segment_act_coords()
         
         n_acts = len(local_act_coords)
         n_hex = self.geom.n_hex
         n_pix = np.sum(1-self.geom.local_mask)
         
+        self.act_coords = np.tile(local_act_coords,(n_hex,1)) 
         self.shape = np.zeros(np.sum(1-self.mask))
-        self.act_coords = np.tile(local_act_coords,(n_hex,1))
         self.act_pos = np.zeros(n_hex*n_acts)
         
         for k, segment in enumerate(self.segment):
+            self.act_coords[n_acts*k:n_acts*(k+1),:] += segment.center
             segment.act_coords = local_act_coords
             segment.act_pos = self.act_pos[n_acts*k:n_acts*(k+1)]
             segment.shape = self.shape[n_pix*k:n_pix*(k+1)]
-            self.act_coords[n_acts*k:n_acts*(k+1),:] += segment.center
             
-            
-    # def _distribute_local_to_global(self, local_mat):
-    #     """ Function to distribute the local_data matrix
-    #     from the local mask to the global one """
-        
-    #     mat_shape = np.shape(local_mat)
-    #     n_hex = self.geom.n_hex
-    #     sparse_shape = np.dot(n_hex,mat_shape)
-        
-    #     row, col = matcalc.get_sparse_ids(mat_shape, n_hex)
-    #     local_data = local_mat.flatten(order = 'F')
-            
-    #     data = np.tile(local_data,n_hex)
-        
-    #     sparse_mat = csr_matrix((data, (row,col)), sparse_shape)
-        
-    #     return sparse_mat
+        # Save cooeds to fits
+        myfits.write_to_fits(self.act_coords, self.coords_path)
 
         
         

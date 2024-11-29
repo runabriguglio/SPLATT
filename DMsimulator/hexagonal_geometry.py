@@ -3,7 +3,7 @@ import numpy as np
 
 from read_configuration import read_config
 from rotate_coordinates import cw_rotate
-import read_and_write_fits as rwf
+import my_fits_package as myfits
 
 
 # Some useful variables and functions
@@ -95,6 +95,7 @@ class HexGeometry():
         self._define_local_mask()
         self._define_segment_centers()
         self._assemble_global_mask()
+        self._define_hex_outline() # plotting only
         
         
     def initialize_segment_act_coords(self):
@@ -111,7 +112,7 @@ class HexGeometry():
     
         file_path = self.savepath + 'local_act_coords.fits'
         try:
-            local_act_coords = rwf.read_fits(file_path)
+            local_act_coords = myfits.read_fits(file_path)
             return local_act_coords
         except FileNotFoundError:
             pass
@@ -145,7 +146,7 @@ class HexGeometry():
         local_act_coords = act_coords*self.hex_side_len
             
         # Save result
-        rwf.write_to_fits(local_act_coords, file_path)
+        myfits.write_to_fits(local_act_coords, file_path)
         
         return local_act_coords
 
@@ -156,7 +157,7 @@ class HexGeometry():
     
         file_path = self.savepath + 'local_mask.fits'
         try:
-            self.local_mask = rwf.read_fits(file_path, is_bool = True)
+            self.local_mask = myfits.read_fits(file_path, is_bool = True)
             return 
         except FileNotFoundError:
             pass
@@ -177,7 +178,7 @@ class HexGeometry():
     
         # Save as private variable and to .fits
         self.local_mask = mask
-        rwf.write_to_fits((mask).astype(np.uint8), file_path)
+        myfits.write_to_fits((mask).astype(np.uint8), file_path)
         
           
     def _define_segment_centers(self):
@@ -186,7 +187,7 @@ class HexGeometry():
         
         file_path = self.savepath + 'hex_centers_coords.fits'
         try:
-            self.hex_centers = rwf.read_fits(file_path)
+            self.hex_centers = myfits.read_fits(file_path)
             return
         except FileNotFoundError:
             pass
@@ -225,7 +226,7 @@ class HexGeometry():
     
         # Save as private variable and to .fits
         self.hex_centers = hex_centers
-        rwf.write_to_fits(hex_centers, file_path)
+        myfits.write_to_fits(hex_centers, file_path)
     
     
     def _assemble_global_mask(self):
@@ -234,8 +235,8 @@ class HexGeometry():
         ids_file_path = self.savepath + 'valid_ids.fits'
         file_path = self.savepath + 'global_mask.fits'
         try:
-            self.global_mask = rwf.read_fits(file_path, is_bool=True)
-            self.valid_ids = rwf.read_fits(ids_file_path)
+            self.global_mask = myfits.read_fits(file_path, is_bool=True)
+            self.valid_ids = myfits.read_fits(ids_file_path)
             return
         except FileNotFoundError:
             pass
@@ -280,14 +281,14 @@ class HexGeometry():
         
         # Save as private variable and to .fits
         self.global_mask = (global_mask).astype(bool)
-        rwf.write_to_fits((global_mask).astype(np.uint8), file_path)
+        myfits.write_to_fits((global_mask).astype(np.uint8), file_path)
         
         # Save valid hexagon indices
         valid_ids = (row_ids*np.shape(global_mask)[1] + col_ids).astype(int)
         
         # Save as private variable and to .fits
         self.valid_ids = valid_ids
-        rwf.write_to_fits(valid_ids, ids_file_path)
+        myfits.write_to_fits(valid_ids, ids_file_path)
         
         # flat_valid_ids = row_ids*np.shape(global_mask)[1] + col_ids
         # flat_ids = np.arange(np.sum(1-self.global_mask))
@@ -295,3 +296,15 @@ class HexGeometry():
         # flat_mask = (self.global_mask.copy()).flatten()
         # flat_img[~flat_mask] = flat_ids
         # valid_ids = (flat_img[flat_valid_ids]).astype(int)
+        
+        
+    def _define_hex_outline(self):
+        """ Defines the point coordinates of the hex vertices"""
+        
+        x_hex = np.array([-0.5-COS60,-0.5,0.5,0.5+COS60,np.nan])
+        y_hex_p = np.array([0.,SIN60,SIN60,0.,np.nan])
+        y_hex_m = np.array([0.,-SIN60,-SIN60,0.,np.nan])
+        c_hex = np.vstack( (np.tile(x_hex,(1,2)),np.hstack((y_hex_m,y_hex_p)) ) )
+        c_hex  *= self.hex_side_len
+        
+        self.hex_outline = c_hex

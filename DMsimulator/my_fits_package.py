@@ -24,10 +24,10 @@ def write_to_fits(data_vec, file_path:str):
 
         if hasattr(data_vec[0],'mask'): # masked array
             img_mask = data_vec[0].mask
-            fits.writeto(file_path, (img_mask).astype(np.uint8))
+            fits.writeto(file_path, (img_mask).astype(np.uint8), overwrite=True)
             fits.append(file_path, data_vec[0].data)
         else:
-            fits.writeto(file_path, data_vec[0])
+            fits.writeto(file_path, data_vec[0], overwrite=True)
 
         for vec in data_vec[1:]:
 
@@ -40,10 +40,10 @@ def write_to_fits(data_vec, file_path:str):
     else:
         # Print to a .fits file
         if hasattr(data_vec,'mask'): # masked array
-            fits.writeto(file_path, (data_vec.mask).astype(np.uint8))
+            fits.writeto(file_path, (data_vec.mask).astype(np.uint8), overwrite=True)
             fits.append(file_path, data_vec.data)
         else:
-            fits.writeto(file_path, data_vec)
+            fits.writeto(file_path, data_vec, overwrite=True)
             
 
 
