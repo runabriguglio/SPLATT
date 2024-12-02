@@ -4,15 +4,38 @@ import matplotlib.pyplot as plt
 from matrix_calculator import matmul
 
 class DeformableMirror():
-    """ This class defines the methods for a generic deformable mirror"""
+    """ 
+    This class defines the methods for a generic deformable mirror.
+    It implements the following functions:
+        - surface(): plot the current shape or a shape in input
+        - get_position(): plot the actuator position at the actuaor coordinates
+        - apply_flat(): apply a flat command of the current shape with
+                        an (optional) offset
+        - mirror_command(): apply a zonal or modal command to the DM
+    """
     
     def __init__(self):
         pass
     
-            
+    @help
     def surface(self, surf2plot = None, plt_title:str = None):
-        """ Plots surf2plot or (default) the segment's
-        current shape on the DM mask """
+        """
+        Plots surf2plot or (default) the segment's
+        current shape on the DM mask
+
+        Parameters
+        ----------
+        surf2plot : ndarray(float) [Npix,], optional
+            The shape to plot. The default (no input given)
+            is the DM current shape.
+        plt_title : str, optional
+            The plot title. The default is None.
+
+        Returns
+        -------
+        None.
+
+        """
         
         if surf2plot is None:
             surf2plot = self.shape
@@ -38,12 +61,26 @@ class DeformableMirror():
         if plt_title is None:
             plt_title = 'RMS: ' + str(np.std(self.shape))
             
+        # plt.axis([150,200,150,250]) # debug
         plt.title(plt_title)
         
         
     def get_position(self, act_pix_size:float = 10):
-        """ Wrapper to read the current 
-        position of the segments's actuators """
+        """
+        Readsa and plots the current actuators' 
+        position at the actuators' coordinates 
+
+        Parameters
+        ----------
+        act_pix_size : float, optional
+            The actuator size in pixels. The default is 10.
+
+        Returns
+        -------
+        pos : ndarray(float) [Nacts,]
+            Array of current actuator positions on the segment.
+
+        """
         
         pos = self.act_pos.copy()
         x,y = self.act_coords[:,0], self.act_coords[:,1] 
@@ -62,15 +99,16 @@ class DeformableMirror():
 
         Parameters
         ----------
-        offset : TYPE, optional
-            DESCRIPTION. The default is None.
+        offset : ndarray(float) [Npix], optional
+            The shape offset from which to compute the flat.
+            The default is no offset.
 
         Returns
         -------
-        act_cmd : TYPE
-            DESCRIPTION.
-        flat_rms : TYPE
-            DESCRIPTION.
+        act_cmd : ndarray(float) [Nacts]
+            The actoator position command to achieve the flat.
+        flat_rms : float
+            The standard deviation of the obtained shape.
 
         """
         
@@ -91,8 +129,28 @@ class DeformableMirror():
     
     
     def mirror_command(self, cmd_amps, absolute_delta_pos:bool = False, modal:bool = False):
-        """ Computes and applies a zonal/modal amplitude
-        command to the segment """
+        """
+        Computes and applies a zonal/modal amplitude
+        command to the segment
+
+        Parameters
+        ----------
+        cmd_amps : ndarray(float) [Nacts]
+            The array of zonal (modal) amplitudes.
+            
+        absolute_delta_pos : bool, optional
+            True if the command is absolute and not
+            relative to the current actuators' position.
+            The default is False.
+            
+        modal : bool, optional
+            True for modal amplitudes. The default is False.
+
+        Returns
+        -------
+        None.
+
+        """
         
         if modal: # convert modal to zonal
             
