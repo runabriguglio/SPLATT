@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from segmented_deformable_mirror import SegmentedMirror
 from hexagonal_geometry import HexGeometry
 from matrix_calculator import matmul
+from matrix_calculator import define_capsens_matrix
 import my_fits_package as myfits
 # import read_and_write_fits as myfits
 
@@ -238,7 +239,7 @@ def segment_scramble(sdm, mode_amp = 10e-6, apply_shape:bool = False):
         sdm.shape += flat_img
         
         
-def update_act_coords_on_ring(dm, n_ring:int):
+def update_act_coords_on_ring(dm, n_ring:int, do_save:bool = False):
     """
     Update the coordinates of all segments on a given ring on a 
     segmented deformable mirror
@@ -258,9 +259,11 @@ def update_act_coords_on_ring(dm, n_ring:int):
     print("Updating actuator coordinates on ring, hang tight...")
     n_hexagons = lambda n: int(1 + (6 + n*6)*n/2)
     
+    hex_ids = np.array([0])
+    
     # Get hex ring ids
     if n_ring > 0:
-        hex_ids_on_ring = np.arange(n_hexagons(n_ring-1),n_hexagons(n_ring))-1+dm.geom.center_bool
+        hex_ids = np.arange(n_hexagons(n_ring-1),n_hexagons(n_ring))-1+dm.geom.center_bool
     
     # Define new coordinates from the old ones
     old_coords = dm.segment[0].act_coords - dm.segment[0].center
@@ -276,16 +279,24 @@ def update_act_coords_on_ring(dm, n_ring:int):
     plt.scatter(new_coords[:,0],new_coords[:,1])
     
     # Update coordinates accordingly
-    do_save = 0
-    if n_ring > 0:
-        for hex_id in hex_ids_on_ring:
-            
-            if hex_id == hex_ids_on_ring[-1]:
-                do_save = 1
-            dm.update_act_coords(hex_id,new_coords,do_save)
-    else:
-        dm.update_act_coords(0,new_coords)
+    dm.update_act_coords(hex_ids, new_coords, do_save)
     
+    
+# def capsens_measure(dm, segment_id):
+#     """ [WIP] """
+    
+#     act_rad = 0.02 #dm.geom.act_radius
+#     capsens_rad = 0.04 #dm.geom.act_pitch/2.2
+    
+#     segm = dm.segment[segment_id]
+    
+#     CSMAT = define_capsens_matrix(segm.mask, dm.geom.pix_scale, segm.act_coords, act_rad, capsens_rad)
+#     capsens_flat_img = np.sum(CSMAT,axis=0)
+#     segm.surface(capsens_flat_img)
+#     segm.get_position(act_rad*dm.geom.pix_scale)
+#     meas_gap = CSMAT @ segm.shape
+    
+#     return meas_gap
     
 
 

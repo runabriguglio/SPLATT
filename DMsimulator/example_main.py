@@ -20,3 +20,11 @@ utils.segment_scramble(dm, apply_shape=True)
 # Update coordinates
 utils.update_act_coords_on_ring(dm, 0)
 utils.update_act_coords_on_ring(dm, 2)
+
+# Apply flat and show actuators
+dm.apply_flat()
+dm.get_position(1)
+dm.surface()
+
+# # CapSens matrix
+# meas_gap = utils.capsens_measure(dm, 1)

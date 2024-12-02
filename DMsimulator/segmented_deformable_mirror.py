@@ -76,7 +76,7 @@ class SegmentedMirror(DM):
             self.R = myfits.read_fits(self.R_path)
             
         except FileNotFoundError:
-            IFF_cube = self._compute_local_IFF_cube()
+            IFF_cube = self._compute_local_IFF_cube(self.geom.local_act_coords)
             
             loc_IFF = matcalc.cube2mat(IFF_cube)
             self.IFF = np.tile(loc_IFF,(self.geom.n_hex,1,1))
@@ -92,36 +92,31 @@ class SegmentedMirror(DM):
             segment.R = self.R[k]
             
             
-    def _compute_local_IFF_cube(self, segment_id:int = None, simulate:bool = True):
+    def _compute_local_IFF_cube(self, ref_act_coords, segment_id = None, simulate:bool = True):
         """ Reads or computes the IFF image cube for the actuator
         coordinates of the segment with given segment_id"""
         
         if segment_id is None:
-            file_name = 'REF'
-            segment_id = 0
-        else:
-            file_name = 'segment' + str(segment_id)
-        
-        file_path = self.geom.savepath + file_name + '_IFF_image_cube.fits'
-        
-        if file_name == 'REF':
+            file_path = self.geom.savepath + 'Reference_IFF_image_cube.fits'
             try:
                 IFF_cube = myfits.read_fits(file_path, is_ma = True)
                 return IFF_cube
             except FileNotFoundError:
-                pass
+                pass   
         
-        ref_act_coords = self.segment[segment_id].act_coords
         if simulate:
             IFF_cube = matcalc.simulate_influence_functions(ref_act_coords, self.geom.local_mask, self.geom.pix_scale)
         else:
             IFF_cube = matcalc.calculate_influence_functions(ref_act_coords, self.geom.local_mask, self.geom.act_radius/self.geom.hex_side_len)
-        myfits.write_to_fits(IFF_cube, file_path)
+       
+        for k,idx in enumerate(segment_id):
+            file_path = self.geom.savepath + 'segment' + str(idx) + '_IFF_image_cube.fits'
+            myfits.write_to_fits(IFF_cube, file_path)
         
         return IFF_cube
             
             
-    def update_act_coords(self, segment_id:int, new_act_coords, do_save:bool = True):
+    def update_act_coords(self, segment_ids, new_act_coords, do_save:bool = True):
         """ Updates the actuator coordinates of the segment with given
         segment_id, updating the IFF and R matrices accordingly """
         
@@ -136,28 +131,30 @@ class SegmentedMirror(DM):
             nan_padding.fill(np.nan)
             new_act_coords = np.vstack([new_act_coords, nan_padding])
             
-        act_ids = np.arange(segment_id*n_acts,(segment_id+1)*n_acts)
-        
-        # Update actuator coordinates
-        old_act_coords = self.segment[segment_id].act_coords# - self.segment[segment_id].center
-        self.segment[segment_id].act_coords += new_act_coords - old_act_coords
-        self.act_coords[act_ids] = new_act_coords + self.segment[segment_id].center
-        
         # Compute IFF and R matrices
-        IFF_cube = self._compute_local_IFF_cube(segment_id, simulate=True)
+        IFF_cube = self._compute_local_IFF_cube(new_act_coords, segment_ids, simulate=True)
         loc_IFF = matcalc.cube2mat(IFF_cube)
         loc_R = matcalc.compute_reconstructor(loc_IFF)
-        
-        # Update IFF and R matrices
-        # using += in order to update global at the same time
-        old_IFF = self.segment[segment_id].IFF
-        self.segment[segment_id].IFF += loc_IFF - old_IFF 
-        old_R = self.segment[segment_id].R
-        self.segment[segment_id].R += loc_R - old_R
-        
-        # Reset shape and position
-        self.segment[segment_id].shape *= 0
-        self.segment[segment_id].act_pos *= 0
+            
+        for k,segm_id in enumerate(segment_ids):
+            act_ids = np.arange(segm_id*n_acts,(segm_id+1)*n_acts)
+            seg = self.segment[segm_id]
+            
+            # Update actuator coordinates
+            old_act_coords = seg.act_coords# - self.segment[segment_id].center
+            seg.act_coords += new_act_coords - old_act_coords
+            self.act_coords[act_ids] = new_act_coords + seg.center
+            
+            # Update IFF and R matrices
+            # using += in order to update global at the same time
+            old_IFF = seg.IFF
+            seg.IFF += loc_IFF - old_IFF 
+            old_R = seg.R
+            seg.R += loc_R - old_R
+            
+            # Reset shape and position
+            seg.shape *= 0
+            seg.act_pos *= 0
         
         # Save to .fits
         if do_save:
@@ -189,21 +186,23 @@ class SegmentedMirror(DM):
         """ Initializes the local actuator coordinates 
         for all segments in the mirror """
         
-        self.coords_path = self.geom.savepath + 'global_actuator_coordinates.fits'
-        
-        local_act_coords = self.geom.initialize_segment_act_coords()
-        
-        n_acts = len(local_act_coords)
+        self.geom.local_act_coords = self.geom.initialize_segment_act_coords()
+        n_acts = len(self.geom.local_act_coords)
         n_hex = self.geom.n_hex
         n_pix = np.sum(1-self.geom.local_mask)
         
-        self.act_coords = np.tile(local_act_coords,(n_hex,1)) 
+        self.coords_path = self.geom.savepath + 'global_actuator_coordinates.fits'
+        try:
+            self.act_coords = myfits.read_fits(self.coords_path)
+        except FileNotFoundError:
+            self.act_coords = np.tile(self.geom.local_act_coords,(n_hex,1))
+            self.act_coords += np.tile(self.geom.hex_centers,*1,n_acts()).reshape([n_hex*n_acts,2])
+        
         self.shape = np.zeros(np.sum(1-self.mask))
-        self.act_pos = np.zeros(n_hex*n_acts)
+        self.act_pos = np.zeros(len(self.act_coords))
         
         for k, segment in enumerate(self.segment):
-            self.act_coords[n_acts*k:n_acts*(k+1),:] += segment.center
-            segment.act_coords = local_act_coords
+            segment.act_coords = self.act_coords[n_acts*k:n_acts*(k+1),:] - segment.center
             segment.act_pos = self.act_pos[n_acts*k:n_acts*(k+1)]
             segment.shape = self.shape[n_pix*k:n_pix*(k+1)]
             
