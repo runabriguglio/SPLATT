@@ -17,7 +17,6 @@ class DeformableMirror():
     def __init__(self):
         pass
     
-    @help
     def surface(self, surf2plot = None, plt_title:str = None):
         """
         Plots surf2plot or (default) the segment's
@@ -25,7 +24,7 @@ class DeformableMirror():
 
         Parameters
         ----------
-        surf2plot : ndarray(float) [Npix,], optional
+        surf2plot : ndarray(float) [Npix], optional
             The shape to plot. The default (no input given)
             is the DM current shape.
         plt_title : str, optional
@@ -42,10 +41,6 @@ class DeformableMirror():
         
         # Project wavefront on mask
         mask = self.mask.copy()
-        
-        # if is_global:
-        #     pix_ids = ~mask.flatten()
-        # else:
         pix_ids = self.valid_ids.flatten()
             
         image = np.zeros(np.size(mask))

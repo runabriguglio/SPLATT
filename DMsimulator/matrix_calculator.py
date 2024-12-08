@@ -87,10 +87,15 @@ def define_capsens_matrix(mask, pix_scale, act_coords, r_in, r_out, capsens_coor
 
 
 def compute_reconstructor(M):
-    return np.linalg.pinv(M)
+    """ Moore-Penrose inverse (pseudo-inverse) of M """
+    
+    # equivalent to: return np.linalg.pinv(M)
+    U,S,Vh = np.linalg.svd(M, full_matrices=False)
+    Rec = (Vh.T/S) @ U.T
+    return Rec
 
 
-def simulate_influence_functions(act_coords, local_mask, pix_scale, amp = 1.0):
+def simulate_influence_functions(act_coords, local_mask, pix_scale, amps = 1.0):
     """ Simulate the influence functions by 
     imposing 'perfect' zonal commands """
     
@@ -107,10 +112,13 @@ def simulate_influence_functions(act_coords, local_mask, pix_scale, amp = 1.0):
     act_pix_coords[:,1] = (act_coords[:,0] * pix_scale + max_y/2).astype(int)
     
     img_cube = np.zeros([max_x,max_y,n_acts])
+    
+    if isinstance(amps,float):
+        amps *= np.ones(n_acts)
 
     for k in range(n_acts):
         act_data = np.zeros(n_acts)
-        act_data[k] = amp
+        act_data[k] = amps[k]
         tps = ThinPlateSpline(alpha=0.0)
         tps.fit(act_pix_coords, act_data)
         flat_img = tps.transform(pix_coords)
