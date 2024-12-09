@@ -44,7 +44,7 @@ class moxa_ai():
             self.valuestring = 'rtdValueScaled'
             self.valueId     = 'rtd'
         elif self.name == 'PT1':
-            self.ip = '193.206.155.40'
+            self.ip = '193.206.155.41'
             self.nchannels = 6
             self.api_address_extension = '/api/slot/0/io/rtd'
             self.valuestring = 'rtdValueScaled'

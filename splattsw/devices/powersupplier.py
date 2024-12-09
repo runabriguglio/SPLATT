@@ -30,7 +30,7 @@ def load_saved_state(state_name = default_state):
     rp_s.tx_txt(':MEM:LOAD '+ state_name)
     rp_s.close()
 
-# def save_current_state(state_name):
-#     rp_s = scpi.scpi(name)
-#     rp_s.tx_txt(':MEM:STOR '+ state_name + '.RSF')
-#     rp_s.close()
+def save_current_state(state_name):
+    rp_s = scpi.scpi(name)
+    rp_s.tx_txt(':MEM:STOR '+ state_name + '.RSF')
+    rp_s.close()
