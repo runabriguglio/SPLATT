@@ -35,7 +35,7 @@ class moxa_ai():
         #self.ip = ip
         #self.api_address_extension = '/api/slot/0/io/rtd'
         #self.valuestring_pt = 'rtdValueScaled'
-    
+
     def select_device(self):
         if self.name == 'PT0':
             self.ip = '193.206.155.40'
@@ -55,24 +55,46 @@ class moxa_ai():
             self.api_address_extension = '/api/slot/0/io/ai'
             self.valuestring = 'aiValueScaled'
             self.valueId     = 'ai'
+        elif self.name == 'DI0':
+            self.ip = '193.206.155.141'
+            self.nchannels = 8 #8 input, 8 output
+
+            self.api_address_extension = '/api/slot/0/io/di'
+            self.valuestring = 'diValueScaled'
+            self.valueId     = 'di'
         else:
             print('ERROR! No device with this name')
             raise
 
     def getIP(self):
-        return self.IP
+        return self.ip
 
 
 
     def read(self):
         address2use = 'http://'+self.ip
-        out =get(address2use+self.api_address_extension,{"rel_rhy": "network"},headers={"Content-Type": "application/json", "Accept": "vdn.dac.v1"},timeout=0.1,)
+        out =get(address2use+self.api_address_extension,{"rel_rhy": "network"},headers={"Content-Type": "application/json", "Accept": "vdn.dac.v1"},timeout=3,)
         json_blob = loads(out.content.decode('utf-8'))
         vecout = []
         for i in range(0,self.nchannels):
             vecout.append(json_blob['io'][self.valueId][i][self.valuestring])
         vecout = np.array(vecout)
         return vecout
+
+    def get_data(self, api_address_extension = "/api/slot/0/io/do"):
+        try:
+            self.reply = get(self.address + api_address_extension,
+                             {"rel_rhy": "network"},
+                             headers={"Content-Type": "application/json", "Accept": "vdn.dac.v1"},
+                             timeout=0.1,
+                            )
+
+            self.replay_status_code = self.reply.status_code
+            self.connection_error = False
+            self.last_get_time = time()
+
+        except:
+            self.connection_error = True
 
 
 
@@ -127,21 +149,6 @@ class GetRequestData():
 
         # get digital outputs
         self.get_DO()
-
-    def get_data(self, api_address_extension = "/api/slot/0/io/do"):
-        try:
-            self.reply = get(self.address + api_address_extension,
-                             {"rel_rhy": "network"},
-                             headers={"Content-Type": "application/json", "Accept": "vdn.dac.v1"},
-                             timeout=0.1,
-                            )
-
-            self.replay_status_code = self.reply.status_code
-            self.connection_error = False
-            self.last_get_time = time()
-
-        except:
-            self.connection_error = True
 
     def convert_received_data(self):
         if not self.connection_error:

@@ -6,6 +6,8 @@ import glob
 import json
 import struct
 
+import SPLATT.splattsw.timehistory as th
+
 freqwebdaq = 1651.6129 #Hz; minimum sampling frequency
 basepathwebdaq = '/mnt/jumbo/SPLATT/WebDaqData/'
 #ftpwebdacq = '/home/ftpuser/ftp/' # old files
@@ -14,15 +16,16 @@ ftpwebdacq = '/home/ftpuser/ftp/files/' # new files, from 2024 Q4 onwards
 def wdsync():
     os.system('rsync -av '+ftpwebdacq+' '+basepathwebdaq)
 
-def openfile(name):
+def openfile(name, data_len = None):
     file_path = os.path.join(basepathwebdaq, name)
-    data = _openwdd(file_path)
+    data = _openwdd(file_path, data_len)
     return data
 
-def plot_data(data, freq = freqwebdaq):
+def plot_data(data, N_ch = None, freq = freqwebdaq):
     data_size = np.shape(data)
 
-    N_ch = data_size[0]
+    if N_ch is None:
+        N_ch = data_size[0]
     N_tvec = data_size[1]
 
     t_vec = np.arange(0,N_tvec)*1/freq
@@ -34,6 +37,8 @@ def plot_data(data, freq = freqwebdaq):
         plt.xlabel('Time [s]')
         plt.ylabel('Acceleration [g]')
         plt.show()
+        plt.grid('on')
+        plt.axis('tight')
 
 
 def find_peak(v, freq=None, bound=None):
@@ -58,6 +63,17 @@ def acc_integrate(spe, peak_freq, peak_id, delta_peak = 3):
     amp = acc/(4*np.pi**2*peak_freq**2)
 
     return amp
+
+def acc_spectrum(v):
+
+    if type(v) is str:
+        v1 = openfile(v)
+    else:
+        v1 = np.array(v.copy())
+
+    spe, f = th.spectrum(v1, dt=1/freqwebdaq)
+
+    return spe, f
 
 
 def last_wdfile(ext=None):
@@ -86,7 +102,7 @@ def last_N_wdfiles(N, ext=None):
     return file_list
 
 
-def _openwdd(fname):
+def _openwdd(fname, manual_acq_data_len = None):
     hdr = {}
     with open(fname,"rb") as wdf:
         rawData = wdf.read(564)
@@ -99,7 +115,10 @@ def _openwdd(fname):
         json_hdr_size =  int.from_bytes(rawData[560:564], 'little')
         jsonRaw = wdf.read(json_hdr_size)
         hdr['json_hdr']=json.loads(jsonRaw)
-        ndata = hdr['json_hdr']['jobDescriptor']['acquisition']['stopTrigger']['sampleCount']
+        try:
+            ndata = hdr['json_hdr']['jobDescriptor']['acquisition']['stopTrigger']['sampleCount']
+        except KeyError:
+            ndata = manual_acq_data_len # used for manual acquisition
         data_it = struct.iter_unpack('<d', wdf.read(ndata*hdr['nchannels']*8)) #4 because double precision 64 bit\n",
         tmp = np.asarray(list(data_it), dtype='double')
         data=tmp.reshape(int(tmp.size/4), 4)

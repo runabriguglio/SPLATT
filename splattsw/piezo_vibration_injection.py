@@ -15,30 +15,6 @@ freq_vec = np.arange(10,40+3,3)
 time_for_acquisition = 9.
 file_string_initials = 'OBB'
 
-def find_peak(v, freq=None, bound=None):
-    #requires a monodimensional array
-    idf = range(len(v))
-    if freq is not None and bound is not None:
-        idf =     np.where(np.logical_and(freq>= bound[0], freq<=bound[1]))
-    peak = max(v[idf])
-    peakid = np.argmax(v[idf])
-    peakfreq = 0
-    if freq is not None:
-        idf1 = idf[0]
-        peakfreq = freq[idf1[peakid]]
-
-    return peak, peakfreq, idf1[peakid]
-
-def acc_integrate(spe, peak_freq, peak_id, delta_peak = 3):
-    #acc is the acceleration value in g
-    #print('Is the acceleration provided as [g]?')
-    spe_peak = spe[(peak_id-delta_peak):(peak_id+delta_peak+1)]
-    acc = np.sum(spe_peak)
-    acc = acc * 9.807#converts to m/s2
-    amp = acc/(4*np.pi**2*peak_freq**2)
-
-    return amp
-
 
 def analyse_wdfile(wdfile, exc_freq, doplot = False, ch = 0):
     #accelerometer analysis
@@ -54,8 +30,8 @@ def analyse_wdfile(wdfile, exc_freq, doplot = False, ch = 0):
         ax.set_ylabel("Amplitude [g]")
         fig.show()
 
-    peak, peak_f, peakId = find_peak(spe,freq=f,bound=[exc_freq-2.,exc_freq+2.])#sp.find_peak(spe,freq=f,bound=[1.,f[-1]])
-    peak_d = acc_integrate(spe,peak_f,peakId) #sp.acc_integrate(peak,peak_f)
+    peak, peak_f, peakId = sp.find_peak(spe,freq=f,bound=[exc_freq-2.,exc_freq+2.])#sp.find_peak(spe,freq=f,bound=[1.,f[-1]])
+    peak_d = sp.acc_integrate(spe,peak_f,peakId) #sp.acc_integrate(peak,peak_f)
 
     return peak_d, peak_f
 

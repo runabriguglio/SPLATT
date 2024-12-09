@@ -8,8 +8,6 @@ from astropy.io import fits as pyfits
 #from m4.ground.read_data import InterferometerConverter
 #ic = InterferometerConverter()
 a= '/mnt/data/M4/Data/M4Data/OPTData/'
-tn = '20210425_085242'   #fits
-tn  ='20210429_224400_noise'
 
 
 
@@ -211,7 +209,7 @@ def frame(id, mylist):
 def spectrum(signal, dt=1, show=None):
     nsig = signal.shape
     if np.size(nsig) ==1:
-        spe  = np.fft.rfft(signal, axis=1, norm='ortho')
+        spe  = np.fft.rfft(signal, norm='ortho') # was axis = 1 modMM20241209
     else:
         spe  = np.fft.rfft(signal, axis=1, norm='ortho')
     nn   = np.sqrt(spe.shape[1])   #modRB 
