@@ -57,7 +57,7 @@ class moxa_ai():
             self.valueId     = 'ai'
         elif self.name == 'DI0':
             self.ip = '193.206.155.141'
-            self.nchannels = 8 #8 input, 8 output
+            self.nchannels = 16 #8 input, 8 output
 
             self.api_address_extension = '/api/slot/0/io/di'
             self.valuestring = 'diValueScaled'

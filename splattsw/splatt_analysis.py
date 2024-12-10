@@ -6,7 +6,7 @@ import glob
 import json
 import struct
 
-import SPLATT.splattsw.timehistory as th
+import timehistory as th
 
 freqwebdaq = 1651.6129 #Hz; minimum sampling frequency
 basepathwebdaq = '/mnt/jumbo/SPLATT/WebDaqData/'
@@ -48,12 +48,13 @@ def find_peak(v, freq=None, bound=None):
         idf =     np.where(np.logical_and(freq>= bound[0], freq<=bound[1]))
     peak = max(v[idf])
     peakid = np.argmax(v[idf])
-    peakfreq = 0
-    if freq is not None:
-        idf1 = idf[0]
-        peakfreq = freq[idf1[peakid]]
 
-    return peak, peakfreq, idf1[peakid]
+    if freq is not None:
+        # idf = idf[0]
+        peakfreq = freq[idf[peakid]]
+        return peak, peakfreq, idf[peakid]
+
+    return peak, peakid
 
 def acc_integrate(spe, peak_freq, peak_id, delta_peak = 3):
     #acc is the acceleration value in g

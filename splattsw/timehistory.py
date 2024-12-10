@@ -207,22 +207,30 @@ def frame(id, mylist):
     return img
     
 def spectrum(signal, dt=1, show=None):
+    
     nsig = signal.shape
     if np.size(nsig) ==1:
         spe  = np.fft.rfft(signal, norm='ortho') # was axis = 1 modMM20241209
+        nn = 1 #modMM
     else:
         spe  = np.fft.rfft(signal, axis=1, norm='ortho')
-    nn   = np.sqrt(spe.shape[1])   #modRB 
-    spe  = (np.abs(spe)) / nn
-    freq = np.fft.rfftfreq(signal.shape[1], d=dt)
+        nn   = spe.shape[1]
+        
+    spe  = (np.abs(spe)) / np.sqrt(nn)
+    
+    freq = np.fft.rfftfreq(nsig[0], d=dt)
+    
     if np.size(nsig) ==1:
         spe[0] = 0
     else:
         spe[:,0] = 0
+        
     if show is not None:
         for i in range(0,nn):
             plot(freq, spe[i,:])
+            
     return spe, freq
+    
         
 def cubeFromList(fileList):
     image_list = []
