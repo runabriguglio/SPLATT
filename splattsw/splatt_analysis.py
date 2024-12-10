@@ -8,6 +8,7 @@ import struct
 
 import timehistory as th
 
+# WebDAQ variables
 freqwebdaq = 1651.6129 #Hz; minimum sampling frequency
 basepathwebdaq = '/mnt/jumbo/SPLATT/WebDaqData/'
 #ftpwebdacq = '/home/ftpuser/ftp/' # old files
@@ -41,16 +42,15 @@ def plot_data(data, N_ch = None, freq = freqwebdaq):
         plt.axis('tight')
 
 
-def find_peak(v, freq=None, bound=None):
-    #requires a monodimensional array
+def find_peak(v, freq=None, freq_bounds=None):
+    
     idf = range(len(v))
-    if freq is not None and bound is not None:
-        idf =     np.where(np.logical_and(freq>= bound[0], freq<=bound[1]))
+    if freq is not None and freq_bounds is not None:
+        idf = np.where(np.logical_and(freq>= freq_bounds[0], freq<=freq_bounds[1]))
     peak = max(v[idf])
     peakid = np.argmax(v[idf])
 
     if freq is not None:
-        # idf = idf[0]
         peakfreq = freq[idf[peakid]]
         return peak, peakfreq, idf[peakid]
 

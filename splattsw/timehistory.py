@@ -7,6 +7,9 @@ from astropy.io import fits as pyfits
 #from m4.ground import zernike
 #from m4.ground.read_data import InterferometerConverter
 #ic = InterferometerConverter()
+
+from matplotlib import pyplot as plt
+
 a= '/mnt/data/M4/Data/M4Data/OPTData/'
 
 
@@ -33,7 +36,7 @@ class TimeHist():
         
     def averageFrames(start, stop):
     
-        return averageFrames(start_stop, self._list)
+        return averageFrames(start, stop, self._list)
 
     
 
@@ -208,26 +211,29 @@ def frame(id, mylist):
     
 def spectrum(signal, dt=1, show=None):
     
+    # Spectrum
+    spe  = np.fft.rfft(signal, norm='ortho') 
+
+    # Normalization
+    nn = 1
     nsig = signal.shape
-    if np.size(nsig) ==1:
-        spe  = np.fft.rfft(signal, norm='ortho') # was axis = 1 modMM20241209
-        nn = 1 #modMM
-    else:
-        spe  = np.fft.rfft(signal, axis=1, norm='ortho')
+    if np.size(nsig) > 1:
         nn   = spe.shape[1]
         
     spe  = (np.abs(spe)) / np.sqrt(nn)
-    
-    freq = np.fft.rfftfreq(nsig[0], d=dt)
-    
+
+    # Remove first element (zero frequency)
     if np.size(nsig) ==1:
         spe[0] = 0
     else:
         spe[:,0] = 0
+    
+    # Frequency vector
+    freq = np.fft.rfftfreq(nsig[0], d=dt)
         
     if show is not None:
         for i in range(0,nn):
-            plot(freq, spe[i,:])
+            plt.plot(freq, spe[i,:])
             
     return spe, freq
     
