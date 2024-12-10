@@ -16,7 +16,7 @@ class DeformableMirror():
     
     def __init__(self):
         pass
-    
+
     def surface(self, surf2plot = None, plt_title:str = None):
         """
         Plots surf2plot or (default) the segment's
@@ -58,8 +58,7 @@ class DeformableMirror():
             
         # plt.axis([150,200,150,250]) # debug
         plt.title(plt_title)
-        
-        
+
     def get_position(self, act_pix_size:float = 10):
         """
         Readsa and plots the current actuators' 
@@ -85,7 +84,6 @@ class DeformableMirror():
         plt.colorbar()
         
         return pos
-    
     
     def apply_flat(self, offset = None):
         """
@@ -121,7 +119,6 @@ class DeformableMirror():
             flat_rms = np.std(self.shape - offset)
         
         return act_cmd, flat_rms
-    
     
     def mirror_command(self, cmd_amps, absolute_delta_pos:bool = False, modal:bool = False):
         """

@@ -109,10 +109,11 @@ class SegmentedMirror(DM):
         else:
             IFF_cube = matcalc.calculate_influence_functions(ref_act_coords, self.geom.local_mask, self.geom.act_radius/self.geom.hex_side_len)
        
-        for k,idx in enumerate(segment_id):
-            file_path = self.geom.savepath + 'segment' + str(idx) + '_IFF_image_cube.fits'
-            myfits.write_to_fits(IFF_cube, file_path)
-        
+        if segment_id is not None:
+            for k,idx in enumerate(segment_id):
+                file_path = self.geom.savepath + 'segment' + str(idx) + '_IFF_image_cube.fits'
+                myfits.write_to_fits(IFF_cube, file_path)
+            
         return IFF_cube
             
             
@@ -160,7 +161,7 @@ class SegmentedMirror(DM):
         if do_save:
             myfits.write_to_fits(self.IFF, self.IFF_path)
             myfits.write_to_fits(self.R, self.R_path)
-            myfits.write_to_fits(self.act_coords, self.coords_path)
+            np.save(self.cooeds_path, self.act_coords) #myfits.write_to_fits(self.act_coords, self.coords_path)
             
                 
     def _define_segment_array(self):
@@ -191,12 +192,12 @@ class SegmentedMirror(DM):
         n_hex = self.geom.n_hex
         n_pix = np.sum(1-self.geom.local_mask)
         
-        self.coords_path = self.geom.savepath + 'global_actuator_coordinates.fits'
+        self.coords_path = self.geom.savepath + 'global_actuator_coordinates' #.fits'
         try:
-            self.act_coords = myfits.read_fits(self.coords_path)
+            self.act_coords = np.load(self.coords_path + '.npy') #myfits.read_fits(self.coords_path)
         except FileNotFoundError:
             self.act_coords = np.tile(self.geom.local_act_coords,(n_hex,1))
-            self.act_coords += np.tile(self.geom.hex_centers,*1,n_acts()).reshape([n_hex*n_acts,2])
+            self.act_coords += np.tile(self.geom.hex_centers,n_acts).reshape([n_hex*n_acts,2])
         
         self.shape = np.zeros(np.sum(1-self.mask))
         self.act_pos = np.zeros(len(self.act_coords))
@@ -207,7 +208,7 @@ class SegmentedMirror(DM):
             segment.shape = self.shape[n_pix*k:n_pix*(k+1)]
             
         # Save cooeds to fits
-        myfits.write_to_fits(self.act_coords, self.coords_path)
+        np.save(self.coords_path, self.act_coords) # myfits.write_to_fits(self.act_coords, self.coords_path)
 
         
         

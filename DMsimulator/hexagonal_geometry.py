@@ -110,9 +110,9 @@ class HexGeometry():
 
         """
     
-        file_path = self.savepath + 'local_act_coords.fits'
+        file_path = self.savepath + 'local_act_coords' #'.fits'
         try:
-            local_act_coords = myfits.read_fits(file_path)
+            local_act_coords = np.load(file_path + '.npy') # myfits.read_fits(file_path)
             return local_act_coords
         except FileNotFoundError:
             pass
@@ -146,7 +146,7 @@ class HexGeometry():
         local_act_coords = act_coords*self.hex_side_len
             
         # Save result
-        myfits.write_to_fits(local_act_coords, file_path)
+        np.save(file_path, local_act_coords) #myfits.write_to_fits(local_act_coords, file_path)
         
         return local_act_coords
 
@@ -185,9 +185,9 @@ class HexGeometry():
         """ Defines and saves the coordinates of the 
         centers of all hexagonal segments """
         
-        file_path = self.savepath + 'hex_centers_coords.fits'
+        file_path = self.savepath + 'hex_centers_coords' #'.fits'
         try:
-            self.hex_centers = myfits.read_fits(file_path)
+            self.hex_centers = np.load(file_path + '.npy') # myfits.read_fits(file_path)
             return
         except FileNotFoundError:
             pass
@@ -226,17 +226,17 @@ class HexGeometry():
     
         # Save as private variable and to .fits
         self.hex_centers = hex_centers
-        myfits.write_to_fits(hex_centers, file_path)
+        np.save(file_path, hex_centers) #myfits.write_to_fits(hex_centers, file_path)
     
     
     def _assemble_global_mask(self):
         """ Assemble the global segmented mask """
         
-        ids_file_path = self.savepath + 'valid_ids.fits'
+        ids_file_path = self.savepath + 'valid_ids'
         file_path = self.savepath + 'global_mask.fits'
         try:
             self.global_mask = myfits.read_fits(file_path, is_bool=True)
-            self.valid_ids = myfits.read_fits(ids_file_path)
+            self.valid_ids = np.load(ids_file_path + '.npy') #myfits.read_fits(ids_file_path)
             return
         except FileNotFoundError:
             pass
@@ -288,7 +288,7 @@ class HexGeometry():
         
         # Save as private variable and to .fits
         self.valid_ids = valid_ids
-        myfits.write_to_fits(valid_ids, ids_file_path)
+        np.save(ids_file_path, valid_ids) # myfits.write_to_fits(valid_ids, ids_file_path)
         
         # flat_valid_ids = row_ids*np.shape(global_mask)[1] + col_ids
         # flat_ids = np.arange(np.sum(1-self.global_mask))
