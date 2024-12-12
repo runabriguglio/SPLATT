@@ -22,19 +22,29 @@ def openfile(name, data_len = None):
     data = _openwdd(file_path, data_len)
     return data
 
-def plot_data(data, N_ch = None, freq = freqwebdaq):
+def plot_data(data, N_ch = None, freq = freqwebdaq, title_str = None):
     data_size = np.shape(data)
 
     if N_ch is None:
         N_ch = data_size[0]
-    N_tvec = data_size[1]
 
-    t_vec = np.arange(0,N_tvec)*1/freq
+    t_vec = np.arange(0,np.max(data_size))*1/freq
 
     for i in range(N_ch):
+
+        if len(data_size) == 1:
+            vec = data
+        else:
+            vec = data[i]
+
         plt.figure()
-        plt.plot(t_vec,data[i])
-        plt.title('Channel '+str(i))
+        plt.plot(t_vec,vec)
+
+        if title_str is not None:
+            plt.title(title_str)
+        else:
+            plt.title('Channel '+str(i))
+
         plt.xlabel('Time [s]')
         plt.ylabel('Acceleration [g]')
         plt.show()
