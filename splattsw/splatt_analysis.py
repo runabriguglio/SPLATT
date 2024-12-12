@@ -6,7 +6,7 @@ import glob
 import json
 import struct
 
-import SPLATT.splattsw.timehistory as th
+import timehistory as th
 
 # WebDAQ variables
 freqwebdaq = 1651.6129 #Hz; minimum sampling frequency
@@ -47,6 +47,8 @@ def find_peak(v, freq=None, freq_bounds=None):
     idf = range(len(v))
     if freq is not None and freq_bounds is not None:
         idf = np.where(np.logical_and(freq>= freq_bounds[0], freq<=freq_bounds[1]))
+        if len(idf) == 1:
+            idf = idf[0]
     peak = max(v[idf])
     peakid = np.argmax(v[idf])
 
