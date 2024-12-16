@@ -52,13 +52,21 @@ wdlist = ['OBB-Vibration_2024-12-12T13-01-00-896.wdd',
 def analyse_file_list(wdlist):
 
     maxima = np.zeros([len(wdlist),2])
+    rms_vals = np.zeros([len(wdlist),2])
 
     for k,file_name in enumerate(wdlist):
         data = sp.openfile(file_name)
         sp.plot_data(data,N_ch = 2)
         net_acc = data[0] - data[1]
         sp.plot_data(net_acc, N_ch=1, title_str='Acceleration difference: ch0-ch1')
-        maxima[k,0] = 0.5*(np.max(data[0])-np.min(data[0]))
-        maxima[k,1] = 0.5*(np.max(data[1])-np.min(data[0]))
+        max_ch0 = np.max(np.abs(data[0]))
+        max_ch1 = np.max(np.abs(data[1]))
+        maxima[k,0] = max_ch0
+        maxima[k,1] = max_ch1
+        N = 6
+        large_N0 = np.sort(np.abs(data[0]))[-N:] # 6 largest values
+        large_N1 = np.sort(np.abs(data[1]))[-N:] # 6 largest values
+        rms_vals[k,0] = np.sqrt(np.sum(large_N0**2)/N)
+        rms_vals[k,1] = np.sqrt(np.sum(large_N1**2)/N)
 
-    return maxima
+    return maxima, rms_vals
