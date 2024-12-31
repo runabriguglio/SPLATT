@@ -1,7 +1,10 @@
-#from SPLATT.splattsw import splatt_analysis as sp
-from M4.m4.ground.timestamp import Timestamp
 import os
 import numpy as np
+
+import utils.folder_paths
+from utils.timestamp import Timestamp
+from devices import moxa_io as mx
+
 basepath = '/mnt/jumbo/SPLATT/'
 logfile = basepath+(Timestamp.now())[0:8]+'.log'
 sep = '\t'
@@ -38,6 +41,22 @@ def log_data(datafile, dataval):
     f.write(s)
     f.close()
     print('Info logged to '+logfile)
+
+
+def log_temperature():
+    """ Function to log the temperature"""
+
+    tn=Timestamp()
+    time = tn.now()
+    pt1 = mx.moxa_ai('PT1')
+    temp = pt1.read()
+
+    info_line = f'{time}     {str(temp[0:3])}\n'
+
+    fname='/home/labot/git/SPLATT/splattsw/temp_reads.txt'
+    fff=open(fname, 'a+')
+    fff.write(info_line)
+    fff.close()
 
 
 
