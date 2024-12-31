@@ -3,9 +3,6 @@ import numpy as np
 from astropy.io import fits as pyfits
 import os
 import glob
-from SPLATT.splattsw import splatt_plot as splt
-
-
 
 SPLATT_BUFFER_FOLDER = '/home/labot/Desktop/Data/SPLATT/Buffer'
 
@@ -52,7 +49,7 @@ def analyse_buffer_data(TN = None, show = False):
                 plot_data(time_vec,data[k])
 
             max_osc[k], peak_freq[k] = find_peak_freq(spe,f,bound=[1.,f[-1]])
-            splt.plot_splatt_data(max_osc[k])
+            plot_splatt_data(max_osc[k])
     else:
 
         spe, f = spectral_analysis(data,dt)
@@ -65,7 +62,7 @@ def analyse_buffer_data(TN = None, show = False):
             plot_data(time_vec,data)
 
         max_osc, peak_freq = find_peak_freq(spe,f,bound=[1.,f[-1]])
-        splt.plot_splatt_data(max_osc)
+        plot_splatt_data(max_osc)
 
     return max_osc, peak_freq
 
@@ -87,7 +84,7 @@ def analyse_oscillation(TN_list, freq_list):
             freq_bound = [1., f_vec[-1]]
 
         peak_v, peak_f = find_peak_freq(spe, f_vec, freq_bound)
-        splt.plot_splatt_data(peak_v)
+        plot_splatt_data(peak_v)
 
         # Store data in output variables
         peak_val[:,k] = peak_v
@@ -99,8 +96,9 @@ def analyse_oscillation(TN_list, freq_list):
         data_mean = data_m.reshape(np.shape(data))
         data_osc = data - data_mean
         data_osc = data_osc/(2.**26)
-        x = splt.get_splatt_act_coord()[:,0]
-        y = splt.get_splatt_act_coord()[:,1]
+        act_coords = np.loadtxt('SPLATT_Data/act_coords.txt')
+        x = act_coords[:,0]
+        y = act_coords[:,1]
         x_rep = np.ones([19,1])*x
         y_rep = np.repeat(y,19,axis=0)
         x_rep = x_rep.reshape([19,19])
@@ -201,3 +199,39 @@ def find_peak_freq(spe, freq_vec, bound = None):
         peak_freq[j] = freq_vec[idf1[peak_id]]
 
     return peak_val, peak_freq
+
+
+def plot_splatt_data(values,min_val=None, max_val=None):
+    coordAct = np.loadtxt('SPLATT_Data/act_coords.txt')
+    nActs = len(coordAct)
+
+    # Perform matrix rotation to align with 'gravity'
+    phi = 60./180*np.pi
+    c=np.cos(phi)
+    s=np.sin(phi)
+    MatRot=[[c,-s],[s,c]]
+    coordAct = MatRot@coordAct.T
+    coordAct = coordAct.T
+
+    # Set scatter plot variables
+    Margin = 0.03
+    markerSize = 800
+    x = coordAct[:,0]
+    y = coordAct[:,1]
+    indices = np.arange(nActs)+1
+
+    # Plot
+    plt.figure()
+    ax = plt.axes()
+    ax.set_xlim(min(x)-Margin,max(x)+Margin)
+    ax.set_ylim(min(y)-Margin,max(y)+Margin)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    plt.scatter(x, y, c=values, vmin = min_val, vmax = max_val, s=markerSize, edgecolor='k', cmap='hot')
+    plt.colorbar()
+
+    # Write 'G' reference and actuator indices
+    for i in range(nActs):
+        plt.text(x[i]*2/3, y[i]+Margin*2/3, str(indices[i]))
+    plt.text(x[15],y[15]*1.3,'G')
+    plt.show()
