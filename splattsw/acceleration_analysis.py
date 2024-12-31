@@ -6,7 +6,7 @@ import glob
 import json
 import struct
 
-import timehistory as th
+import utils.timehistory as th
 
 # WebDAQ variables
 freqwebdaq = 1651.6129 #Hz; minimum sampling frequency
