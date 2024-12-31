@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from segmented_deformable_mirror import SegmentedMirror
 from hexagonal_geometry import HexGeometry
 from matrix_calculator import matmul
-from matrix_calculator import define_capsens_matrix
+# from matrix_calculator import define_capsens_matrix
 import my_fits_package as myfits
 # import read_and_write_fits as myfits
 
@@ -38,11 +38,12 @@ def dm_system_setup(TN:str, n_global_zern:int = 11, n_local_zern:int = 11):
     # Global Zernike matrix
     print('Computing ' + str(n_global_zern) + ' modes global Zernike interaction matrix ...')
     sdm.compute_global_zern_matrix(n_global_zern)
-    tiptilt = np.zeros(n_global_zern)
-    tiptilt[1] = 1
-    tiptilt[2] = 1
-    wf = matmul(sdm.glob_ZM,tiptilt)
-    sdm.surface(wf, 'Global Tip/Tilt')
+    tiptiltfocus = np.zeros(n_global_zern)
+    tiptiltfocus[1] = 1
+    tiptiltfocus[2] = 1
+    tiptiltfocus[3] = 1
+    wf = matmul(sdm.glob_ZM,tiptiltfocus)
+    sdm.surface(wf, 'Global Tip/Tilt + Focus')
     
     # Local Zernike matrix
     print('Computing ' + str(n_local_zern) + ' modes local Zernike interaction matrix ...')

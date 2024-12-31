@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+plt.rcParams['mathtext.fontset'] = 'stix'
+plt.rcParams['font.family'] = 'STIXGeneral'
 
 from matrix_calculator import matmul
 
@@ -57,6 +59,7 @@ class DeformableMirror():
             plt_title = 'RMS: ' + str(np.std(self.shape))
             
         # plt.axis([150,200,150,250]) # debug
+        plt.axis('off')
         plt.title(plt_title)
 
     def get_position(self, act_pix_size:float = 10):
