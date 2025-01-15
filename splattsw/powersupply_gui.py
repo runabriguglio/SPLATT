@@ -1,5 +1,6 @@
-from splattsw.devices import powersupplier as ps
-from guietta import Gui, _, ___, III
+import os.path
+from splattsw.devices import powersupplier as ps # type: ignore
+from guietta import Gui, _, ___, III, L
 
 class PowerSupplyGui:
 
@@ -10,36 +11,46 @@ class PowerSupplyGui:
 
     def startGui(self):
         gui = Gui(
-            [ ['CH1'] , ['CH2'] , ['CH3']],
-            [   III   ,   III   ,   III  ],
-            [['Start_All'] , ___ , ['EMERGENCY_STOP'] ],
+            [ ['CH1'] , ['CH2'] , ['CH3'] ],
+            [ L("s1") , L("s2") , L("s3") ],
+            [ ['Start_All'],_,['EMERGENCY\n  STOP']],
+            images_dir = os.path.dirname(__file__)
         )
-
-        pass
+        off = 'switch_off.png'
+        on = 'switch_on.png'
+        gui.s1 = off
+        gui.s2 = off
+        gui.s3 = off
 
         def CH1(gui, *args):
             if self.ch[0]:
-                self.ch[0] = False
                 self.power_supply.switch_off(1)
+                self.ch[0] = False
+                gui.s1 = off
             else:
-                self.ch[0] = True
                 self.power_supply.switch_on(1)
+                self.ch[0] = True
+                gui.s1 = on
 
         def CH2(gui, *args):
             if self.ch[1]:
-                self.ch[1] = False
                 self.power_supply.switch_off(2)
+                self.ch[1] = False
+                gui.s2 = off
             else:
-                self.ch[1] = True
                 self.power_supply.switch_on(2)
+                self.ch[1] = True
+                gui.s2 = on
 
         def CH3(gui, *args):
             if self.ch[2]:
-                self.ch[2] = False
                 self.power_supply.switch_off(3)
+                self.ch[2] = False
+                gui.s3 = off
             else:
-                self.ch[2] = True
                 self.power_supply.switch_on(3)
+                self.ch[2] = True
+                gui.s3 = on
 
         def Start_All(gui, *args):
             for n,ch in enumerate(self.ch):
@@ -47,6 +58,9 @@ class PowerSupplyGui:
                     self.power_supply.switch_on(n+1)
                     self.ch[n] = True
             gui.widgets['Start_All'].setEnabled(False)
+            gui.s1 = on
+            gui.s2 = on
+            gui.s3 = on
 
         def EMERGENCY_STOP(gui, *args):
             self.power_supply.switch_off(3)
@@ -54,6 +68,15 @@ class PowerSupplyGui:
             self.power_supply.switch_off(1)
             self.ch = [False, False, False]
             gui.widgets['Start_All'].setEnabled(True)
+            gui.s1 = off
+            gui.s2 = off
+            gui.s3 = off
+
+        gui.events(
+            [CH1, CH2, CH3],
+            [_  , _  , _  ],
+            [Start_All,_, EMERGENCY_STOP]
+        )
 
         gui.title('SPLATT Power Supplier')
         gui.window()
