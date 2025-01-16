@@ -18,39 +18,33 @@ class PowerSupplyGui:
         )
         off = 'switch_off.png'
         on = 'switch_on.png'
-        gui.s1 = off
-        gui.s2 = off
-        gui.s3 = off
 
         def CH1(gui, *args):
             if self.ch[0]:
                 self.power_supply.switch_off(1)
                 self.ch[0] = False
-                gui.s1 = off
             else:
                 self.power_supply.switch_on(1)
                 self.ch[0] = True
-                gui.s1 = on
+            _update_graphic()
 
         def CH2(gui, *args):
             if self.ch[1]:
                 self.power_supply.switch_off(2)
                 self.ch[1] = False
-                gui.s2 = off
             else:
                 self.power_supply.switch_on(2)
                 self.ch[1] = True
-                gui.s2 = on
+            _update_graphic()
 
         def CH3(gui, *args):
             if self.ch[2]:
                 self.power_supply.switch_off(3)
                 self.ch[2] = False
-                gui.s3 = off
             else:
                 self.power_supply.switch_on(3)
                 self.ch[2] = True
-                gui.s3 = on
+            _update_graphic()
 
         def Start_All(gui, *args):
             for n,ch in enumerate(self.ch):
@@ -58,9 +52,7 @@ class PowerSupplyGui:
                     self.power_supply.switch_on(n+1)
                     self.ch[n] = True
             gui.widgets['Start_All'].setEnabled(False)
-            gui.s1 = on
-            gui.s2 = on
-            gui.s3 = on
+            _update_graphic()
 
         def EMERGENCY_STOP(gui, *args):
             self.power_supply.switch_off(3)
@@ -68,14 +60,15 @@ class PowerSupplyGui:
             self.power_supply.switch_off(1)
             self.ch = [False, False, False]
             gui.widgets['Start_All'].setEnabled(True)
-            gui.s1 = off
-            gui.s2 = off
-            gui.s3 = off
+            _update_graphic()
 
         def _check_state():
             for n,_ in enumerate(self.ch):
                 state = self.power_supply.switch_state(n+1)
                 self.ch[n] = True if state == 'ON' else False
+
+        def _update_graphic():
+            """update the graphic for the channel status."""
             gui.s1 = on if self.ch[0] else off
             gui.s2 = on if self.ch[1] else off
             gui.s3 = on if self.ch[2] else off
@@ -86,6 +79,7 @@ class PowerSupplyGui:
             [Start_All,_, EMERGENCY_STOP]
         )
         _check_state()
+        _update_graphic()
         gui.title('SPLATT Power Supplier')
         gui.window()
         gui.run()
