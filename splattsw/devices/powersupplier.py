@@ -1,4 +1,3 @@
-import time
 import splattsw.devices.devices_scpi as scpi
 
 name = 'Rigol_PowerSupplier'
@@ -33,17 +32,17 @@ def switch_state(ch):
     rp_s.close()
     return state
 
-def query_state(ch):
-    rp_s = scpi.scpi(name)
-    state = rp_s.tx_txt(':OUTP? CH'+str(ch))
+def read_voltage(ch):
+    rp_s = scpi.scpi(name, TIMEOUT)
+    voltage = rp_s.txrx_txt(':MEAS:VOLT? CH'+str(ch))
     rp_s.close()
-    return state
+    return float(voltage)
 
-def test_query_state():
-    rp_s = scpi.scpi(name)
-    state = rp_s.rx_arb()
+def read_current(ch):
+    rp_s = scpi.scpi(name, TIMEOUT)
+    current = rp_s.txrx_txt(':MEAS:CURR? CH'+str(ch))
     rp_s.close()
-    return state
+    return float(current)
 
 def load_saved_state(state_name = default_state):
     rp_s = scpi.scpi(name, TIMEOUT)
