@@ -98,7 +98,7 @@ class scpi (object):
         self._socket.send((":SYST:ERR?" + self.delimiter).encode('utf-8'))
         time.sleep(0.2)
         error_response = self._socket.recv(cs).decode('utf-8').strip()
-        if error_response != '+0,"No error"':
+        if error_response != '0,"No error"':
             print(f"ERROR: {error_response}")
         return response
 

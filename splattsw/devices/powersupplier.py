@@ -33,6 +33,18 @@ def switch_state(ch):
     rp_s.close()
     return state
 
+def query_state(ch):
+    rp_s = scpi.scpi(name)
+    state = rp_s.tx_txt(':OUTP? CH'+str(ch))
+    rp_s.close()
+    return state
+
+def test_query_state():
+    rp_s = scpi.scpi(name)
+    state = rp_s.rx_arb()
+    rp_s.close()
+    return state
+
 def load_saved_state(state_name = default_state):
     rp_s = scpi.scpi(name, TIMEOUT)
     rp_s.tx_txt(':MEM:LOAD '+ state_name)

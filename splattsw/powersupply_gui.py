@@ -76,7 +76,9 @@ class PowerSupplyGui:
             for n,_ in enumerate(self.ch):
                 state = self.power_supply.switch_state(n+1)
                 self.ch[n] = True if state == 'ON' else False
-                gui.widgets[f"s{n+1}"] = on if self.ch[n] else off
+            gui.s1 = on if self.ch[0] else off
+            gui.s2 = on if self.ch[1] else off
+            gui.s3 = on if self.ch[2] else off
 
         gui.events(
             [CH1, CH2, CH3],

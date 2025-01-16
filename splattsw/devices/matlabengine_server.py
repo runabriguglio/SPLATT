@@ -19,6 +19,7 @@ class RemoteMatlab(object):
         for k in range(n_args_out):
             data.append(np.array(output[k]))
         return data
+        
 
     def stop_engine(self):
         self.eng.quit()
