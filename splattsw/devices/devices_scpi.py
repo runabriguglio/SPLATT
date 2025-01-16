@@ -1,5 +1,5 @@
 """SCPI access to Red Pitaya."""
-
+import time
 import socket
 
 
@@ -85,10 +85,24 @@ class scpi (object):
         """Send text string ending and append delimiter."""
         return self._socket.send((msg + self.delimiter).encode('utf-8'))
 
-    def txrx_txt(self, msg):
-        """Send/receive text string."""
-        self.tx_txt(msg)
-        return self.rx_txt()
+    # def txrx_txt(self, msg):
+    #     """Send/receive text string."""
+    #     self.tx_txt(msg)
+    #     return self.rx_txt()
+    
+    def txrx_txt(self, msg:str, cs:int=4096):
+        """Send a reading message and outputs the response and the error message."""
+        self._socket.send((msg + self.delimiter).encode('utf-8'))
+        time.sleep(0.2)
+        response = self._socket.recv(cs).decode('utf-8').strip()
+        self._socket.send((":SYST:ERR?" + self.delimiter).encode('utf-8'))
+        time.sleep(0.2)
+        error_response = self._socket.recv(cs).decode('utf-8').strip()
+        if error_response != '+0,"No error"':
+            print(f"ERROR: {error_response}")
+        return response
+
+
 
 # IEEE Mandated Commands
 

@@ -72,12 +72,18 @@ class PowerSupplyGui:
             gui.s2 = off
             gui.s3 = off
 
+        def _check_state():
+            for n,_ in enumerate(self.ch):
+                state = self.power_supply.switch_state(n+1)
+                self.ch[n] = True if state == 'ON' else False
+                gui.widgets[f"s{n+1}"] = on if self.ch[n] else off
+
         gui.events(
             [CH1, CH2, CH3],
             [_  , _  , _  ],
             [Start_All,_, EMERGENCY_STOP]
         )
-
+        _check_state()
         gui.title('SPLATT Power Supplier')
         gui.window()
         gui.run()

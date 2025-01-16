@@ -35,6 +35,7 @@ def open_read_close_read_ch1():
         print("Accendo il canale 1...")
         RDP.send((":OUTP CH1,ON" + delimiter).encode('utf-8'))
         time.sleep(0.2)
+
         print("Leggo lo stato del canale 1...")
         RDP.send((":OUTP? CH1" + delimiter).encode('utf-8'))
         time.sleep(0.2)
@@ -44,6 +45,7 @@ def open_read_close_read_ch1():
         RDP.send((":SYST:ERR?" + delimiter).encode('utf-8'))
         error_response = RDP.recv(4096).decode('utf-8').strip()
         print(f"Errore: {error_response}")
+        
         print("\nAspetto 5 secondi...")
         time.sleep(5)
         print("\nSpegnimento canale 1")
