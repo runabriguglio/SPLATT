@@ -154,8 +154,8 @@ class scpi (object):
 
     def err_c(self):
         """Error count."""
-        return rp.txrx_txt('SYST:ERR:COUN?')
+        return self.txrx_txt('SYST:ERR:COUN?')
 
     def err_c(self):
         """Error next."""
-        return rp.txrx_txt('SYST:ERR:NEXT?')
+        return self.txrx_txt('SYST:ERR:NEXT?')
