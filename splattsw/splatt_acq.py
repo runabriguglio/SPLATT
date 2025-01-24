@@ -1,13 +1,13 @@
 
-from SPLATT.splattsw import splatt4dmeas as comm4d
-from SPLATT.splattsw import splatt_analysis as sp
+from splattsw import splatt4dmeas as comm4d
+from splattsw import splatt_analysis as sp
 from importlib  import reload #for reload
 #power on and connect the RedPitaya
 #start the redpitaya server
 #systemctl start redpitaya_scpi 
-from SPLATT.splattsw.devices.webDAQ import WebDAQ as wdq
-from SPLATT.splattsw.devices import redpitaya as rp
-from SPLATT.splattsw import splatt_log as slog
+from splattsw.devices.webDAQ import WebDAQ as wdq
+from splattsw.devices import redpitaya as rp
+from splattsw import splatt_log as slog
 from matplotlib.pyplot import *
 
 import os

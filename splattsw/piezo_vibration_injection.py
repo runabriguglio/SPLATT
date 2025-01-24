@@ -1,6 +1,6 @@
-from SPLATT.splattsw import splatt_analysis as sp
-from SPLATT.splattsw.devices.webDAQ import WebDAQ as wbdq
-from SPLATT.splattsw.devices import wavegenerators as wg
+from splattsw import splatt_analysis as sp
+from splattsw.devices.webDAQ import WebDAQ as wbdq
+from splattsw.devices import wavegenerators as wg
 
 import matplotlib.pyplot as plt
 import numpy as np

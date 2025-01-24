@@ -1,12 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-import Pyro4
+# import Pyro4
 import time
 
-from SPLATT.splattsw.devices.webDAQ import WebDAQ as wbdq
-from SPLATT.splattsw.devices import powersupplier as ps
-from SPLATT.splattsw import splatt_analysis as sp
+from splattsw.devices.webDAQ import WebDAQ as wbdq
+from splattsw.devices import powersupplier as ps
+from splattsw import splatt_analysis as sp
 
 # Connect to WebDAQ
 webdaq = wbdq()
