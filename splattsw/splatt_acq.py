@@ -53,7 +53,7 @@ def acq(freqPI, freq4d, ampPI=2, bound=None,process=None):
     #wdfile=sp.lastwdfile()
     #print(tn)
     #print(wdfile)
-    if process is None0:
+    if process is None:
         slog.log_data([tn, wdfile],[freq4d,ampPI])
     else:
         sp.peak_analysis(tn, wdfile=wdfile,bound=boundfreq)

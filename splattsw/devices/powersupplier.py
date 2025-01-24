@@ -1,7 +1,7 @@
 import splattsw.devices.devices_scpi as scpi
 
 
-class WaveGenerator:
+class PowerSupplier:
 
     def __init__(self, device_name:str='Rigol_PowerSupplier'):
         self.name = device_name
@@ -39,7 +39,7 @@ class WaveGenerator:
 
     def read_current(self, ch):
         self.rp_s.connect()
-        current = rp_s.txrx_txt(':MEAS:CURR? CH'+str(ch))
+        current = self.rp_s.txrx_txt(':MEAS:CURR? CH'+str(ch))
         self.rp_s.close()
         return float(current)
 

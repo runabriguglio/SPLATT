@@ -1,15 +1,15 @@
 import time
 import threading
 import os.path as op
-from splattsw.devices import powersupplier as ps # type: ignore
-from guietta import Gui, _, III, L, G, HB
+from splattsw.devices import PowerSupplier #powersupplier as ps 
+from guietta import Gui, _, III, L, G, HB # type: ignore
 from PyQt5.QtCore import Qt
 
 
 class PowerSupplyGui:
 
     def __init__(self):
-        self.power_supply = ps
+        self.power_supply = PowerSupplier()
         self.ch = [False, False, False]
         self.isRunning = False
         self.monitoring_thread = False

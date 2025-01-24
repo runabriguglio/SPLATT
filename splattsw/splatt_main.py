@@ -1,11 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-# import Pyro4
+import Pyro4
 import time
 
 from splattsw.devices.webDAQ import WebDAQ as wbdq
-from splattsw.devices import powersupplier as ps
+from splattsw.devices import PowerSupplier
 from splattsw import splatt_analysis as sp
 
 # Connect to WebDAQ
@@ -16,6 +16,7 @@ eng = Pyro4.Proxy("PYRO:matlab_engine@193.206.155.220:9090")
 eng.start_engine()
 
 # Connect to power supplier
+ps = PowerSupplier()
 ps.load_saved_state()
 ps.switch_on(1)
 ps.switch_on(2)
