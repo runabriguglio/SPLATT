@@ -14,17 +14,17 @@ class scpi (object):
         self.name = deviceName
         self.timeout = timeout
         self._select_device()
+        self._connect()
+        # try:
+        #     self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        try:
-            self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #     if self.timeout is not None:
+        #         self._socket.settimeout(self.timeout)
 
-            if self.timeout is not None:
-                self._socket.settimeout(self.timeout)
+        #     self._socket.connect((self.cip, self.port))
 
-            self._socket.connect((self.cip, self.port))
-
-        except socket.error as e:
-            print('SCPI >> connect({:s}:{:d}) failed: {:s}'.format(self.cip, self.port, e))
+        # except socket.error as e:
+        #     print('SCPI >> connect({:s}:{:d}) failed: {:s}'.format(self.cip, self.port, e))
 
     def _select_device(self):
         if self.name == 'Rigol_WaveGen':
@@ -43,6 +43,16 @@ class scpi (object):
         if self._socket is not None:
             self._socket.close()
         self._socket = None
+
+    def _connect(self):
+        """Connect to device IP."""
+        try:
+            self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            if self.timeout is not None:
+                self._socket.settimeout(self.timeout)
+            self._socket.connect((self.cip, self.port))
+        except socket.error as e:
+            print(f"SCPI >> connect({self.cip}:{self.port}) failed: '{e}'")
 
     def close(self):
         """Close IP connection."""

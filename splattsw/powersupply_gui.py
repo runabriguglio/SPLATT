@@ -2,7 +2,7 @@ import time
 import threading
 import os.path as op
 from splattsw.devices import powersupplier as ps # type: ignore
-from guietta import Gui, _, ___, III, L, G, execute_in_main_thread
+from guietta import Gui, _, III, L, G, HB
 from PyQt5.QtCore import Qt
 
 
@@ -93,114 +93,35 @@ class PowerSupplyGui:
  ### Functions for testing graphic updates and event handling ####
 ###################################################################
 
-        # def CH1(gui, *args):
-        #     if self.ch[0]:
-        #         self.ch[0] = False
-        #     else:
-        #         self.ch[0] = True
-        #     _update_graphic()
-
-        # def CH2(gui, *args):
-        #     if self.ch[1]:
-        #         self.ch[1] = False
-        #     else:
-        #         self.ch[1] = True
-        #     _update_graphic()
-
-
-        # def CH3(gui, *args):
-        #     if self.ch[2]:
-        #         self.ch[2] = False
-        #     else:
-        #         self.ch[2] = True
-        #     _update_graphic()
-
-        # def StartAll(gui, *args):
-        #     for n,ch in enumerate(self.ch):
-        #         if ch is False:
-        #             self.ch[n] = True
-        #     _update_graphic()
-
-        # def EmergencySTOP(gui, *args):
-        #     self.ch = [False, False, False]
-        #     _update_graphic()
-        #     self.isRunning = False
-
-        # def connect(gui, *args):
-        #     if not self.isRunning:
-        #         self.isRunning = True
-        #         gui.CN.setText('STOP\nMONITORING')
-        #         self.monitoring_thread = threading.Thread(target=_live_monitoring, args=(gui,))
-        #         self.monitoring_thread.start()
-        #     else:
-        #         self.isRunning = False
-        #         gui.CN.setText('START\nMONITORING')
-        #         self.monitoring_thread.join()
-        #         for ch in range(3):
-        #             voltage = 'null'
-        #             current = 'null'
-        #             cguis[ch].V = voltage
-        #             cguis[ch].A = current
-
-        # def _live_monitoring(gui, *args):
-        #     import numpy as np
-        #     while self.isRunning:
-        #         for ch in range(3):
-        #             if self.ch[ch]:
-        #                 voltage = f"{np.random.uniform(0, 5.5):.2f} V"
-        #                 current = f"{np.random.uniform(0, 2.5):.2f} A"
-        #                 cguis[ch].V = voltage
-        #                 cguis[ch].A = current
-        #             else:
-        #                 voltage = 'null'
-        #                 current = 'null'
-        #                 cguis[ch].V = voltage
-        #                 cguis[ch].A = current
-        #         time.sleep(0.6)
-
-
-###################################################################
-  ####                        END                           #####
-###################################################################
-
         def CH1(gui, *args):
             if self.ch[0]:
-                self.power_supply.switch_off(1)
                 self.ch[0] = False
             else:
-                self.power_supply.switch_on(1)
                 self.ch[0] = True
             _update_graphic()
 
         def CH2(gui, *args):
             if self.ch[1]:
-                self.power_supply.switch_off(2)
                 self.ch[1] = False
             else:
-                self.power_supply.switch_on(2)
                 self.ch[1] = True
             _update_graphic()
 
+
         def CH3(gui, *args):
             if self.ch[2]:
-                self.power_supply.switch_off(3)
                 self.ch[2] = False
             else:
-                self.power_supply.switch_on(3)
                 self.ch[2] = True
             _update_graphic()
 
         def StartAll(gui, *args):
             for n,ch in enumerate(self.ch):
                 if ch is False:
-                    self.power_supply.switch_on(n+1)
                     self.ch[n] = True
             _update_graphic()
 
         def EmergencySTOP(gui, *args):
-            self.power_supply.switch_off(3)
-            self.power_supply.switch_off(2)
-            self.power_supply.switch_off(1)
             self.ch = [False, False, False]
             _update_graphic()
             self.isRunning = False
@@ -209,24 +130,102 @@ class PowerSupplyGui:
             if not self.isRunning:
                 self.isRunning = True
                 gui.CN.setText('STOP\nMONITORING')
-                self.monitoring_thread = threading.Thread(target=live_monitoring, args=(gui,))
+                self.monitoring_thread = threading.Thread(target=_live_monitoring, args=(gui,))
                 self.monitoring_thread.start()
+                # change to HeartBeat class
+                # gui.s1 = HB(on[0], off[0]).create(gui)
+                # gui.s2 = HB(on[1], off[1]).create(gui)
+                # gui.s3 = HB(on[2], off[2]).create(gui)
             else:
                 self.isRunning = False
                 gui.CN.setText('START\nMONITORING')
-                if self.monitoring_thread:
-                    self.monitoring_thread.join()
-                # for ch in range(3):
-                #     voltage = 'OFF'
-                #     current = 'OFF'
-                #     cguis[ch].V = voltage
-                #     cguis[ch].A = current
-                
-        def live_monitoring(gui, *args):
+                self.monitoring_thread.join()
+                for ch in range(3):
+                    voltage = 'null'
+                    current = 'null'
+                    cguis[ch].V = voltage
+                    cguis[ch].A = current
+
+        def _live_monitoring(gui, *args):
+            import numpy as np
             while self.isRunning:
-                _check_state()
-                _monitoring(gui)
+                for ch in range(3):
+                    if self.ch[ch]:
+                        voltage = f"{np.random.uniform(0, 5.5):.3f} V"
+                        current = f"{np.random.uniform(0, 2.5):.3f} A"
+                        cguis[ch].V = voltage
+                        cguis[ch].A = current
+                    else:
+                        voltage = 'null'
+                        current = 'null'
+                        cguis[ch].V = voltage
+                        cguis[ch].A = current
                 time.sleep(0.6)
+
+
+###################################################################
+  ####                        END                           #####
+###################################################################
+
+        # def CH1(gui, *args):
+        #     if self.ch[0]:
+        #         self.power_supply.switch_off(1)
+        #         self.ch[0] = False
+        #     else:
+        #         self.power_supply.switch_on(1)
+        #         self.ch[0] = True
+        #     _update_graphic()
+
+        # def CH2(gui, *args):
+        #     if self.ch[1]:
+        #         self.power_supply.switch_off(2)
+        #         self.ch[1] = False
+        #     else:
+        #         self.power_supply.switch_on(2)
+        #         self.ch[1] = True
+        #     _update_graphic()
+
+        # def CH3(gui, *args):
+        #     if self.ch[2]:
+        #         self.power_supply.switch_off(3)
+        #         self.ch[2] = False
+        #     else:
+        #         self.power_supply.switch_on(3)
+        #         self.ch[2] = True
+        #     _update_graphic()
+
+        # def StartAll(gui, *args):
+        #     for n,ch in enumerate(self.ch):
+        #         if ch is False:
+        #             self.power_supply.switch_on(n+1)
+        #             self.ch[n] = True
+        #     _update_graphic()
+
+        # def EmergencySTOP(gui, *args):
+        #     self.power_supply.switch_off(3)
+        #     self.power_supply.switch_off(2)
+        #     self.power_supply.switch_off(1)
+        #     self.ch = [False, False, False]
+        #     _update_graphic()
+        #     self.isRunning = False
+
+        # def connect(gui, *args):
+        #     if not self.isRunning:
+        #         self.isRunning = True
+        #         gui.CN.setText('STOP\nMONITORING')
+        #         self.monitoring_thread = threading.Thread(target=live_monitoring, args=(gui,))
+        #         self.monitoring_thread.start()
+        #     else:
+        #         self.isRunning = False
+        #         gui.CN.setText('START\nMONITORING')
+        #         if self.monitoring_thread:
+        #             self.monitoring_thread.join()
+                
+        # def live_monitoring(gui, *args):
+        #     while self.isRunning:
+        #         _check_state()
+        #         _monitoring(gui)
+        #         time.sleep(0.6)
 
         def _check_state():
             for n,_ in enumerate(self.ch):
@@ -267,13 +266,13 @@ class PowerSupplyGui:
         )
 
         gui.title('Rigol DP832A')
-        gui.window()
         gui.SA.setText('START\n ALL')
         gui.ES.setText('EMERGENCY\n  STOP')
         gui.CN.setText('START\nMONITORING')
         _formatGraphics(gui)
-        _check_state()
+        #_check_state()
         _update_graphic()
+        gui.window()
         gui.window().resize(340, 300)
         gui.window().closeEvent = _closeEvent
         gui.run()
