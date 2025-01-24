@@ -1,7 +1,7 @@
-numpy>1.17
-scipy
-matplotlib
 astropy
+matplotlib
+numpy>1.17
 pytest
 scikit-image
+scipy
 scipy

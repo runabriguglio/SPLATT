@@ -1,7 +1,7 @@
 import time
 import threading
 import os.path as op
-from splattsw.devices import PowerSupplier #powersupplier as ps 
+from splattsw.devices.powersupplier import PowerSupplier 
 from guietta import Gui, _, III, L, G, HB # type: ignore
 from PyQt5.QtCore import Qt
 
