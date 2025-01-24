@@ -1,55 +1,56 @@
 import splattsw.devices.devices_scpi as scpi
 
-name = 'Rigol_PowerSupplier'
-TIMEOUT = 2
-default_state = 'splatt.RSF'
-# USE THE FOLLOWING IF MORE THAN 1 POWER SUPPLIERS ARE AVAILABLE
-# global name
-# print("Warning!! Load your device with function ''update_device(deviceName)''")
-# def update_device(deviceName):
-#     global name
-#     name = deviceName
 
-def reset():
-    rp_s = scpi.scpi(name, TIMEOUT)
-    rp_s.rst()
-    rp_s.close()
+class WaveGenerator:
 
-def switch_on(ch):
-    rp_s = scpi.scpi(name, TIMEOUT)
-    rp_s.tx_txt(':OUTP CH'+str(ch)+',ON')
-    rp_s.close()
+    def __init__(self, device_name:str='Rigol_PowerSupplier'):
+        self.name = device_name
+        self.TIMEOUT = 2
+        self.rp_s = scpi.scpi(self.name, self.TIMEOUT)
+        self.default_state = 'splatt.RSF'
 
-def switch_off(ch):
-    rp_s = scpi.scpi(name, TIMEOUT)
-    rp_s.tx_txt(':OUTP CH'+str(ch)+',OFF')
-    rp_s.close()
+    def reset(self):
+        self.rp_s.connect()
+        self.rp_s.rst()
+        self.rp_s.close()
 
-def switch_state(ch):
-    rp_s = scpi.scpi(name, TIMEOUT)
-    state = rp_s.txrx_txt(':OUTP? CH'+str(ch))
-    state = 'ON' if state == '1' else 'OFF'
-    rp_s.close()
-    return state
+    def switch_on(self, ch):
+        self.rp_s.connect()
+        self.rp_s.tx_txt(':OUTP CH'+str(ch)+',ON')
+        self.rp_s.close()
 
-def read_voltage(ch):
-    rp_s = scpi.scpi(name, TIMEOUT)
-    voltage = rp_s.txrx_txt(':MEAS:VOLT? CH'+str(ch))
-    rp_s.close()
-    return float(voltage)
+    def switch_off(self, ch):
+        self.rp_s.connect()
+        self.rp_s.tx_txt(':OUTP CH'+str(ch)+',OFF')
+        self.rp_s.close()
 
-def read_current(ch):
-    rp_s = scpi.scpi(name, TIMEOUT)
-    current = rp_s.txrx_txt(':MEAS:CURR? CH'+str(ch))
-    rp_s.close()
-    return float(current)
+    def switch_state(self, ch):
+        self.rp_s.connect()
+        state = self.rp_s.txrx_txt(':OUTP? CH'+str(ch))
+        state = 'ON' if state == '1' else 'OFF'
+        self.rp_s.close()
+        return state
 
-def load_saved_state(state_name = default_state):
-    rp_s = scpi.scpi(name, TIMEOUT)
-    rp_s.tx_txt(':MEM:LOAD '+ state_name)
-    rp_s.close()
+    def read_voltage(self, ch):
+        self.rp_s.connect()
+        voltage = self.rp_s.txrx_txt(':MEAS:VOLT? CH'+str(ch))
+        self.rp_s.close()
+        return float(voltage)
 
-def save_current_state(state_name):
-    rp_s = scpi.scpi(name, TIMEOUT)
-    rp_s.tx_txt(':MEM:STOR '+ state_name + '.RSF')
-    rp_s.close()
+    def read_current(self, ch):
+        self.rp_s.connect()
+        current = rp_s.txrx_txt(':MEAS:CURR? CH'+str(ch))
+        self.rp_s.close()
+        return float(current)
+
+    def load_saved_state(self, state_name):
+        self.rp_s.connect()
+        if state_name is None:
+            state_name = self.default_state
+        self.rp_s.tx_txt(':MEM:LOAD '+ state_name)
+        self.rp_s.close()
+
+    def save_current_state(self, state_name):
+        self.rp_s.connect()
+        self.rp_s.tx_txt(':MEM:STOR '+ state_name + '.RSF')
+        self.rp_s.close()
