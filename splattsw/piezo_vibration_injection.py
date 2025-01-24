@@ -1,6 +1,6 @@
 from splattsw import splatt_analysis as sp
 from splattsw.devices.webDAQ import WebDAQ as wbdq
-from splattsw.devices import wavegenerators as wg
+from splattsw.devices.wavegenerators import WaveGenerator
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,7 +9,10 @@ import time
 
 # Connect to WebDAQ
 webdaq = wbdq()
-#webdaq.connect()
+
+# Connect to wavegenerator
+wg = WaveGenerator()
+
 freq_vec = np.arange(10,40+3,3)
 
 time_for_acquisition = 9.
@@ -37,8 +40,6 @@ def analyse_wdfile(wdfile, exc_freq, doplot = False, ch = 0):
 
 
 def test_single_freq(freq_val,amp=1):
-    # Connect to WebDAQ
-    # webdaq.connect()
 
     wg.set_wave1(amp,0,freq_val,'SIN')
     time.sleep(2) # wait for piezo command
@@ -61,9 +62,6 @@ def start_cycle_on_freq(freqV = freq_vec):
 
     # Connect to WebDAQ
     webdaq.connect()
-
-    # Select device ('Rigol_WaveGen' or 'RedPitaya')
-    wg.update_device('Rigol_WaveGen')
 
     N = len(freqV)
     Nch = 4

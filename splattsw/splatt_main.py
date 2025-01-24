@@ -5,7 +5,7 @@ import Pyro4
 import time
 
 from splattsw.devices.webDAQ import WebDAQ as wbdq
-from splattsw.devices import PowerSupplier
+from splattsw.devices.powersupplier import PowerSupplier
 from splattsw import splatt_analysis as sp
 
 # Connect to WebDAQ
