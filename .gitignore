@@ -133,7 +133,12 @@ venv.bak/
 .dmypy.json
 dmypy.json
 
+# Image folder
+splattsw/_images/con.png
+
 # Pyre type checker
 .pyre/
 /howto.txt
 /todo.txt
+
+
