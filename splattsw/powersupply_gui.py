@@ -40,7 +40,7 @@ class PowerSupplyGui:
         """
         LBS = ["SIGGen", "BCU+Logic", "Drivers"]
         # Led indicators. Max 50x30 (for now)
-        images_dir = op.dirname(__file__)+'/_images/'
+        images_dir = op.dirname(__file__)+'/images/'
         off = [images_dir+f"{n}off.png" for n in [1,2,3]]
         on = [images_dir+f"{n}on.png" for n in [1,2,3]]
         gui = Gui(

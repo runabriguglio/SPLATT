@@ -3,13 +3,15 @@
 
 import sys
 import time
-import splattsw.devices.devices_scpi as scpi
+from splattsw.devices.devices_scpi import SCPI
 
-class WaveGenerator:
+class WaveGenerator(SCPI):
 
-    def __init__(self, device_name:str='Rigol_WaveGen'):
-        self.name = device_name
-        self.rp_s = scpi.scpi(self.name)
+    def __init__(self, IP:str='192.168.0.100', port:int=5555, TIMEOUT=2):
+
+        super().__init__(IP,port,TIMEOUT)
+        # self.name = device_name
+        # self.rp_s = scpi.scpi(self.name)
         self.ampTrigger4d = 2
         self.offsetTrigger4d = 2.3
         self.ampTrigger4dPulse = 4.

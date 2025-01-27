@@ -1,19 +1,21 @@
-"""SCPI access to Red Pitaya."""
+"""SCPI access to Red Pitaya or Rigol devices."""
 import time
 import socket
 
 
-class scpi (object):
+class SCPI(object):
     """SCPI class used to access Red Pitaya over an IP network."""
     delimiter = '\r\n'
 
-    def __init__(self, deviceName, timeout = None):
+    def __init__(self, IP, port, timeout = None):
         """Initialize object and open IP connection.
         Host IP should be a string in parentheses, like '192.168.1.100'.
         """
-        self.name = deviceName
+        # self.name = deviceName
+        self.cip = IP
+        self.port = port
         self.timeout = timeout
-        self._select_device()
+        # self._select_device()
         self.connect()
         # try:
         #     self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -26,18 +28,18 @@ class scpi (object):
         # except socket.error as e:
         #     print('SCPI >> connect({:s}:{:d}) failed: {:s}'.format(self.cip, self.port, e))
 
-    def _select_device(self):
-        if self.name == 'Rigol_WaveGen':
-            self.cip = '192.168.0.100'
-            self.port = 5555
-        elif self.name == 'RedPitaya':
-            self.cip = '193.206.155.193'
-            self.port = 5000
-        elif self.name == 'Rigol_PowerSupplier':
-            self.cip = '192.168.0.101'
-            self.port = 5555
-        else:
-            raise ValueError("ERROR! No device with this name. Available devices are: 'RedPitaya', 'Rigol_PowerSupplier'  or 'Rigol_WaveGen'")
+    # def _select_device(self):
+    #     if self.name == 'Rigol_WaveGen':
+    #         self.cip = '192.168.0.100'
+    #         self.port = 5555
+    #     elif self.name == 'RedPitaya':
+    #         self.cip = '193.206.155.193'
+    #         self.port = 5000
+    #     elif self.name == 'Rigol_PowerSupplier':
+    #         self.cip = '192.168.0.101'
+    #         self.port = 5555
+    #     else:
+    #         raise ValueError("ERROR! No device with this name. Available devices are: 'RedPitaya', 'Rigol_PowerSupplier'  or 'Rigol_WaveGen'")
 
     def __del__(self):
         if self._socket is not None:
@@ -99,7 +101,7 @@ class scpi (object):
     #     """Send/receive text string."""
     #     self.tx_txt(msg)
     #     return self.rx_txt()
-    
+
     def txrx_txt(self, msg:str, cs:int=4096):
         """Send a reading message and outputs the response and the error message."""
         self._socket.send((msg + self.delimiter).encode('utf-8'))

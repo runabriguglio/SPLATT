@@ -6,14 +6,27 @@ import time
 
 from splattsw.devices.webDAQ import WebDAQ as wbdq
 from splattsw.devices.powersupplier import PowerSupplier
-from splattsw import splatt_analysis as sp
+from splattsw import acceleration_analysis as sp
 
-# Connect to WebDAQ
-webdaq = wbdq()
+import os
+
+os.system(f"ssh labot@193.206.155.220 'python3 /home/labot/git/SPLATT/splattsw/devices/matlabengine_server.py' &")
+
+# import subprocess
+#
+# HOST = 'labot@193.206.155.220'
+# COMMAND = 'python3 /home/labot/git/SPLATT/splattsw/devices/matlabengine_server.py'
+# ssh = subprocess.Popen(["ssh", "%s" % HOST, COMMAND],
+#                            shell=True,
+#                            stdout=subprocess.PIPE,
+#                            stderr=subprocess.PIPE)
 
 # Connect to the engine
 eng = Pyro4.Proxy("PYRO:matlab_engine@193.206.155.220:9090")
 eng.start_engine()
+
+# Connect to WebDAQ
+webdaq = wbdq()
 
 # Connect to power supplier
 ps = PowerSupplier()
