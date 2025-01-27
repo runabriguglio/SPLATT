@@ -14,7 +14,7 @@ class scpi (object):
         self.name = deviceName
         self.timeout = timeout
         self._select_device()
-        self._connect()
+        self.connect()
         # try:
         #     self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -44,7 +44,7 @@ class scpi (object):
             self._socket.close()
         self._socket = None
 
-    def _connect(self):
+    def connect(self):
         """Connect to device IP."""
         try:
             self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
