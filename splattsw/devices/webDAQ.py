@@ -10,7 +10,7 @@ import numpy as np
 from numpy import array
 
 
-from SPLATT.splattsw.devices.utility import *
+from splattsw.devices.utility import *
 #from IPython.core.release import keywords
 
 

@@ -134,7 +134,7 @@ venv.bak/
 dmypy.json
 
 # Image folder
-splattsw/_images/con.png
+.splattsw/_images/con.png
 
 # Pyre type checker
 .pyre/
