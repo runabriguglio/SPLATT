@@ -11,7 +11,7 @@ class WaveGenerator(SCPI):
 
         super().__init__(IP,port,TIMEOUT)
         # self.name = device_name
-        # self.rp_s = scpi.scpi(self.name)
+        # self = scpi.scpi(self.name)
         self.ampTrigger4d = 2
         self.offsetTrigger4d = 2.3
         self.ampTrigger4dPulse = 4.
@@ -67,9 +67,8 @@ class WaveGenerator(SCPI):
 
     def reset(self):
         print("WARNING! Following commmands might be corrupted")
-        rp_s = scpi.scpi(self.name)
-        self.rp_s.rst()
-        self.rp_s.close()
+        self.rst()
+        self.close()
 
     def state_on(self, ch):
         self.wave_on(ch)
@@ -87,6 +86,17 @@ class WaveGenerator(SCPI):
         self.clear_wave(ch)
         self.wave_on(ch)
 
+    def sweep(self, ch, fmin, fmax, amp=1, period=10):
+        self._connect()
+        if fmin<10 or fmax>150:
+            raise ValueError(f"Are you sure you want to go from {fmin} Hz to {fmax} Hz ?!")
+        self.tx_txt(f":SOUR{ch}:FREQ:STAR {fmin}")
+        self.tx_txt(f":SOUR{ch}:FREQ:STOP {fmax}")
+        self.tx_txt(f":SOUR{ch}:VOLT {amp}")
+        self.tx_txt(f":SOUR{ch}:PER {period}")
+        self.tx_txt(":SOUR1:PHAS 0")
+        self.tx_txt(f":SOUR{ch}:SWE:HTIM:STAR 1")
+        self.close()
 
     def pulse_train(self, ch, amp, offs, freq, dc, duration=None):
         self.clear_wave(ch)
@@ -106,7 +116,7 @@ class WaveGenerator(SCPI):
 
 
     def blink(self):
-        self.rp_s._connect()
+        self._connect()
         if (len(sys.argv) > 2):
             led = int(sys.argv[2])
         else:
@@ -115,23 +125,23 @@ class WaveGenerator(SCPI):
         period = 1 # seconds
         for i in range(60):
             time.sleep(period/2.0)
-            self.rp_s.tx_txt('DIG:PIN LED' + str(led) + ',' + str(1))
+            self.tx_txt('DIG:PIN LED' + str(led) + ',' + str(1))
             time.sleep(period/2.0)
-            self.rp_s.tx_txt('DIG:PIN LED' + str(led) + ',' + str(0))
+            self.tx_txt('DIG:PIN LED' + str(led) + ',' + str(0))
 
     def set_wave(self, ch, ampl, offs, freq, wave_form):
-        self.rp_s._connect()
-        self.rp_s.tx_txt('SOUR'+str(ch)+':FUNC ' + str(wave_form).upper())
+        self._connect()
+        self.tx_txt('SOUR'+str(ch)+':FUNC ' + str(wave_form).upper())
         time.sleep(self.delay)
-        self.rp_s.tx_txt('SOUR'+str(ch)+':FREQ:FIX ' + str(freq))
+        self.tx_txt('SOUR'+str(ch)+':FREQ:FIX ' + str(freq))
         time.sleep(self.delay)
-        self.rp_s.tx_txt('SOUR'+str(ch)+':VOLT ' + str(ampl))
+        self.tx_txt('SOUR'+str(ch)+':VOLT ' + str(ampl))
         time.sleep(self.delay)
-        self.rp_s.tx_txt('SOUR'+str(ch)+':VOLT:OFFS ' + str(offs))
+        self.tx_txt('SOUR'+str(ch)+':VOLT:OFFS ' + str(offs))
         time.sleep(self.delay)
         #Enable output
-        self.rp_s.tx_txt('OUTPUT'+str(ch)+':STATE ON')
-        self.rp_s.close()
+        self.tx_txt('OUTPUT'+str(ch)+':STATE ON')
+        self.close()
 
 
     def set_wave1(self, ampl, offs, freq, wave_form):
@@ -141,12 +151,12 @@ class WaveGenerator(SCPI):
         self.set_wave(2, ampl, offs, freq, wave_form)
 
     def clear_wave(self, ch):
-        self.rp_s._connect()
-        self.rp_s.tx_txt('OUTPUT'+str(ch)+':STATE OFF')
-        #self.rp_s.tx_txt('SOUR'+str(ch)+':FREQ:FIX 0')
-        #self.rp_s.tx_txt('SOUR'+str(ch)+':VOLT 0')
-        #self.rp_s.tx_txt('SOUR'+str(ch)+':VOLT:OFFS 0')
-        self.rp_s.close()
+        self._connect()
+        self.tx_txt('OUTPUT'+str(ch)+':STATE OFF')
+        #self.tx_txt('SOUR'+str(ch)+':FREQ:FIX 0')
+        #self.tx_txt('SOUR'+str(ch)+':VOLT 0')
+        #self.tx_txt('SOUR'+str(ch)+':VOLT:OFFS 0')
+        self.close()
 
 
     def clear_wave1(self):
@@ -157,56 +167,56 @@ class WaveGenerator(SCPI):
         self.clear_wave(2)
 
     def wave_on(self, ch):
-        self.rp_s._connect()
-        self.rp_s.tx_txt('OUTPUT'+str(ch)+':STATE ON')
-        self.rp_s.close()
+        self._connect()
+        self.tx_txt('OUTPUT'+str(ch)+':STATE ON')
+        self.close()
 
     def wave_off(self, ch):
-        self.rp_s._connect()
-        self.rp_s.tx_txt('OUTPUT'+str(ch)+':STATE OFF')
-        self.rp_s.close()
+        self._connect()
+        self.tx_txt('OUTPUT'+str(ch)+':STATE OFF')
+        self.close()
 
     def waves_off(self):
-        self.rp_s._connect()
+        self._connect()
         #Enable output
-        self.rp_s.tx_txt('OUTPUT:STATE OFF')
-        self.rp_s.close()
+        self.tx_txt('OUTPUT:STATE OFF')
+        self.close()
 
     def waves_on(self):
-        self.rp_s._connect()
+        self._connect()
         #Enable output
-        self.rp_s.tx_txt('OUTPUT:STATE ON')
-        self.rp_s.close()
+        self.tx_txt('OUTPUT:STATE ON')
+        self.close()
 
     def phase_align(self):
         time.sleep(0.1)
-        self.rp_s._connect()
-        self.rp_s.tx_txt('PHAS:ALIGN')
-        self.rp_s.close()
+        self._connect()
+        self.tx_txt('PHAS:ALIGN')
+        self.close()
         time.sleep(0.1)
 
     def set_phase(self, ch, phase):
         self.phase_align()
-        self.rp_s._connect()
+        self._connect()
         sch = str(ch)
         ss = str(phase)
         scomm = 'SOUR'+sch+':PHAS '+ss
-        self.rp_s.tx_txt(scomm)
-        self.rp_s.close()
+        self.tx_txt(scomm)
+        self.close()
 
     def set_pulse(self, ch, amp, offs, freq, dc):
-        self.rp_s._connect()
+        self._connect()
         sch = str(ch)
         samp = str(amp)
         soffs = str(offs)
         sfreq = str(freq)
         sdc = str(dc)
-        self.rp_s.tx_txt('SOUR'+sch+':FUNC PWM'); time.sleep(self.delay)
-        self.rp_s.tx_txt('SOUR'+ sch +':FREQ:FIX ' + sfreq); time.sleep(self.delay)
-        self.rp_s.tx_txt('SOUR'+sch+':VOLT ' + samp); time.sleep(self.delay)
-        self.rp_s.tx_txt('SOUR'+sch+':VOLT:OFFS ' + soffs); time.sleep(self.delay)
-        self.rp_s.tx_txt('SOUR'+sch+':DCYC ' + sdc); time.sleep(self.delay)
-        self.rp_s.close()
+        self.tx_txt('SOUR'+sch+':FUNC PWM'); time.sleep(self.delay)
+        self.tx_txt('SOUR'+ sch +':FREQ:FIX ' + sfreq); time.sleep(self.delay)
+        self.tx_txt('SOUR'+sch+':VOLT ' + samp); time.sleep(self.delay)
+        self.tx_txt('SOUR'+sch+':VOLT:OFFS ' + soffs); time.sleep(self.delay)
+        self.tx_txt('SOUR'+sch+':DCYC ' + sdc); time.sleep(self.delay)
+        self.close()
 
 
 
