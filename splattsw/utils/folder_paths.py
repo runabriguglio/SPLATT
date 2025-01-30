@@ -18,7 +18,7 @@ except KeyError as exc:
     raise KeyError("Environment variable not found! Define the SPLATTBASEPATH env variable that points to '~/SPLATT/splattsw") from exc
 
 # BASE_DATA_PAT      = os.path.join(BASE_PATH, 'data')
-# WEBDAQ_PATH        = os.path.join(BASE_PATH, 'DMSimulator')
+# WEBDAQ_PATH        = os.path.join(BASE_PATH, '')
 DM_SIMULATOR_PATH    = os.path.join(BASE_PATH, 'DMsimulator')
 SPLATT_SOFTWARE_PATH = os.path.join(BASE_PATH, 'splattsw')
 SPLATT_DEVICES_PATH  = os.path.join(SPLATT_SOFTWARE_PATH, 'devices')

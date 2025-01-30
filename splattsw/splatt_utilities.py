@@ -4,9 +4,22 @@ from astropy.io import fits as pyfits
 import os
 import glob
 
-SPLATT_BUFFER_FOLDER = '/home/labot/Desktop/Data/SPLATT/Buffer'
+def read_fits(file_path:str, file_name:str):
 
-def read_buffer_data(TN = None):
+    which = os.path.join(file_path,file_name)
+    try:
+        hdu = pyfits.open(which)
+        read_data = hdu[0].data
+    except FileNotFoundError():
+        read_data = None
+
+    return read_data
+
+
+def read_buffer_data(TN:str = None):
+
+    SPLATT_BUFFER_FOLDER = '/home/labot/Desktop/Data/SPLATT/Buffer'
+    freq = 1/1818
 
     if TN is not None:
         where = os.path.join(SPLATT_BUFFER_FOLDER,TN)
@@ -14,26 +27,37 @@ def read_buffer_data(TN = None):
         buffer_folder_list = sorted(glob.glob(SPLATT_BUFFER_FOLDER))
         where = buffer_folder_list.split("/")[-1]
 
-    which = os.path.join(where,'Data.fits')
-    hdu = pyfits.open(which)
-    raw_data = hdu[0].data
-    raw_data_size = np.shape(raw_data)
+    dec = read_fits(where,'decimation.fits')
 
-    if len(raw_data_size) == 3:
-        time_vec = raw_data[0][0]
-        pos = raw_data[0][1:]
-        force = raw_data[1][1:]
-        data = np.array([pos,force])
-    else:
-        time_vec = raw_data[0]
-        data = raw_data[1:]
+    dataR1 = read_fits(where,'dataR1.fits')
+    dataR2 = read_fits(where,'dataR2.fits')
+    dataW1 = read_fits(where,'dataW1.fits')
+    dataW2 = read_fits(where,'dataW2.fits')
 
-    return data, time_vec
+    data_len = np.shape(dataR1)[-1]
+    dt = 1/freq*(dec+1)
+    time_vec = np.arange(data_len)*dt
+
+    data = []
+    data_addr = []
+    data.append(dataR1)
+    data_addr.append(chr(read_fits(where,'addrR1.fits')))
+    if dataR2 is not None:
+        data_addr.append(chr(read_fits(where,'addrR2.fits')))
+        data.append(dataR2)
+    if dataW1 is not None:
+        data_addr.append(chr(read_fits(where,'addrW1.fits')))
+        data.append(dataW1)
+    if dataW2 is not None:
+        data_addr.append(chr(read_fits(where,'addrW2.fits')))
+        data.append(dataW2)
+
+    return data, data_addr, time_vec
 
 
 def analyse_buffer_data(TN = None, show = False):
 
-    data, time_vec = read_buffer_data(TN)
+    data, daat_addr, time_vec = read_buffer_data(TN)
 
     data_size = np.shape(data)
     dt = time_vec[1]-time_vec[0]
