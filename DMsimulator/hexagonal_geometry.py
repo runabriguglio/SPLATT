@@ -57,7 +57,7 @@ def semi_structured_point_cloud(points_per_side:int):
     points[0:len(plist),:] = plist
 
     for i in range(5):
-        points[(i+1)*len(plist):(i+2)*len(plist),:] = cw_rotate(points[i*len(plist):(i+1)*len(plist),:],np.array(np.pi/3.))
+        points[(i+1)*len(plist):(i+2)*len(plist),:] = cw_rotate(points[i*len(plist):(i+1)*len(plist),:],np.array([np.pi/3.]))
 
     return points
 
