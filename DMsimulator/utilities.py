@@ -4,9 +4,7 @@ import matplotlib.pyplot as plt
 from segmented_deformable_mirror import SegmentedMirror
 from hexagonal_geometry import HexGeometry
 from matrix_calculator import matmul
-# from matrix_calculator import define_capsens_matrix
 import my_fits_package as myfits
-# import read_and_write_fits as myfits
 
 
 def dm_system_setup(TN:str, n_global_zern:int = 11, n_local_zern:int = 11):
@@ -281,6 +279,8 @@ def update_act_coords_on_ring(dm, n_ring:int, do_save:bool = False):
     
     # Update coordinates accordingly
     dm.update_act_coords(hex_ids, new_coords, do_save)
+
+
     
     
 # def capsens_measure(dm, segment_id):
