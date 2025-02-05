@@ -23,7 +23,7 @@ from scipy.spatial import Delaunay
 import matrix_calculator as matcalc
 
 coords = dm.segment[0].act_coords
-pps = 100
+pps = 40
 act_radius = dm.geom.hex_side_len
 
 points = matcalc._define_mesh(coords, pps, act_radius)
@@ -35,12 +35,14 @@ points = np.vstack((X_coords, Y_coords, Z_coords))
 points = np.transpose(points, (1,0))
 tria = Delaunay(points)
 
-import meshio
+import meshio as mymesh
 
-cells = [("triangle", tria.simplices)]
+cells = [("triangle", tria.simplices[:,1:])]
 
-mesh = meshio.Mesh(points,cells)
-mesh.write("foo.vtk", file_format="vtk")
+# mesh = meshio.Mesh(points, cells)
+# mesh.write("../mesh.vtk", file_format="vtk")
+
+mymesh.write_points_cells("../test_mesh.stl",tria.points, cells, file_format="stl")
 
 
 # Update coordinates
