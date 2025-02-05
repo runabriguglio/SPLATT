@@ -185,27 +185,28 @@ def compute_zernike_matrix(mask, n_modes):
     return mat   
     
 
-def _define_mesh(act_coords, points_per_side, normalized_act_radius):
+def _define_mesh(act_coords, points_per_side, normalized_act_radius:float = 0):
     """ Defines the local mesh point coordinates
     on the segment starting from a semi-structured
     point cloud and adding the act locations to it"""
     
-    point_cloud = semi_structured_point_cloud(points_per_side)
+    mesh_points = semi_structured_point_cloud(points_per_side)
     
-    # Add points on the actuator locations
-    n_acts = len(act_coords)
-    flat_act_coords = np.tile(act_coords,5).flatten()
-    up_down_left_right = np.array([[0,0],[0,1],[0,-1],[-1,0],
-                                   [1,0]]).flatten()
-    UDLR = np.tile(up_down_left_right,n_acts)
-    act_points = flat_act_coords + UDLR*normalized_act_radius
-    act_points = np.reshape(act_points,[n_acts*5,2])
+    if normalized_act_radius > 0:
+        # Add points on the actuator locations
+        n_acts = len(act_coords)
+        flat_act_coords = np.tile(act_coords,5).flatten()
+        up_down_left_right = np.array([[0,0],[0,1],[0,-1],[-1,0],
+                                    [1,0]]).flatten()
+        UDLR = np.tile(up_down_left_right,n_acts)
+        act_points = flat_act_coords + UDLR*normalized_act_radius
+        act_points = np.reshape(act_points,[n_acts*5,2])
+    else:
+        act_points = act_coords
+        
+    mesh_points = np.concatenate((mesh_points, act_points))
     
-    mesh_points = np.concatenate((point_cloud, act_points))
-    
-    local_mesh_coords = mesh_points
-    
-    return local_mesh_coords
+    return mesh_points
 
 
 def _compute_iff_data(mesh):
