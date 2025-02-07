@@ -66,9 +66,9 @@ class moxa_ai():
             print('ERROR! No device with this name')
             raise
 
+
     def getIP(self):
         return self.ip
-
 
 
     def read(self):
@@ -80,6 +80,7 @@ class moxa_ai():
             vecout.append(json_blob['io'][self.valueId][i][self.valuestring])
         vecout = np.array(vecout)
         return vecout
+
 
     def get_data(self, api_address_extension = "/api/slot/0/io/do"):
         try:

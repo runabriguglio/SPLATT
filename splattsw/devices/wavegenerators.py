@@ -3,7 +3,7 @@
 
 import sys
 import time
-from splattsw.devices.devices_scpi import SCPI
+from devices.devices_scpi import SCPI
 
 class WaveGenerator(SCPI):
 
@@ -65,10 +65,11 @@ class WaveGenerator(SCPI):
             'SQUARE'
         )
 
-    def reset(self):
-        print("WARNING! Following commmands might be corrupted")
-        self.rst()
-        self.close()
+    # def reset(self):
+    #     self.connect()
+    #     print("WARNING! Following commmands might be corrupted")
+    #     self.rst()
+    #     self.close()
 
     def state_on(self, ch):
         self.wave_on(ch)
@@ -87,15 +88,15 @@ class WaveGenerator(SCPI):
         self.wave_on(ch)
 
     def sweep(self, ch, fmin, fmax, amp=1, period=10):
-        self._connect()
+        self.connect()
         if fmin<10 or fmax>150:
             raise ValueError(f"Are you sure you want to go from {fmin} Hz to {fmax} Hz ?!")
         self.tx_txt(f":SOUR{ch}:FREQ:STAR {fmin}")
         self.tx_txt(f":SOUR{ch}:FREQ:STOP {fmax}")
-        self.tx_txt(f":SOUR{ch}:VOLT {amp}")
-        self.tx_txt(f":SOUR{ch}:PER {period}")
-        self.tx_txt(":SOUR1:PHAS 0")
-        self.tx_txt(f":SOUR{ch}:SWE:HTIM:STAR 1")
+        self.tx_txt(f":SOUR{ch}:SWE:TIME {period}")
+        self.tx_txt(f":SOUR{ch}:VOLT {amp}") # Set amplitude
+        self.tx_txt(":SOUR1:PHAS 0") # Set phase
+        self.tx_txt(f":SOUR{ch}:SWE:TRIG") # Triggers the sweep imediately, test
         self.close()
 
     def pulse_train(self, ch, amp, offs, freq, dc, duration=None):
@@ -116,7 +117,7 @@ class WaveGenerator(SCPI):
 
 
     def blink(self):
-        self._connect()
+        self.connect()
         if (len(sys.argv) > 2):
             led = int(sys.argv[2])
         else:
@@ -130,7 +131,7 @@ class WaveGenerator(SCPI):
             self.tx_txt('DIG:PIN LED' + str(led) + ',' + str(0))
 
     def set_wave(self, ch, ampl, offs, freq, wave_form):
-        self._connect()
+        self.connect()
         self.tx_txt('SOUR'+str(ch)+':FUNC ' + str(wave_form).upper())
         time.sleep(self.delay)
         self.tx_txt('SOUR'+str(ch)+':FREQ:FIX ' + str(freq))
@@ -151,7 +152,7 @@ class WaveGenerator(SCPI):
         self.set_wave(2, ampl, offs, freq, wave_form)
 
     def clear_wave(self, ch):
-        self._connect()
+        self.connect()
         self.tx_txt('OUTPUT'+str(ch)+':STATE OFF')
         #self.tx_txt('SOUR'+str(ch)+':FREQ:FIX 0')
         #self.tx_txt('SOUR'+str(ch)+':VOLT 0')
@@ -167,37 +168,37 @@ class WaveGenerator(SCPI):
         self.clear_wave(2)
 
     def wave_on(self, ch):
-        self._connect()
+        self.connect()
         self.tx_txt('OUTPUT'+str(ch)+':STATE ON')
         self.close()
 
     def wave_off(self, ch):
-        self._connect()
+        self.connect()
         self.tx_txt('OUTPUT'+str(ch)+':STATE OFF')
         self.close()
 
     def waves_off(self):
-        self._connect()
+        self.connect()
         #Enable output
         self.tx_txt('OUTPUT:STATE OFF')
         self.close()
 
     def waves_on(self):
-        self._connect()
+        self.connect()
         #Enable output
         self.tx_txt('OUTPUT:STATE ON')
         self.close()
 
     def phase_align(self):
         time.sleep(0.1)
-        self._connect()
+        self.connect()
         self.tx_txt('PHAS:ALIGN')
         self.close()
         time.sleep(0.1)
 
     def set_phase(self, ch, phase):
         self.phase_align()
-        self._connect()
+        self.connect()
         sch = str(ch)
         ss = str(phase)
         scomm = 'SOUR'+sch+':PHAS '+ss
@@ -205,7 +206,7 @@ class WaveGenerator(SCPI):
         self.close()
 
     def set_pulse(self, ch, amp, offs, freq, dc):
-        self._connect()
+        self.connect()
         sch = str(ch)
         samp = str(amp)
         soffs = str(offs)

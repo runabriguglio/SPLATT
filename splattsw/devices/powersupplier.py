@@ -42,10 +42,13 @@ class PowerSupplier(SCPI):
         self.close()
         return float(current)
 
+    def load_default_state(self):
+        self.connect()
+        self.tx_txt(':MEM:LOAD '+ self.default_state)
+        self.close()
+
     def load_saved_state(self, state_name):
         self.connect()
-        if state_name is None:
-            state_name = self.default_state
         self.tx_txt(':MEM:LOAD '+ state_name)
         self.close()
 
