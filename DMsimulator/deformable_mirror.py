@@ -56,7 +56,7 @@ class DeformableMirror():
         plt.colorbar()
         
         if plt_title is None:
-            plt_title = 'RMS: ' + str(np.std(self.shape))
+            plt_title = f"RMS: {np.std(self.shape):.2e}"
             
         # plt.axis([150,200,150,250]) # debug
         plt.axis('off')
