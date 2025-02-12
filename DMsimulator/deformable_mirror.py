@@ -61,6 +61,7 @@ class DeformableMirror():
         # plt.axis([150,200,150,250]) # debug
         plt.axis('off')
         plt.title(plt_title)
+        
 
     def get_position(self, act_pix_size:float = 10):
         """
@@ -87,6 +88,7 @@ class DeformableMirror():
         plt.colorbar()
         
         return pos
+    
     
     def apply_flat(self, offset = None):
         """
@@ -123,6 +125,7 @@ class DeformableMirror():
         
         return act_cmd, flat_rms
     
+    
     def mirror_command(self, cmd_amps, absolute_delta_pos:bool = False, modal:bool = False):
         """
         Computes and applies a zonal/modal amplitude
@@ -149,22 +152,21 @@ class DeformableMirror():
         
         if modal: # convert modal to zonal
             
-            mode_amps = cmd_amps.copy() # rename
-            
             # length check
+            mode_amps = cmd_amps.copy()
             n_modes = np.shape(self.ZM)[1]
             if len(mode_amps) < n_modes:
-                amps = np.zeros(n_modes)
-                amps[:len(mode_amps)] = mode_amps
-                mode_amps = amps
+                mode_amps = np.zeros(n_modes)
+                mode_amps[:len(cmd_amps)] = cmd_amps
         
             shape = matmul(self.ZM, mode_amps)
             cmd_amps = matmul(self.R, shape)
         
         # Position (zonal) command
-        delta_pos = cmd_amps - absolute_delta_pos * self.act_pos
+        if absolute_delta_pos:
+            cmd_amps -= self.act_pos
 
         # Update positions and shape
-        self.act_pos += delta_pos
-        self.shape += matmul(self.IFF, delta_pos)
+        self.act_pos += cmd_amps
+        self.shape += matmul(self.IFF, cmd_amps)
 

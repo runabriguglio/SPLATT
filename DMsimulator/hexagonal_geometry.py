@@ -43,7 +43,7 @@ def semi_structured_point_cloud(points_per_side:int):
     # Structured mesh + noise
     plist[0:3,:] = ul_triangle
     dx = 1./points_per_side 
-    sig = dx/7.5
+    sig = 0#dx/7.5
     for k in np.arange(1,points_per_side+1):
         y = np.linspace(0.,SIN60*k*dx,k+1)
         x = k*dx - COS60/SIN60 * y
