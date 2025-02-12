@@ -1,9 +1,8 @@
 import numpy as np
 from tps import ThinPlateSpline # for the simulated IFF
-from scipy.interpolate import griddata
+# from scipy.interpolate import griddata
 
 from zernike_polynomials import generate_zernike_matrix as assemble_zern_mat
-from hexagonal_geometry import semi_structured_point_cloud
 
 
 def matmul(mat, vec):
@@ -136,26 +135,7 @@ def calculate_influence_functions(act_coords, local_mask, normalized_act_radius)
     """ Project the actuator influence functions 
     on the mask via grid interpolation """
     
-    pps = 9
-    mesh = _define_mesh(act_coords, pps, normalized_act_radius)
-    iff_data = _compute_iff_data(mesh)
-    
-    n_acts = len(act_coords)
-    
-    # Grid interpolation
-    x, y = act_coords[:, 0], act_coords[:, 1]
-    npix_x, npix_y = np.shape(local_mask)  
-    new_x = np.linspace(min(x), max(x), npix_y) # x coordinate is the img column!
-    new_y = np.linspace(min(y), max(y), npix_x) # y coordinate is the img row!
-    gx, gy = np.meshgrid(new_x, new_y)
-    img_cube = griddata((x, y), iff_data, (gx, gy), fill_value = 0., method = 'linear')
-    
-    # Masked array
-    cube_mask = np.tile(local_mask,n_acts)
-    cube_mask = np.reshape(cube_mask, np.shape(img_cube), order = 'F')
-    cube = np.ma.masked_array(img_cube,cube_mask)
-    
-    return cube
+    raise NotImplementedError()
 
 
 def cube2mat(cube):
@@ -185,34 +165,7 @@ def compute_zernike_matrix(mask, n_modes):
     return mat   
     
 
-def _define_mesh(act_coords, points_per_side, normalized_act_radius:float = 0):
-    """ Defines the local mesh point coordinates
-    on the segment starting from a semi-structured
-    point cloud and adding the act locations to it"""
-    
-    mesh_points = semi_structured_point_cloud(points_per_side)
-    
-    if normalized_act_radius > 0:
-        # Add points on the actuator locations
-        n_acts = len(act_coords)
-        flat_act_coords = np.tile(act_coords,5).flatten()
-        up_down_left_right = np.array([[0,0],[0,1],[0,-1],[-1,0],
-                                    [1,0]]).flatten()
-        UDLR = np.tile(up_down_left_right,n_acts)
-        act_points = flat_act_coords + UDLR*normalized_act_radius
-        act_points = np.reshape(act_points,[n_acts*5,2])
-    else:
-        act_points = act_coords
-        
-    mesh_points = np.concatenate((mesh_points, act_points))
-    
-    return mesh_points
 
 
-def _compute_iff_data(mesh):
-    raise NotImplementedError("Function not yet implemented! Use the spline interpolation for IFF")
-
-
-    
 
     
