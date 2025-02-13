@@ -13,7 +13,7 @@ def read_fits(file_path:str, file_name:str):
     try:
         hdu = pyfits.open(which)
         read_data = hdu[0].data
-    except FileNotFoundError():
+    except FileNotFoundError:
         read_data = None
 
     return read_data
