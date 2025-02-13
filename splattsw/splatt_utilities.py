@@ -4,6 +4,9 @@ from astropy.io import fits as pyfits
 import os
 import glob
 
+plt.rcParams['mathext.fontset'] = 'stix'
+plt.rcParams['font.family'] = 'STIXGeneral'
+
 def read_fits(file_path:str, file_name:str):
 
     which = os.path.join(file_path,file_name)
@@ -225,11 +228,11 @@ def find_peak_freq(spe, freq_vec, bound = None):
     return peak_val, peak_freq
 
 
-def plot_splatt_data(values,min_val=None, max_val=None):
+def splatt_plot(values,min_val=None, max_val=None):
     coordAct = np.loadtxt('SPLATT_Data/act_coords.txt')
     nActs = len(coordAct)
 
-    # Perform matrix rotation to align with 'gravity'
+    # Perform matrix rotation to align with reference
     phi = 60./180*np.pi
     c=np.cos(phi)
     s=np.sin(phi)
@@ -251,7 +254,7 @@ def plot_splatt_data(values,min_val=None, max_val=None):
     ax.set_ylim(min(y)-Margin,max(y)+Margin)
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
-    plt.scatter(x, y, c=values, vmin = min_val, vmax = max_val, s=markerSize, edgecolor='k', cmap='hot')
+    plt.scatter(x, y, c=values, vmin = min_val, vmax = max_val, s=markerSize, edgecolor='k')
     plt.colorbar()
 
     # Write 'G' reference and actuator indices
@@ -259,3 +262,10 @@ def plot_splatt_data(values,min_val=None, max_val=None):
         plt.text(x[i]*2/3, y[i]+Margin*2/3, str(indices[i]))
     plt.text(x[15],y[15]*1.3,'G')
     plt.show()
+
+
+# def mirror_mesh(values):
+#
+#
+
+

@@ -3,7 +3,7 @@ import Pyro4
 import numpy as np
 
 @Pyro4.expose
-class RemoteMatlab(object):
+class MatlabEngine(object):
     def start_engine(self):
         self.eng = matlab.engine.start_matlab()
         self.eng.desktop(nargout=0)
@@ -25,7 +25,7 @@ class RemoteMatlab(object):
 
 def main():
 
-    matlab_eng = RemoteMatlab()
+    matlab_eng = MatlabEngine()
 
     Pyro4.Daemon.serveSimple( {matlab_eng: "matlab_engine"},
              host="193.206.155.220", port=9090, ns=False, verbose=True)
