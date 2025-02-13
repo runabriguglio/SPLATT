@@ -76,7 +76,7 @@ def analyse_buffer_data(TN = None, show = False):
                 plot_data(time_vec,data[k])
 
             max_osc[k], peak_freq[k] = find_peak_freq(spe,f,bound=[1.,f[-1]])
-            plot_splatt_data(max_osc[k])
+            splatt_plot(max_osc[k])
     else:
 
         spe, f = spectral_analysis(data,dt)
@@ -89,7 +89,7 @@ def analyse_buffer_data(TN = None, show = False):
             plot_data(time_vec,data)
 
         max_osc, peak_freq = find_peak_freq(spe,f,bound=[1.,f[-1]])
-        plot_splatt_data(max_osc)
+        splatt_plot(max_osc)
 
     return max_osc, peak_freq
 
@@ -111,7 +111,7 @@ def analyse_oscillation(TN_list, freq_list):
             freq_bound = [1., f_vec[-1]]
 
         peak_v, peak_f = find_peak_freq(spe, f_vec, freq_bound)
-        plot_splatt_data(peak_v)
+        splatt_plot(peak_v)
 
         # Store data in output variables
         peak_val[:,k] = peak_v
@@ -123,7 +123,7 @@ def analyse_oscillation(TN_list, freq_list):
         data_mean = data_m.reshape(np.shape(data))
         data_osc = data - data_mean
         data_osc = data_osc/(2.**26)
-        act_coords = np.loadtxt('SPLATT_Data/act_coords.txt')
+        act_coords = np.loadtxt('../SPLATT_Data/act_coords.txt')
         x = act_coords[:,0]
         y = act_coords[:,1]
         x_rep = np.ones([19,1])*x
@@ -229,7 +229,7 @@ def find_peak_freq(spe, freq_vec, bound = None):
 
 
 def splatt_plot(values,min_val=None, max_val=None):
-    coordAct = np.loadtxt('SPLATT_Data/act_coords.txt')
+    coordAct = np.loadtxt('../SPLATT_Data/act_coords.txt')
     nActs = len(coordAct)
 
     # Perform matrix rotation to align with reference
