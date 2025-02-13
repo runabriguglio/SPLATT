@@ -15,56 +15,63 @@ from requests import get
 from json import loads
 from time import sleep, time
 import numpy as np
-ip_moxaAI1240 = '193.206.155.47'
-ip_moxaPT1260 = '193.206.155.40'
-api_address_extension_ai="/api/slot/0/io/ai"
-api_address_extension_pt="/api/slot/0/io/rtd"
-valuestring_ai = 'aiValueScaled'
-valuestring_pt = 'rtdValueScaled'
 
 
-'''
-funzione di prova
-passargli il nome proprio, lui distingue IP e tipo
-'''
-class moxa_ai():
-    def __init__(self, nomeProprio):
-        self.name = nomeProprio
-        self.select_device()
+# Inherited classes: add your own moxa!
+class moxa_pt0(moxa):
 
-        #self.ip = ip
-        #self.api_address_extension = '/api/slot/0/io/rtd'
-        #self.valuestring_pt = 'rtdValueScaled'
+    def __init__(self):
+        ip = '193.206.155.40'
+        nchannels = 6
+        api_addr_ext = '/api/slot/0/io/rtd'
+        valuestr = 'rtdValueScaled'
+        valueid     = 'rtd'
+        super.__init__(ip, nchannels, api_addr_ext, valuestr, valueid)
 
-    def select_device(self):
-        if self.name == 'PT0':
-            self.ip = '193.206.155.40'
-            self.nchannels = 6
-            self.api_address_extension = '/api/slot/0/io/rtd'
-            self.valuestring = 'rtdValueScaled'
-            self.valueId     = 'rtd'
-        elif self.name == 'PT1':
-            self.ip = '193.206.155.41'
-            self.nchannels = 6
-            self.api_address_extension = '/api/slot/0/io/rtd'
-            self.valuestring = 'rtdValueScaled'
-            self.valueId     = 'rtd'
-        elif self.name == 'AI0':
-            self.ip = '193.206.155.47'
-            self.nchannels = 8
-            self.api_address_extension = '/api/slot/0/io/ai'
-            self.valuestring = 'aiValueScaled'
-            self.valueId     = 'ai'
-        elif self.name == 'DI0':
-            self.ip = '193.206.155.141'
-            self.nchannels = 16 #8 input, 8 output
 
-            self.api_address_extension = '/api/slot/0/io/di'
-            self.valuestring = 'diValueScaled'
-            self.valueId     = 'di'
-        else:
-            print('ERROR! No device with this name')
-            raise
+class moxa_pt1(moxa):
+
+    def __init__(self):
+        ip = '193.206.155.41'
+        nchannels = 6
+        api_addr_ext = '/api/slot/0/io/rtd'
+        valuestr = 'rtdValueScaled'
+        valueid     = 'rtd'
+        super.__init__(ip, nchannels, api_addr_ext, valuestr, valueid)
+
+
+class moxa_ai0(moxa):
+
+    def __init__(self):
+        ip = '193.206.155.47'
+        nchannels = 8
+        api_addr_ext = '/api/slot/0/io/ai'
+        valuestr = 'aiValueScaled'
+        valueid     = 'ai'
+        super.__init__(ip, nchannels, api_addr_ext, valuestr, valueid)
+
+
+# Main parent class
+class moxa_di0(moxa):
+
+    def __init__(self):
+        ip = '193.206.155.141'
+        nchannels = 16 # 8 input + 8 output
+        api_addr_ext = '/api/slot/0/io/di'
+        valuestr = 'diValueScaled'
+        valueid     = 'di'
+        super.__init__(ip, nchannels, api_addr_ext, valuestr, valueid)
+
+
+
+class moxa():
+    def __init__(self, ip: string, n_channels: int, api_addr_ext: string, value_str: string, value_id: string):
+
+        self.ip = ip
+        self.nchannels = n_channels
+        self.api_address_extension = api_addr_ext
+        self.valuestring = value_str
+        self.valueId = value_id
 
 
     def getIP(self):
