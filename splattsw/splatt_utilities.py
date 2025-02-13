@@ -271,7 +271,7 @@ def mirror_mesh(values):
     Y = int(2*npix)
     circ_mask = np.fromfunction(lambda i,j: np.sqrt((i-npix)**2+(j-npix)**2) > npix, [X,Y])
 
-    IFF = np.loadtxt('SPLATT_Data/iffs.txt')
+    IFF = np.loadtxt('../SPLATT_Data/iffs.txt')
 
     flat_img = np.zeros(np.size(circ_mask))
     flat_img[~circ_mask.flatten()] = IFF @ values
