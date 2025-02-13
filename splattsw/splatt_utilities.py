@@ -275,7 +275,7 @@ def mirror_mesh(values):
 
     flat_img = np.zeros(np.size(circ_mask))
     flat_img[~circ_mask.flatten()] = IFF @ values
-    img = np.reshape(img, np.shape(circ_mask))
+    img = np.reshape(flat_img, np.shape(circ_mask))
     masked_img = np.ma.masked_array(img, circ_mask)
 
     plt.figure()
