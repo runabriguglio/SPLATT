@@ -4,8 +4,8 @@ from astropy.io import fits as pyfits
 import os
 import glob
 
-plt.rcParams['mathext.fontset'] = 'stix'
-plt.rcParams['font.family'] = 'STIXGeneral'
+#plt.rcParams['mathext.fontset'] = 'stix'
+#plt.rcParams['font.family'] = 'STIXGeneral'
 
 def read_fits(file_path:str, file_name:str):
 
@@ -264,8 +264,23 @@ def splatt_plot(values,min_val=None, max_val=None):
     plt.show()
 
 
-# def mirror_mesh(values):
-#
-#
+def mirror_mesh(values):
+    npix = 128
+
+    X = int(2*npix)
+    Y = int(2*npix)
+    circ_mask = np.fromfunction(lambda i,j: np.sqrt((i-npix)**2+(j-npix)**2) > npix, [X,Y])
+
+    IFF = np.loadtxt('SPLATT_Data/iffs.txt')
+
+    flat_img = np.zeros(np.size(circ_mask))
+    flat_img[~circ_mask.flatten()] = IFF @ values
+    img = np.reshape(img, np.shape(circ_mask))
+    masked_img = np.ma.masked_array(img, circ_mask)
+
+    plt.figure()
+    plt.imshow(masked_img, origin='lower')
+
+
 
 
