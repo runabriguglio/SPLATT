@@ -16,50 +16,50 @@ def sum_n(n):
 def n_hexagons(n_rings):
     return int(1 + (6 + n_rings*6)*n_rings/2)
 
-def semi_structured_point_cloud(points_per_side:int):
-    """
-    Defines a structured point cloud adding (small) random 
-    displacements to act as a point mesh for the hexagon.
-    A triangulation can be created using: tria = Dealaunay(points)
+# def semi_structured_point_cloud(points_per_side:int):
+#     """
+#     Defines a structured point cloud adding (small) random 
+#     displacements to act as a point mesh for the hexagon.
+#     A triangulation can be created using: tria = Dealaunay(points)
 
-    Parameters
-    ----------
-    points_per_side : int
-        The desired number of mesh points on the side of the hexagon.
+#     Parameters
+#     ----------
+#     points_per_side : int
+#         The desired number of mesh points on the side of the hexagon.
 
-    Returns
-    -------
-    points : ndarray [Npoints,2]
-        The array containing the x,y coordinates of the computed mesh points.
+#     Returns
+#     -------
+#     points : ndarray [Npoints,2]
+#         The array containing the x,y coordinates of the computed mesh points.
 
-    """
-    # Upper left triangle of the hexagon
-    ul_triangle = np.zeros([3,2])
-    ul_triangle[1,:] = np.array([2*COS60, 0.])
-    ul_triangle[2,:] = np.array([0.5, SIN60])
+#     """
+#     # Upper left triangle of the hexagon
+#     ul_triangle = np.zeros([3,2])
+#     ul_triangle[1,:] = np.array([2*COS60, 0.])
+#     ul_triangle[2,:] = np.array([0.5, SIN60])
     
-    plist = np.zeros([sum_n(points_per_side+1)+3,2])
+#     plist = np.zeros([sum_n(points_per_side+1)+3,2])
 
-    # Structured mesh + noise
-    plist[0:3,:] = ul_triangle
-    dx = 1./points_per_side 
-    sig = 0#dx/7.5
-    for k in np.arange(1,points_per_side+1):
-        y = np.linspace(0.,SIN60*k*dx,k+1)
-        x = k*dx - COS60/SIN60 * y
-        if k < points_per_side:
-            y[1:-1] = y[1:-1] + np.random.randn(k-1)*sig
-            x[1:-1] = x[1:-1] + np.random.randn(k-1)*sig
-        plist[3+sum_n(k):3+sum_n(k+1),0] = x
-        plist[3+sum_n(k):3+sum_n(k+1),1] = y
+#     # Structured mesh + noise
+#     plist[0:3,:] = ul_triangle
+#     dx = 1./points_per_side 
+#     sig = 0#dx/7.5
+#     for k in np.arange(1,points_per_side+1):
+#         y = np.linspace(0.,SIN60*k*dx,k+1)
+#         x = k*dx - COS60/SIN60 * y
+#         if k < points_per_side:
+#             y[1:-1] = y[1:-1] + np.random.randn(k-1)*sig
+#             x[1:-1] = x[1:-1] + np.random.randn(k-1)*sig
+#         plist[3+sum_n(k):3+sum_n(k+1),0] = x
+#         plist[3+sum_n(k):3+sum_n(k+1),1] = y
 
-    points = np.zeros([len(plist)*6,2])
-    points[0:len(plist),:] = plist
+#     points = np.zeros([len(plist)*6,2])
+#     points[0:len(plist),:] = plist
 
-    for i in range(5):
-        points[(i+1)*len(plist):(i+2)*len(plist),:] = cw_rotate(points[i*len(plist):(i+1)*len(plist),:],np.array([np.pi/3.]))
+#     for i in range(5):
+#         points[(i+1)*len(plist):(i+2)*len(plist),:] = cw_rotate(points[i*len(plist):(i+1)*len(plist),:],np.array([np.pi/3.]))
 
-    return points
+#     return points
 
 
 
