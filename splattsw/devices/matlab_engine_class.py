@@ -7,7 +7,7 @@ class MatlabEngine(object):
     def start_engine(self):
         self.eng = matlab.engine.start_matlab()
         self.eng.desktop(nargout=0)
-        self.eng.cd(r'../../SPLATT_SW/Matlab_2024/Matlab/Scripts')
+        self.eng.cd(r'SPLATT_SW/Matlab_2024/Matlab/Scripts')
 
     def send_command(self,command):
         self.eng.eval(str(command)+';', nargout=0)
