@@ -32,12 +32,13 @@ eng.send_command('splattInit')
 eng.send_command('splattStartup')
 
 # Set the shell
-eng.send_command('splattFastSet(100e-6)')
+eng.send_command('splattFastSet()')
 
 eng.send_command('modalBase = sys_data.ff_v;')
 eng.send_command('force_amp = max(2e+3,sys_data.ff_w/10);')
 
 Nmodes = 3
+Nit = 6
 
 # Connect to WebDAQ
 webdaq.connect()
@@ -45,20 +46,26 @@ webdaq.connect()
 wdf_list = []
 tn_list = []
 
-for k in range(Nmodes):
-    webdaq.start_schedule()
+for j in range(Nit):
 
-    tn = eng.get_data('splattForceStepResponse(modalBase(:,'+str(k+1)+'),force_amp('+str(k+1)+'))',n_args_out=1,is_numeric=False)
-    tn_list.append(tn)
+    if np.max((0,j-1)%2):
+        eng.send_command('splattMoveBy(100e-6)')
 
-    sp.wdsync() # does os.system('rsync -av '+ftpwebdacq+' '+basepathwebdaq)
-    wdfile = sp.last_wdfile()
-    data = sp.openfile(wdfile)
-    sp.plot_data(data,N_ch=2)
+    for k in range(Nmodes):
+        webdaq.start_schedule()
 
-    wdf_list.append(wdfile)
+        tn = eng.get_data('splattForceStepResponse(modalBase(:,'+str(k+1)+'),force_amp('+str(k+1)+'))',n_args_out=1,is_numeric=False)
+        tn_list.append(tn)
 
-print(wdf_list)
+        sp.wdsync() # does os.system('rsync -av '+ftpwebdacq+' '+basepathwebdaq)
+        wdfile = sp.last_wdfile()
+        data = sp.openfile(wdfile)
+        sp.plot_data(data,ch_ids = np.array([1],dtype=int))
+
+        wdf_list.append(wdfile)
+
+    print(wdf_list)
+    print(tn_list)
 
 # Dock the shell
 eng.send_command("splattRIP")
