@@ -140,10 +140,10 @@ class WebDAQ(object):
         stop_schedule_response = self._s.post(self._base_url + '/schedule/status/', json={"run": False})
         stop_schedule_response.raise_for_status()
 
-    # def start_job(self,jobname):
-    #     start_job_response = self._s.post(self._base_url + '/schedule/jobs/'+jobname+'/status/', json={"run": True})
-    #     start_job_response.raise_for_status()
-    #     job_status_json = get_job_status_json(self._s, self._base_url, jobname)
+    def start_job(self,jobname):
+        start_job_response = self._s.post(self._base_url + '/schedule/jobs/'+jobname+'/status/', json={"run": True})
+        start_job_response.raise_for_status()
+        job_status_json = get_job_status_json(self._s, self._base_url, jobname)
         
     def stop_job(self):
         schedule_status_json = get_schedule_status_json(wd._s, wd._base_url)
