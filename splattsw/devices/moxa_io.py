@@ -1,186 +1,45 @@
-# author: a5892731
-# date: 01.06.2022
-# last update: 14.06.2022
-# version: 1.0
-
-# description: This is REST API GET function for MOXA ioLogik E1212 device
-
-'''
-source:
-https://github.com/zentec/moxa-iologic-1200-monitor/blob/master/monitor.py
-
-'''
-
-from requests import get
-from json import loads
-from time import sleep, time
-import numpy as np
-
+from devices.moxa_class import Moxa
 
 # Inherited classes: add your own moxa!
-class moxa_pt0(moxa):
+class Moxa_pt0(Moxa):
 
-    def __init__(self):
-        ip = '193.206.155.40'
-        nchannels = 6
-        api_addr_ext = '/api/slot/0/io/rtd'
-        valuestr = 'rtdValueScaled'
-        valueid     = 'rtd'
-        super.__init__(ip, nchannels, api_addr_ext, valuestr, valueid)
+    def __init__(self, ip = '193.206.155.40', nchannels:int = 6,
+                api_addr_ext = '/api/slot/0/io/rtd',
+                valuestr = 'rtdValueScaled', valueid = 'rtd'):
 
-
-class moxa_pt1(moxa):
-
-    def __init__(self):
-        ip = '193.206.155.41'
-        nchannels = 6
-        api_addr_ext = '/api/slot/0/io/rtd'
-        valuestr = 'rtdValueScaled'
-        valueid     = 'rtd'
-        super.__init__(ip, nchannels, api_addr_ext, valuestr, valueid)
-
-
-class moxa_ai0(moxa):
-
-    def __init__(self):
-        ip = '193.206.155.47'
-        nchannels = 8
-        api_addr_ext = '/api/slot/0/io/ai'
-        valuestr = 'aiValueScaled'
-        valueid     = 'ai'
-        super.__init__(ip, nchannels, api_addr_ext, valuestr, valueid)
-
-
-# Main parent class
-class moxa_di0(moxa):
-
-    def __init__(self):
-        ip = '193.206.155.141'
-        nchannels = 16 # 8 input + 8 output
-        api_addr_ext = '/api/slot/0/io/di'
-        valuestr = 'diValueScaled'
-        valueid     = 'di'
-        super.__init__(ip, nchannels, api_addr_ext, valuestr, valueid)
+        super().__init__(ip, nchannels, api_addr_ext, valuestr, valueid)
 
 
 
-class moxa():
-    def __init__(self, ip: string, n_channels: int, api_addr_ext: string, value_str: string, value_id: string):
+class Moxa_pt1(Moxa):
 
-        self.ip = ip
-        self.nchannels = n_channels
-        self.api_address_extension = api_addr_ext
-        self.valuestring = value_str
-        self.valueId = value_id
+    def __init__(self, ip = '193.206.155.41', nchannels:int = 6,
+                api_addr_ext = '/api/slot/0/io/rtd',
+                valuestr = 'rtdValueScaled', valueid = 'rtd'):
 
-
-    def getIP(self):
-        return self.ip
-
-
-    def read(self):
-        address2use = 'http://'+self.ip
-        out =get(address2use+self.api_address_extension,{"rel_rhy": "network"},headers={"Content-Type": "application/json", "Accept": "vdn.dac.v1"},timeout=3,)
-        json_blob = loads(out.content.decode('utf-8'))
-        vecout = []
-        for i in range(0,self.nchannels):
-            vecout.append(json_blob['io'][self.valueId][i][self.valuestring])
-        vecout = np.array(vecout)
-        return vecout
-
-
-    def get_data(self, api_address_extension = "/api/slot/0/io/do"):
-        try:
-            self.reply = get(self.address + api_address_extension,
-                             {"rel_rhy": "network"},
-                             headers={"Content-Type": "application/json", "Accept": "vdn.dac.v1"},
-                             timeout=0.1,
-                            )
-
-            self.replay_status_code = self.reply.status_code
-            self.connection_error = False
-            self.last_get_time = time()
-
-        except:
-            self.connection_error = True
+        super().__init__(ip, nchannels, api_addr_ext, valuestr, valueid)
 
 
 
+class Moxa_ai0(Moxa):
 
-'''
-def read_ai():
-    address2use = 'http://'+ip_moxaAI1240
-    out =get(address2use+api_address_extension_ai,{"rel_rhy": "network"},headers={"Content-Type": "application/json", "Accept": "vdn.dac.v1"},timeout=0.1,)
-    (json_blob['io']['ai'])[0]['aiBurnoutValue']
+    def __init__(self, ip = '193.206.155.47', nchannels:int = 8,
+                api_addr_ext = '/api/slot/0/io/ai',
+                valuestr = 'aiValueScaled', valueid = 'ai'):
 
-class GetRequestData():
-    def __init__(self, address = "http://193.206.155.47"):
-        self.address = address
+        super().__init__(ip, nchannels, api_addr_ext, valuestr, valueid)
 
-        self.connection_error = None # True if there is no connection for more than 1 s
-        self.data_error = None
-        self.replay_status_code = None # connection statuses = 200; 404 etc
-        self.reply = None # request response
-        self.json_data = None # converted response to json
-        """downloaded data >>>"""
-        self.deviceUpTime = None
-
-        self.DO = None
-        self.DI = None
-
-        self.last_get_time = time()
-
-    def get_sysInfo(self):
-        self.get_data(api_address_extension = "/api/slot/0/sysInfo/device")
-        if not self.connection_error:
-            self.convert_received_data()
-            self.deviceUpTime = self.json_data['sysInfo']['device'][0]['deviceUpTime']
-
-    def get_DI(self):
-        self.get_data(api_address_extension="/api/slot/0/io/di")
-        if not self.connection_error:
-            self.convert_received_data()
-            self.DI = self.json_data['io']['di']
-
-    def get_DO(self):
-        self.get_data(api_address_extension="/api/slot/0/io/do")
-        if not self.connection_error:
-            self.convert_received_data()
-            self.DO = self.json_data['io']['do']
-
-    def run(self):
-        # get device status
-        self.get_sysInfo()
-
-        # get digital inputs
-        self.get_DI()
-
-        # get digital outputs
-        self.get_DO()
-
-    def convert_received_data(self):
-        if not self.connection_error:
-            try:
-                json_blob = loads(self.reply.content.decode('utf-8'))
-                self.json_data = json_blob
-
-                self.data_error = False
-
-            except ValueError:
-                self.data_error = True
+    def read_pressure(self):
+        data = self.read()
+        pres = data[6]
+        return pres
 
 
 
-if __name__ == "__main__":
-    data = GetRequestData()
+class Moxa_di0(Moxa):
 
-    while True:
-        data.run()
+    def __init__(self, ip = '193.206.155.141', nchannels:int = 16,
+                api_addr_ext = '/api/slot/0/io/di',
+                valuestr = 'diValueScaled', valueid = 'di'):
 
-        sleep(1)
-        print(data.deviceUpTime)
-        print("di {}".format(data.DO))
-
-        print("do {}".format(data.DO))
-
-'''
+        super().__init__(ip, nchannels, api_addr_ext, valuestr, valueid)
