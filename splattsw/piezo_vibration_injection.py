@@ -1,4 +1,4 @@
-from splattsw import splatt_analysis as sp
+from splattsw import acceleration_analysis as sp
 from splattsw.devices.webDAQ import WebDAQ as wbdq
 from splattsw.devices.wavegenerators import WaveGenerator
 
@@ -9,6 +9,7 @@ import time
 
 # Connect to WebDAQ
 webdaq = wbdq()
+webdaq.connect()
 
 # Connect to wavegenerator
 wg = WaveGenerator()

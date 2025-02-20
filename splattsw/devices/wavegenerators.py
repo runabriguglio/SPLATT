@@ -3,7 +3,7 @@
 
 import sys
 import time
-from devices.devices_scpi import SCPI
+from splattsw.devices.devices_scpi import SCPI
 
 class WaveGenerator(SCPI):
 
@@ -87,16 +87,18 @@ class WaveGenerator(SCPI):
         self.clear_wave(ch)
         self.wave_on(ch)
 
-    def sweep(self, ch, fmin, fmax, amp=1, period=10):
+    def sweep(self, ch, fmin, fmax, period=20, amp=1):
         self.connect()
         if fmin<10 or fmax>150:
             raise ValueError(f"Are you sure you want to go from {fmin} Hz to {fmax} Hz ?!")
+        self.tx_txt(f"OUTPUT{ch}:STATE ON")
         self.tx_txt(f":SOUR{ch}:FREQ:STAR {fmin}")
         self.tx_txt(f":SOUR{ch}:FREQ:STOP {fmax}")
         self.tx_txt(f":SOUR{ch}:SWE:TIME {period}")
+        self.tx_txt(f":SOUR{ch}:SWE:RTIM 0")
         self.tx_txt(f":SOUR{ch}:VOLT {amp}") # Set amplitude
-        self.tx_txt(":SOUR1:PHAS 0") # Set phase
-        self.tx_txt(f":SOUR{ch}:SWE:TRIG") # Triggers the sweep imediately, test
+        self.tx_txt(f":SOUR{ch}:SWE:STAT 1") # Sweep mode on
+        # self.tx_txt(f"OUTPUT{ch}:STATE ON") # Start actual sweep
         self.close()
 
     def pulse_train(self, ch, amp, offs, freq, dc, duration=None):
@@ -153,10 +155,10 @@ class WaveGenerator(SCPI):
 
     def clear_wave(self, ch):
         self.connect()
-        self.tx_txt('OUTPUT'+str(ch)+':STATE OFF')
-        #self.tx_txt('SOUR'+str(ch)+':FREQ:FIX 0')
-        #self.tx_txt('SOUR'+str(ch)+':VOLT 0')
-        #self.tx_txt('SOUR'+str(ch)+':VOLT:OFFS 0')
+        self.tx_txt(f'OUTPUT{ch}:STATE OFF')
+        self.tx_txt(f'SOUR{ch}:VOLT:OFFS 0')
+        self.tx_txt(f":SOUR{ch}:PHAS 0")
+        self.tx_txt(f":SOUR{ch}:SWE:STAT 0") # Sweep mode off
         self.close()
 
 

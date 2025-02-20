@@ -28,19 +28,6 @@ class SCPI(object):
         # except socket.error as e:
         #     print('SCPI >> connect({:s}:{:d}) failed: {:s}'.format(self.cip, self.port, e))
 
-    # def _select_device(self):
-    #     if self.name == 'Rigol_WaveGen':
-    #         self.cip = '192.168.0.100'
-    #         self.port = 5555
-    #     elif self.name == 'RedPitaya':
-    #         self.cip = '193.206.155.193'
-    #         self.port = 5000
-    #     elif self.name == 'Rigol_PowerSupplier':
-    #         self.cip = '192.168.0.101'
-    #         self.port = 5555
-    #     else:
-    #         raise ValueError("ERROR! No device with this name. Available devices are: 'RedPitaya', 'Rigol_PowerSupplier'  or 'Rigol_WaveGen'")
-
     def __del__(self):
         if self._socket is not None:
             self._socket.close()

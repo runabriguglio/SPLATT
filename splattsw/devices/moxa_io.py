@@ -1,4 +1,4 @@
-from devices.moxa_class import Moxa
+from splattsw.devices.moxa_class import Moxa
 
 # Inherited classes: add your own moxa!
 class Moxa_pt0(Moxa):

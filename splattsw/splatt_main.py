@@ -20,6 +20,17 @@ eng.start_engine()
 
 # Connect to WebDAQ
 webdaq = wbdq()
+webdaq.connect()
+
+# Start accelerometers
+print('Starting accelerometers to remove startup transient')
+webdaq.start_schedule()
+job_status = webdaq.get_jobs_status()
+while job_status[0] != 'completed':
+    time.sleep(10)
+    job_status = webdaq.get_jobs_status()
+webdaq.stop_schedule()
+
 
 # Connect to moxa
 mx = Moxa_ai0()
@@ -46,9 +57,6 @@ eng.send_command('force_amp = max(2e+3,sys_data.ff_w/10);')
 Nmodes = 3
 Nit = 6
 
-# Connect to WebDAQ
-webdaq.connect()
-
 wdf_list = []
 tn_list = []
 
@@ -63,6 +71,11 @@ for j in range(Nit):
         tn = eng.get_data('splattForceStepResponse(modalBase(:,'+str(k+1)+'),force_amp('+str(k+1)+'))',n_args_out=1,is_numeric=False)
         tn_list.append(tn)
 
+        # Wait for webdaq acquisition to end
+        job_status = webdaq.get_jobs_status()
+        while job_status[0] != 'completed':
+            time.sleep(1)
+            job_status = webdaq.get_jobs_status()
         webdaq.stop_schedule()
 
         sp.wdsync() # does os.system('rsync -av '+ftpwebdacq+' '+basepathwebdaq)
@@ -73,8 +86,8 @@ for j in range(Nit):
         wdf_list.append(wdfile)
 
 
-wdf_list = np.array(wdf_list).reshape([int(Nit/2),2,Nmodes])
-tn_list = np.array(tn_list).reshape([int(Nit/2),2,Nmodes])
+# wdf_list = np.array(wdf_list).reshape([int(Nit/2),2,Nmodes])
+# tn_list = np.array(tn_list).reshape([int(Nit/2),2,Nmodes])
 
 print(wdf_list)
 print(tn_list)

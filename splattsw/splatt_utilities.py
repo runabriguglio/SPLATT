@@ -19,7 +19,7 @@ def read_fits(file_path:str, file_name:str):
 
 def read_buffer_data(TN:str = None):
 
-    SPLATT_BUFFER_FOLDER = '/home/labot/Desktop/Data/SPLATT/Buffer/'
+    SPLATT_BUFFER_FOLDER = '/mnt/jumbo/SPLATT/Buffer/' #'/home/labot/Desktop/Data/SPLATT/Buffer/'
     freq = 1818 # [Hz]
 
     if TN is not None:

@@ -118,13 +118,20 @@ class WebDAQ(object):
 
     def get_schedule_status(self):
         schedule_status_json = get_schedule_status_json(self._s, self._base_url)
-        print('Schedule status', ':',  get_job_status_key(schedule_status_json['statusCode']),sep='')
+        status = get_job_status_key(schedule_status_json['statusCode'])
+        print('Schedule status', ':', status ,sep='')
+        return status
     
     def get_jobs_status(self):
         number_of_jobs_in_schedule = len(self._jobs)
+        jobs_status = []
         for job_number in range(number_of_jobs_in_schedule):
             job_status_json = get_job_status_json(self._s, self._base_url, self._jobs[job_number])
-            print('      ', job_number, ': ', self._jobs[job_number], ':',  get_job_status_key(job_status_json['statusCode']),sep='')
+            status = get_job_status_key(job_status_json['statusCode'])
+            print('      ', job_number, ': ', self._jobs[job_number], ':',  status ,sep='')
+            jobs_status.append(status)
+        
+        return jobs_status
 
     # def stop_all_jobs(self):
     #     jobs = schedule_descriptor_json['jobs'] # was self._
@@ -146,7 +153,7 @@ class WebDAQ(object):
         job_status_json = get_job_status_json(self._s, self._base_url, jobname)
         
     def stop_job(self):
-        schedule_status_json = get_schedule_status_json(wd._s, wd._base_url)
+        schedule_status_json = get_schedule_status_json(self._s, self._base_url)
         jobname = schedule_status_json['currentJobName']
         stop_res = self._s.post(self._base_url + '/schedule/jobs/'+jobname+'/status/', json={"stop":True})
         stop_res.raise_for_status()
