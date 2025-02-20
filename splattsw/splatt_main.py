@@ -2,21 +2,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import time
+import os
 
 from splattsw.devices.webDAQ import WebDAQ as wbdq
 from splattsw.devices.powersupplier import PowerSupplier
+from splattsw.devices.moxa_io import Moxa_ai0
+from splatt_utilities import start_matlab_engine
 from splattsw import acceleration_analysis as sp
 
-from splattsw.devices.moxa_io import Moxa_ai0
-import Pyro4
-# from splattsw.devices.matlab_engine import MatlabEngine as eng
-
-import os
-
-
-# Connect to the engine
-eng = Pyro4.Proxy("PYRO:matlab_engine@193.206.155.220:9090")
-eng.start_engine()
+eng = start_matlab_engine()
 
 # Connect to WebDAQ
 webdaq = wbdq()
@@ -78,7 +72,7 @@ for j in range(Nit):
             job_status = webdaq.get_jobs_status()
         webdaq.stop_schedule()
 
-        sp.wdsync() # does os.system('rsync -av '+ftpwebdacq+' '+basepathwebdaq)
+        sp.wdsync()
         wdfile = sp.last_wdfile()
         data = sp.openfile(wdfile)
         sp.plot_data(data,ch_ids = np.array([1,3],dtype=int))
