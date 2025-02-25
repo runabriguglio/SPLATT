@@ -134,8 +134,9 @@ venv.bak/
 .dmypy.json
 dmypy.json
 
-# Image folder
-.splattsw/_images/con.png
+# Configuration files
+*.npy
+*.fits
 
 # Pyre type checker
 .pyre/
