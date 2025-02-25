@@ -2,12 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from segmented_deformable_mirror import SegmentedMirror
-from hexagonal_geometry import HexGeometry
+from segment_geometry import HexagonGeometry
 from matrix_calculator import matmul
 import my_fits_package as myfits
 
 
-def dm_system_setup(TN:str, n_global_zern:int = 11, n_local_zern:int = 11):
+def define_dsm(TN:str, n_global_zern:int = 7, n_local_zern:int = 13):
     """
     Performs the basic operations to define a segmented
     mirror object from the data in the configuration file
@@ -16,10 +16,14 @@ def dm_system_setup(TN:str, n_global_zern:int = 11, n_local_zern:int = 11):
     ----------
     TN : string
         Configuration file tracking number.
+        
     n_global_zern : int, optional
-        Number of Zernike modes for the IM on the global mask. The default is 7.
+        Number of Zernike modes for the IM on the global mask. 
+        The default is 7.
+        
     n_local_zern : int, optional
-        Number of Zernike modes for the IM on the single segment. The default is 15.
+        Number of Zernike modes for the IM on the single segment. 
+        The default is 13.
 
     Returns
     -------
@@ -28,7 +32,7 @@ def dm_system_setup(TN:str, n_global_zern:int = 11, n_local_zern:int = 11):
 
     """
     print('Defining mirror geometry ...')
-    geom = HexGeometry(TN)
+    geom = HexagonGeometry(TN)
     
     print('Initializing segmented mirror class ...')
     sdm = SegmentedMirror(geom)
@@ -41,7 +45,7 @@ def dm_system_setup(TN:str, n_global_zern:int = 11, n_local_zern:int = 11):
     tiptiltfocus[2] = 1
     tiptiltfocus[3] = 1
     wf = matmul(sdm.glob_ZM,tiptiltfocus)
-    sdm.surface(wf, 'Global Tip/Tilt + Focus')
+    sdm.plot_surface(wf, plt_title='Global Tip/Tilt + Focus')
     
     # Local Zernike matrix
     print('Computing ' + str(n_local_zern) + ' modes local Zernike interaction matrix ...')
@@ -55,7 +59,7 @@ def dm_system_setup(TN:str, n_global_zern:int = 11, n_local_zern:int = 11):
     modal_cmd = np.zeros(n_hex*n_local_zern)
     modal_cmd[cmd_ids] = 1
     flat_shape = matmul(INTMAT,modal_cmd)
-    sdm.surface(flat_shape, 'Zernike modes')
+    sdm.plot_surface(flat_shape, plt_title='Zernike modes')
     
     # Global influence functions and global reconstructor
     print('Initializing influence functions and reconstructor matrices ...')
@@ -64,7 +68,7 @@ def dm_system_setup(TN:str, n_global_zern:int = 11, n_local_zern:int = 11):
     R = sdm.R
     cmd_for_zern = matmul(R,flat_shape)
     flat_img = matmul(IFF,cmd_for_zern)
-    sdm.surface(flat_img, 'Reconstructed Zernike modes')
+    sdm.plot_surface(flat_img, plt_title='Reconstructed Zernike modes')
     
     n_acts = np.shape(IFF)[2]
     cmd = np.zeros(n_hex*n_acts)
@@ -74,7 +78,7 @@ def dm_system_setup(TN:str, n_global_zern:int = 11, n_local_zern:int = 11):
     cmd_ids = cmd_ids + n_acts*np.arange(n_hex)
     cmd[cmd_ids] = 1 #np.ones(n_hex)
     flat_img = matmul(IFF,cmd)
-    sdm.surface(flat_img, 'Actuators influence functions')
+    sdm.plot_surface(flat_img, plt_title='Actuators influence functions')
     
     return sdm
 
@@ -133,14 +137,16 @@ def fitting_error_plots(mask, IM, IFF, R, pix_ids = None):
         plt.figure()
         plt.imshow(img, origin = 'lower', cmap = 'inferno')
         plt.colorbar()
-        plt.title('Mode ' + str(k+1) + ' shape error\n RMS: ' + str(RMS_vec[k]) )
+        title_str = f"Mode {k+1} shape error\n RMS: {RMS_vec[k]:.2e}"
+        plt.title(title_str)
         
     plt.figure()
-    plt.plot(RMS_vec,'o')
+    plt.plot(RMS_vec,'-o',color='orange')
     plt.xlabel('Mode index')
-    plt.ylabel('Shape RMS')
+    plt.ylabel('Shape RMS (normalized)')
     plt.title('Fitting error')
     plt.grid('on')
+    plt.axis('tight')
     
     return RMS_vec
 
@@ -175,67 +181,6 @@ def fitting_error(IM, IFF, R):
     RMS_vec = np.std(res_shapes,axis = 0)/img_rms
     
     return RMS_vec
-
-
-def segment_scramble(sdm, mode_amp = 10e-6, apply_shape:bool = False):
-    """
-    Applies a random shape to all segments using
-    a random linear combination of Zernike modes,
-    scaled by the inverse of the Noll number
-
-    Parameters
-    ----------
-    sdm : 
-        egmented deformable mirror class.
-    mode_amp : float, optional
-        Amplitude of the segment scramble. The default is 10e-6.
-    apply_shape : bool, optional
-        Wheter to apply the shape to the sdm or not. The default is False.
-
-    Returns
-    -------
-    None.
-
-    """
-    file_name = sdm.geom.savepath + 'initial_segment_scramble.fits'
-    
-    try:
-        flat_img = myfits.read_fits(file_name)
-    except FileNotFoundError:
-        Nsegments = sdm.geom.n_hex
-        ZMat = sdm.ZM
-        
-        # Retrieve number of modes from the interaction matrix
-        n_modes = np.shape(ZMat)[-1]
-        
-        # Generate random mode coefficients
-        mode_vec = np.random.randn(Nsegments*n_modes)
-        
-        # Probability inversely proportional to spatial frequency
-        m = int(np.ceil((np.sqrt(8*n_modes)-1.)/2.))
-        freq_vec = np.repeat(np.arange(m)+1,np.arange(m)+1)
-        prob_vec = 1./freq_vec[:n_modes]
-        prob_vec_rep = np.tile(prob_vec,Nsegments)
-        
-        # Modulate on the probability
-        mode_vec = mode_vec * prob_vec_rep
-        
-        # Amplitude
-        mode_vec *= mode_amp
-        
-        # Matrix product
-        flat_img = matmul(ZMat,mode_vec)
-        myfits.write_to_fits(flat_img, file_name)
-        
-        # # Global modes
-        # n_glob_modes = np.shape(sdm.glob_int_mat)[1]
-        # glob_mode_vec = np.random.randn(n_glob_modes)
-        # flat_img += matmul(sdm.glob_ZM,glob_mode_vec)
-    
-    sdm.surface(flat_img,'Segment scramble')
-    
-    if apply_shape:
-        sdm.shape += flat_img
         
         
 def update_act_coords_on_ring(dm, n_ring:int, do_save:bool = False):
@@ -279,8 +224,6 @@ def update_act_coords_on_ring(dm, n_ring:int, do_save:bool = False):
     
     # Update coordinates accordingly
     dm.update_act_coords(hex_ids, new_coords, do_save)
-
-
     
     
 # def capsens_measure(dm, segment_id):

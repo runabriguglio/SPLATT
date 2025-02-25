@@ -1,10 +1,6 @@
 import numpy as np
-# import matplotlib.pyplot as plt
-
 from mirror_segment import Segment
-# from hexagonal_geometry import HexGeometry
 import matrix_calculator as matcalc
-# import read_and_write_fits as myfits
 import my_fits_package as myfits
 
 from deformable_mirror import DeformableMirror as DM
@@ -23,6 +19,121 @@ class SegmentedMirror(DM):
         # Initialize segmented array
         self._define_segment_array()
         self._initialize_actuator_coordinates()
+        
+        
+    def apply_masked_flat(self, mask, offset = None, slaving_mode:str = None):
+        """
+        Computes and applies the flat command
+        for the current segment shape minus a given offset
+
+        Parameters
+        ----------
+        mask : ndarray(bool)
+            The subaperture mask over which to apply the flat
+        
+        offset : ndarray(float) [Npix], optional
+            The shape offset from which to compute the flat.
+            The default is no offset.
+            
+        Returns
+        -------
+        flat_rms : float
+            The standard deviation of the obtained (masked) shape.
+
+        """
+        delta_shape = -self.surface
+        
+        if offset is not None:
+            delta_shape += offset
+            
+        new_mask = np.logical_or(self.mask, mask)
+        flat_ids = np.zeros(np.size(self.mask), dtype=int)
+        
+        pix_ids = self.valid_ids.flatten()
+        flat_ids[pix_ids] = np.arange(np.sum(1-self.mask))
+        masked_ids = flat_ids[~new_mask.flatten()]
+        masked_shape = np.zeros_like(delta_shape)
+        masked_shape[masked_ids] = delta_shape[masked_ids]
+        
+        for k,segment in enumerate(self.segment):
+            segment_ids = self.valid_ids[k]
+            segment_mask = segment.mask
+            flat_mask = np.ones(np.size(segment_mask))
+            flat_mask[~segment_mask.flatten()] = mask.flatten()[segment_ids]
+            hex_mask = np.reshape(flat_mask, np.shape(segment_mask))
+            local_mask = np.logical_or(segment.mask, hex_mask)
+            
+            if np.sum(1-local_mask) == len(segment_ids):
+                segment.apply_flat()
+                
+            elif np.any(1-local_mask):
+                cmd = segment.masked_flat_cmd(hex_mask, slaving=slaving_mode)
+                segment.mirror_command(cmd)
+        
+        res_shape = self.surface[masked_ids]
+        flat_rms = np.std(res_shape)
+        
+        if offset is not None:
+            flat_rms = np.std(res_shape - offset)
+        
+        return flat_rms
+    
+    
+    def segment_scramble(self, mode_amp = 10e-6, reset_shape:bool = False):
+        """
+        Applies a random shape to all segments using
+        a random linear combination of Zernike modes,
+        scaled by the inverse of the Noll number
+
+        Parameters
+        ----------
+        mode_amp : float, optional
+            Amplitude of the segment scramble. The default is 10e-6.
+            
+        reset_shape : bool, optional
+            Sets the dsm shape to the scrambel and resets the actuator position
+            The default is False.
+
+        Returns
+        -------
+        None.
+
+        """
+        file_name = self.geom.savepath + 'initial_segment_scramble.fits'
+        
+        try:
+            flat_img = myfits.read_fits(file_name)
+        except FileNotFoundError:
+            Nsegments = self.geom.n_hex
+            ZMat = self.ZM
+            
+            # Retrieve number of modes from the interaction matrix
+            n_modes = np.shape(ZMat)[-1]
+            
+            # Generate random mode coefficients
+            mode_vec = np.random.randn(Nsegments*n_modes)
+            
+            # Probability inversely proportional to spatial frequency
+            m = int(np.ceil((np.sqrt(8*n_modes)-1.)/2.))
+            freq_vec = np.repeat(np.arange(m)+1,np.arange(m)+1)
+            prob_vec = 1./freq_vec[:n_modes]
+            prob_vec_rep = np.tile(prob_vec,Nsegments)
+            
+            # Modulate on the probability
+            mode_vec = mode_vec * prob_vec_rep
+            
+            # Amplitude
+            mode_vec *= mode_amp
+            
+            # Matrix product
+            flat_img = matcalc.matmul(ZMat,mode_vec)
+            myfits.write_to_fits(flat_img, file_name)
+        
+        if reset_shape:
+            self.surface += flat_img - self.surface
+            self.act_pos -= self.act_pos
+        else:
+            self.plot_surface(flat_img, plt_title = 'Segment scramble')
         
         
     def compute_global_zern_matrix(self, n_modes):
@@ -152,18 +263,19 @@ class SegmentedMirror(DM):
             seg.IFF += loc_IFF - old_IFF 
             old_R = seg.R
             seg.R += loc_R - old_R
+            seg.n_acts += n_new - seg.n_acts
             
             # Reset shape and position
-            seg.shape *= 0
+            seg.surface *= 0
             seg.act_pos *= 0
         
         # Save to .fits
         if do_save:
             myfits.write_to_fits(self.IFF, self.IFF_path)
             myfits.write_to_fits(self.R, self.R_path)
-            np.save(self.cooeds_path, self.act_coords) #myfits.write_to_fits(self.act_coords, self.coords_path)
+            np.save(self.coords_path, self.act_coords) 
             
-                
+            
     def _define_segment_array(self):
         """ Builds an array of Segment class objects,
         containing their center coordinates and the
@@ -199,13 +311,16 @@ class SegmentedMirror(DM):
             self.act_coords = np.tile(self.geom.local_act_coords,(n_hex,1))
             self.act_coords += np.tile(self.geom.hex_centers,n_acts).reshape([n_hex*n_acts,2])
         
-        self.shape = np.zeros(np.sum(1-self.mask))
+        self.surface = np.zeros(np.sum(1-self.mask))
         self.act_pos = np.zeros(len(self.act_coords))
+        self.n_acts = (np.ones(n_hex)*n_acts).astype(int)
         
         for k, segment in enumerate(self.segment):
-            segment.act_coords = self.act_coords[n_acts*k:n_acts*(k+1),:] - segment.center
+            segment.act_coords = self.act_coords[n_acts*k:n_acts*(k+1),:] #- segment.center
+            segment.act_pix_coords = matcalc.get_pixel_coords(segment.mask, self.geom.pix_scale, segment.act_coords - segment.center)
             segment.act_pos = self.act_pos[n_acts*k:n_acts*(k+1)]
-            segment.shape = self.shape[n_pix*k:n_pix*(k+1)]
+            segment.surface = self.surface[n_pix*k:n_pix*(k+1)]
+            segment.n_acts = (self.n_acts[k]).astype(int)
             
         # Save cooeds to fits
         np.save(self.coords_path, self.act_coords) # myfits.write_to_fits(self.act_coords, self.coords_path)

@@ -37,13 +37,12 @@ def read_config(path):
 
     # Optical configuration parameters
     opt_conf = config['OPT']
-    ang = opt_conf['cw_rot_angle']
     pix_scale = opt_conf['pixel_scale']
-    # pup_x = opt_conf['pupil_x']
-    # pup_y = opt_conf['pupil_y']
+    pup_x = opt_conf['pupil_x']
+    pup_y = opt_conf['pupil_y']
     opt_rad = opt_conf['opt_radius']
 
-    opt_par = np.array([pix_scale, ang, opt_rad]) #pup_x, pup_y,
+    opt_par = np.array([pix_scale, opt_rad, pup_x, pup_y])
     opt_par = opt_par.astype(float)
 
     return dm_par, opt_par

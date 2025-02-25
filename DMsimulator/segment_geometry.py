@@ -17,6 +17,42 @@ def n_hexagons(n_rings):
     return int(1 + (6 + n_rings*6)*n_rings/2)
 
 
+def circular_mask(radius: float, pix_scale, mask_shape, center=np.array([0.,0.])):
+    """
+    Creates a circular mask of given dimensions
+
+    Parameters
+    ----------
+    radius : float
+        The mask radius in meters.
+        
+    pix_scale : float
+        The number of pixels per meter.
+        
+    mask_shape : ndarray(int)
+        The x,y mask pixel dimensions.
+        
+    center : ndarray(float), optional
+        The mask center coordinates in meters.
+        The default is the origin.
+
+    Returns
+    -------
+    circ_mask : ndarray(bool)
+        The obtained circular mask.
+
+    """
+    X,Y = mask_shape
+    r_pix = radius * pix_scale
+    c_pix = center * pix_scale + np.array([Y/2,X/2])
+    
+    dist = lambda x,y: np.sqrt(x**2+y**2)
+    
+    circ_mask = np.fromfunction(lambda i,j: dist(i-c_pix[1],j-c_pix[0]) > r_pix, [X,Y])
+    circ_mask = (circ_mask).astype(bool)
+    
+    return circ_mask
+    
 
 class HexagonGeometry():
     
@@ -260,16 +296,21 @@ class HexagonGeometry():
         except FileNotFoundError:
             pass
         
-        mask_x, mask_y = np.shape(self.global_mask)
+        # mask_x, mask_y = np.shape(self.global_mask)
         
-        R_pix = np.ceil(self.opt_r*self.pix_scale).astype(int)
-        X_pix = np.ceil(self.opt_x*self.pix_scale).astype(int) + mask_y/2
-        Y_pix = np.ceil(self.opt_y*self.pix_scale).astype(int) + mask_x/2
+        # R_pix = np.ceil(self.opt_r*self.pix_scale).astype(int)
+        # X_pix = np.ceil(self.opt_x*self.pix_scale).astype(int) + mask_y/2
+        # Y_pix = np.ceil(self.opt_y*self.pix_scale).astype(int) + mask_x/2
     
-        circ_mask = np.fromfunction(lambda i,j: np.sqrt((j - X_pix)**2+(i - Y_pix)**2) >= R_pix, np.shape(self.global_mask))
+        # circ_mask = np.fromfunction(lambda i,j: np.sqrt((j - X_pix)**2+(i - Y_pix)**2) >= R_pix, np.shape(self.global_mask))
     
-        self.optical_mask = (circ_mask).astype(bool)
-        myfits.write_to_fits((circ_mask).astype(np.uint8), file_path)
+        # self.optical_mask = (circ_mask).astype(bool)
+        
+        self.optical_mask = circular_mask(self.opt_r, self.pix_scale,
+                                          np.shape(self.global_mask),
+                                          np.array([self.opt_x,self.opt_y]))
+        
+        myfits.write_to_fits((self.optical_mask).astype(np.uint8), file_path)
         
         
     def _define_hex_outline(self):

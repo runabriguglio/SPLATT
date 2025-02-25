@@ -25,6 +25,157 @@ def matmul(mat, vec):
         
     return res
 
+def compute_reconstructor(M, thr:float = 0.):
+    """
+    Computes the reconstructor (pseudo-inverse) 
+    for the interaction matrix M.
+
+    Parameters
+    ----------
+    M : ndarray(float) [Npix,N]
+        Interaction matrix to be inverted.
+        
+    thr : float, optional
+        Threshold for the inverse eigenvalues. 
+        The eigenvalues v  s. t. 1/v < thr 
+        are discarded when computing the inverse.
+        By default, no eigenvalues are discarded.
+
+    Returns
+    -------
+    Rec : ndarray(float) [N,Npix]
+        The pseudo-inverse of M.
+
+    """
+    
+    U,S,Vh = np.linalg.svd(M, full_matrices=False)
+    Sinv = 1/S
+    Sinv[Sinv < thr] = 0
+    Rec = (Vh.T * Sinv) @ U.T
+    return Rec
+
+
+def simulate_influence_functions(act_coords, local_mask, pix_scale, amps = 1.0):
+    """ Simulate the influence functions by 
+    imposing 'perfect' zonal commands """
+    
+    n_acts = len(act_coords)
+    
+    H,W = np.shape(local_mask)
+    
+    # pix_coords = np.zeros([max_x*max_y,2])
+    # pix_coords[:,0] = np.repeat(np.arange(max_x),max_y)
+    # pix_coords[:,1] = np.tile(np.arange(max_y),max_x)
+    
+    # act_pix_coords = np.zeros([n_acts,2])
+    # act_pix_coords[:,0] = (act_coords[:,1] * pix_scale + max_x/2).astype(int)
+    # act_pix_coords[:,1] = (act_coords[:,0] * pix_scale + max_y/2).astype(int)
+    
+    pix_coords = get_pixel_coords(local_mask, pix_scale)
+    act_pix_coords = get_pixel_coords(local_mask, pix_scale, act_coords)
+    
+    img_cube = np.zeros([H,W,n_acts])
+    
+    if isinstance(amps,float):
+        amps *= np.ones(n_acts)
+
+    for k in range(n_acts):
+        act_data = np.zeros(n_acts)
+        act_data[k] = amps[k]
+        tps = ThinPlateSpline(alpha=0.0)
+        tps.fit(act_pix_coords, act_data)
+        flat_img = tps.transform(pix_coords)
+        uint8_img = scale2uint8(flat_img) # scale to uint8
+        img_cube[:,:,k] = np.reshape(uint8_img, [H,W])
+
+    # Masked array
+    cube_mask = np.tile(local_mask,n_acts)
+    cube_mask = np.reshape(cube_mask, np.shape(img_cube), order = 'F')
+    cube = np.ma.masked_array(img_cube, cube_mask, dtype=np.uint8)
+    
+    return cube
+
+
+def calculate_influence_functions(act_coords, local_mask, normalized_act_radius):
+    """ Project the actuator influence functions 
+    on the mask via grid interpolation """
+    
+    raise NotImplementedError()
+
+
+def cube2mat(cube):
+    """ Get influence functions matrix 
+    from the image cube """
+    
+    n_acts = np.shape(cube)[2]
+    valid_len = np.sum(1-cube[:,:,0].mask)
+    
+    flat_cube = cube.data[~cube.mask]
+    local_IFF = np.reshape(flat_cube, [valid_len, n_acts])
+    
+    IFF = np.array(local_IFF)
+    
+    return IFF
+    
+
+
+def compute_zernike_matrix(mask, n_modes):
+    """ Computes the zernike matrix: 
+        [n_pixels,n_modes] """
+    
+    noll_ids = np.arange(n_modes) + 1
+    mat = assemble_zern_mat(noll_ids, mask)
+    
+    return mat   
+
+
+def scale2uint8(img):
+    """ Scales an ndarray to uint8 """
+    
+    img -= min(img)
+    img = img/max(img) * (2**8-1)
+    img = np.round(img)
+    
+    return (img).astype(np.uint8)
+
+
+def get_pixel_coords(mask, pix_scale:float, coords = None):
+    """ Convert x,y coordinates in coords to pixel coordinates
+    or get the pixel coordinates of a mask
+
+    Parameters
+    ----------
+    mask : ndarray(bool)
+        The image mask where the pixels are.
+        
+    pix_scale : float
+        The number of pixels per meter.
+        
+    coords : ndarray(float) [N,2], optional
+        The N coordinates to convert in pixel coordinates.
+        Defaults to all pixels on the mask.
+
+    Returns
+    -------
+    pix_coords : ndarray(int)
+        The obtained pixel coordinates.
+
+    """
+    
+    H,W = np.shape(mask)
+    
+    if coords is not None:
+        pix_coords = np.zeros([len(coords),2],dtype=int)
+        pix_coords[:,0] = np.round(coords[:,1]*pix_scale + H/2)
+        pix_coords[:,1] = np.round(coords[:,0]*pix_scale + W/2)
+    else:
+        pix_coords = np.zeros([H*W,2])
+        pix_coords[:,0] = np.repeat(np.arange(H),W)
+        pix_coords[:,1] = np.tile(np.arange(W),H)
+    
+    return pix_coords
+
+
 def define_capsens_matrix(mask, pix_scale, act_coords, r_in, r_out, capsens_coords = None):
     """
     Determine the pixel CapSens matrix to estimate the gap measured by
@@ -61,10 +212,8 @@ def define_capsens_matrix(mask, pix_scale, act_coords, r_in, r_out, capsens_coor
     X,Y = np.shape(mask)
     d = lambda i,j: np.sqrt(i**2+j**2)
 
-    # Rounding to int is less accurate but gives 
-    # more consistent results in terms of pixel area
-    pix_act_coords = (act_coords*pix_scale + np.array([Y,X])/2).astype(int)
-    pix_capsens_coords = (capsens_coords*pix_scale + np.array([Y,X])/2).astype(int)
+    pix_act_coords = get_pixel_coords(mask, pix_scale, act_coords)
+    pix_capsens_coords = get_pixel_coords(mask, pix_scale, capsens_coords)
     
     pix_in = int(r_in*pix_scale)
     pix_out = int(r_out*pix_scale)
@@ -79,90 +228,29 @@ def define_capsens_matrix(mask, pix_scale, act_coords, r_in, r_out, capsens_coor
         
         masked_data = sensor[~mask]
         pix_area = np.sum(masked_data)
-        # print(pix_area) # debug
         CSMAT[k,:] = masked_data/pix_area
     
     return CSMAT
 
 
-def compute_reconstructor(M):
-    """ Moore-Penrose inverse (pseudo-inverse) of M """
-    
-    # equivalent to: return np.linalg.pinv(M)
-    U,S,Vh = np.linalg.svd(M, full_matrices=False)
-    Rec = (Vh.T/S) @ U.T
-    return Rec
 
-
-def simulate_influence_functions(act_coords, local_mask, pix_scale, amps = 1.0):
-    """ Simulate the influence functions by 
-    imposing 'perfect' zonal commands """
+# def rescale_img(img, n_pix: int):
     
-    n_acts = len(act_coords)
+#     len_x,len_y = np.shape(img)
+#     rows = np.repeat(np.arange(len_x),len_y) + max(0,(len_y-len_x)/2)
+#     cols = np.tile(np.arange(len_y),len_x) + max(0,(len_x-len_y)/2)
+#     xy = np.linspace(0, max(len_x,len_y), n_pix)
+#     gx,gy = np.meshgrid(xy,xy)
     
-    max_x, max_y = np.shape(local_mask)
+#     rescaled_img = griddata((cols,rows),img.flatten(),(gx,gy))
+#     rescaled_img = np.reshape(rescaled_img,[n_pix,n_pix])
     
-    pix_coords = np.zeros([max_x*max_y,2])
-    pix_coords[:,0] = np.repeat(np.arange(max_x),max_y)
-    pix_coords[:,1] = np.tile(np.arange(max_y),max_x)
+#     if hasattr(img, 'mask'):
+#         rescaled_mask = griddata((cols,rows),img.mask.flatten(),(gx,gy))
+#         rescaled_mask = np.reshape(rescaled_mask,[n_pix,n_pix])
+#         rescaled_img = np.ma.masked_array(rescaled_img, rescaled_mask)
     
-    act_pix_coords = np.zeros([n_acts,2])
-    act_pix_coords[:,0] = (act_coords[:,1] * pix_scale + max_x/2).astype(int)
-    act_pix_coords[:,1] = (act_coords[:,0] * pix_scale + max_y/2).astype(int)
-    
-    img_cube = np.zeros([max_x,max_y,n_acts])
-    
-    if isinstance(amps,float):
-        amps *= np.ones(n_acts)
-
-    for k in range(n_acts):
-        act_data = np.zeros(n_acts)
-        act_data[k] = amps[k]
-        tps = ThinPlateSpline(alpha=0.0)
-        tps.fit(act_pix_coords, act_data)
-        flat_img = tps.transform(pix_coords)
-        img_cube[:,:,k] = np.reshape(flat_img, [max_x,max_y])
-
-    # Masked array
-    cube_mask = np.tile(local_mask,n_acts)
-    cube_mask = np.reshape(cube_mask, np.shape(img_cube), order = 'F')
-    cube = np.ma.masked_array(img_cube,cube_mask)
-    
-    return cube
-
-
-def calculate_influence_functions(act_coords, local_mask, normalized_act_radius):
-    """ Project the actuator influence functions 
-    on the mask via grid interpolation """
-    
-    raise NotImplementedError()
-
-
-def cube2mat(cube):
-    """ Get influence functions matrix 
-    from the image cube """
-    
-    n_acts = np.shape(cube)[2]
-    valid_len = np.sum(1-cube[:,:,0].mask)
-    
-    # Save valid data to IFF (full) matrix
-    flat_cube = cube.data[~cube.mask]
-    local_IFF = np.reshape(flat_cube, [valid_len, n_acts])
-    
-    IFF = np.array(local_IFF)
-    
-    return IFF
-    
-
-
-def compute_zernike_matrix(mask, n_modes):
-    """ Computes the zernike matrix: 
-        [n_pixels,n_modes] """
-    
-    noll_ids = np.arange(n_modes) + 1
-    mat = assemble_zern_mat(noll_ids, mask)
-    
-    return mat   
+#     return rescaled_img
     
 
 

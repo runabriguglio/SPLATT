@@ -9,17 +9,23 @@ class DeformableMirror():
     """ 
     This class defines the methods for a generic deformable mirror.
     It implements the following functions:
-        - surface(): plot the current shape or a shape in input
-        - get_position(): plot the actuator position at the actuaor coordinates
-        - apply_flat(): apply a flat command of the current shape with
-                        an (optional) offset
+        
+        - plot_surface(): plot the current shape or a shape in input
+        
+        - get_position(): read and plot the actuator position at the actuator coordinates
+        
+        - compute_flat(): computes the flat command of the current shape with an (optional) offset
+        
+        - apply_flat(): applies the flat command of the current shape with an (optional) offset
+                        
         - mirror_command(): apply a zonal or modal command to the DM
     """
     
     def __init__(self):
         pass
 
-    def surface(self, surf2plot = None, plt_title:str = None):
+
+    def plot_surface(self, surf2plot = None, plt_title:str = None, plt_mask = None):
         """
         Plots surf2plot or (default) the segment's
         current shape on the DM mask
@@ -27,51 +33,51 @@ class DeformableMirror():
         Parameters
         ----------
         surf2plot : ndarray(float) [Npix], optional
-            The shape to plot. The default (no input given)
-            is the DM current shape.
+            The shape to plot. Defaults to the DM current shape.
+            
         plt_title : str, optional
-            The plot title. The default is None.
-
-        Returns
-        -------
-        None.
+            The plot title. The default is no title.
+            
+        plt_mask : ndarray(bool), optional
+            The mask to use on the plot. Default is None.
 
         """
         
         if surf2plot is None:
-            surf2plot = self.shape
+            surf2plot = self.surface
         
-        # Project wavefront on mask
-        mask = self.mask.copy()
         pix_ids = self.valid_ids.flatten()
             
-        image = np.zeros(np.size(mask))
+        image = np.zeros(np.size(self.mask))
         image[pix_ids] = surf2plot
-        image = np.reshape(image, np.shape(mask))
-        image = np.ma.masked_array(image, mask)
+        image = np.reshape(image, np.shape(self.mask))
         
-        # Plot image
-        plt.figure()
-        plt.imshow(image, origin = 'lower', cmap = 'inferno')
-        plt.colorbar()
+        if plt_mask is None:
+            plt_mask = self.mask
+        else:
+            plt_mask = np.logical_or(self.mask, plt_mask)
+        
+        image = np.ma.masked_array(image, plt_mask)
+        
+        plt.figure(figsize=(10,10))  
+        plt.imshow(image, origin = 'lower', cmap = 'hot')
+        
+        img_rms = np.std(image.data[~image.mask])
         
         if plt_title is None:
-            plt_title = f"RMS: {np.std(self.shape):.2e}"
+            plt_title = f"RMS: {img_rms:.2e}"
             
-        # plt.axis([150,200,150,250]) # debug
         plt.axis('off')
         plt.title(plt_title)
         
+        return img_rms
+    
+        
 
-    def get_position(self, act_pix_size:float = 10):
+    def get_position(self):
         """
         Readsa and plots the current actuators' 
         position at the actuators' coordinates 
-
-        Parameters
-        ----------
-        act_pix_size : float, optional
-            The actuator size in pixels. The default is 10.
 
         Returns
         -------
@@ -83,50 +89,19 @@ class DeformableMirror():
         pos = self.act_pos.copy()
         x,y = self.act_coords[:,0], self.act_coords[:,1] 
         
-        plt.figure()
-        plt.scatter(x,y, c=pos, s=act_pix_size**2, cmap='inferno')
+        act_pix_size = 3
+        if np.sum(self.n_acts) < 100:
+            act_pix_size = 12
+        
+        plt.figure(figsize = (10,10))
+        plt.scatter(x,y, c=pos, s=act_pix_size**2, cmap='hot')
+        plt.axis('equal')
         plt.colorbar()
         
         return pos
     
     
-    def apply_flat(self, offset = None):
-        """
-        Computes and applies the flat command
-        for the current segment shape minus a given offset
-
-        Parameters
-        ----------
-        offset : ndarray(float) [Npix], optional
-            The shape offset from which to compute the flat.
-            The default is no offset.
-
-        Returns
-        -------
-        act_cmd : ndarray(float) [Nacts]
-            The actoator position command to achieve the flat.
-        flat_rms : float
-            The standard deviation of the obtained shape.
-
-        """
-        
-        delta_shape = -self.shape
-        
-        if offset is not None:
-            delta_shape += offset
-            
-        act_cmd = matmul(self.R, delta_shape)
-        self.mirror_command(act_cmd)
-        
-        flat_rms = np.std(self.shape)
-        
-        if offset is not None:
-            flat_rms = np.std(self.shape - offset)
-        
-        return act_cmd, flat_rms
-    
-    
-    def mirror_command(self, cmd_amps, absolute_delta_pos:bool = False, modal:bool = False):
+    def mirror_command(self, cmd_amps, absolute:bool = False, modal:bool = False):
         """
         Computes and applies a zonal/modal amplitude
         command to the segment
@@ -136,17 +111,13 @@ class DeformableMirror():
         cmd_amps : ndarray(float) [Nacts]
             The array of zonal (modal) amplitudes.
             
-        absolute_delta_pos : bool, optional
+        absolute : bool, optional
             True if the command is absolute and not
             relative to the current actuators' position.
             The default is False.
             
         modal : bool, optional
             True for modal amplitudes. The default is False.
-
-        Returns
-        -------
-        None.
 
         """
         
@@ -163,10 +134,72 @@ class DeformableMirror():
             cmd_amps = matmul(self.R, shape)
         
         # Position (zonal) command
-        if absolute_delta_pos:
+        if absolute:
             cmd_amps -= self.act_pos
 
         # Update positions and shape
         self.act_pos += cmd_amps
-        self.shape += matmul(self.IFF, cmd_amps)
+        self.surface += matmul(self.IFF, cmd_amps)
+        
+    
+    def compute_flat_cmd(self, offset = None):
+        """
+        Computes the flat command for the current
+        mirror shape minus a given offset
+
+        Parameters
+        ----------
+        offset : ndarray(float) [Npix], optional
+            The shape offset from which to compute the flat.
+            The default is no offset.
+
+        Returns
+        -------
+        act_cmd : ndarray(float) [Nacts]
+            The vector of actuator commands.
+
+        """
+        
+        delta_shape = -self.surface
+        
+        if offset is not None:
+            delta_shape += offset
+            
+        act_cmd = matmul(self.R, delta_shape)
+        
+        self._flat_cmd = act_cmd
+        
+        return act_cmd
+        
+    
+    
+    def apply_flat(self, offset = None):
+        """
+        Applies the flat command minus a given offset
+
+        Parameters
+        ----------
+        offset : ndarray(float) [Npix], optional
+            The shape offset from which to compute the flat.
+            The default is no offset.
+
+        Returns
+        -------
+        flat_rms : float
+            The standard deviation of the obtained shape.
+
+        """
+        
+        if self._flat_cmd is None:
+            self.compute_flat_cmd(offset)
+            
+        self.mirror_command(self._flat_cmd)
+        res_shape = self.surface
+            
+        flat_rms = np.std(res_shape)
+        
+        if offset is not None:
+            flat_rms = np.std(res_shape - offset)
+        
+        return flat_rms
 

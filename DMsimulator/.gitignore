@@ -1,0 +1,8 @@
+# Ignore files created when changing the configuration
+*.fits
+*.npy
+
+# Ignore folders created with configuration parameters
+20240920/
+20250214/
+JWST/
