@@ -51,6 +51,7 @@ def plot_data(data, ch_ids = None, freq = freqwebdaq, title_str = None):
         plt.axis('tight')
 
 
+
 def find_peak(v, freq=None, freq_bounds=None):
 
     idf = range(len(v))
