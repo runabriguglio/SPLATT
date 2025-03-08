@@ -31,6 +31,7 @@ def read_buffer_data(TN:str = None):
 
     ip = _get_local_ip()
     if '193.206.155.43' in ip: # M4WS
+        os.system('buffsync')
         SPLATT_BUFFER_FOLDER = '/mnt/jumbo/SPLATT/Buffer/'
 
     elif '193.206.155.220' in ip: # SPLATTWS
@@ -47,14 +48,14 @@ def read_buffer_data(TN:str = None):
         buffer_folder_list = sorted(glob.glob(SPLATT_BUFFER_FOLDER+'2025*'))
         where = buffer_folder_list[-1].split('/')[-1]
 
-    dec = _read_fits(where,'decimation.fits')
+    dec = read_fits(where,'decimation.fits')
     if dec is None:
         raise FileNotFoundError('The TN does not seem to contain any decimation.fits file')
 
-    dataR1 = _read_fits(where,'dataR1.fits')
-    dataR2 = _read_fits(where,'dataR2.fits')
-    dataW1 = _read_fits(where,'dataW1.fits')
-    dataW2 = _read_fits(where,'dataW2.fits')
+    dataR1 = read_fits(where,'dataR1.fits')
+    dataR2 = read_fits(where,'dataR2.fits')
+    dataW1 = read_fits(where,'dataW1.fits')
+    dataW2 = read_fits(where,'dataW2.fits')
 
     print(np.shape(dataR1))
     data_len = np.shape(dataR1)[-1]
@@ -206,7 +207,7 @@ def _read_sab_address(folder_path, file_name):
     return addr
 
 
-def _read_fits(file_path:str, file_name:str):
+def read_fits(file_path:str, file_name:str):
 
     which = os.path.join(file_path,file_name)
     try:
