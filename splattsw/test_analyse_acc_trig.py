@@ -76,7 +76,7 @@ def acc_trig(wdflist, f_thr = 200):
 
     # plt.figure()
     # for i in range(3):
-    #     plt.scatter(f_sig,(mean_sig_spe[i,:]+mean_sig_spe[i+3,:])/2)
+    #     plt.scatter(f_sig,mean_sig_spe[i]-mean_sig_spe[i+3])
     #     # plt.scatter(f_acc,(mean_acc_spe[i,:]+mean_acc_spe[i+3,:])/2)
     # plt.legend(('Mode 1','Mode 2','Mode 3'))
     # plt.axis([0, f_thr ,0 ,0.006])
@@ -94,8 +94,8 @@ def acc_trig(wdflist, f_thr = 200):
     max_acc_spe = np.zeros(N)
 
     for i in range(N):
-        max_sig_spe[i] = np.sum(mean_sig_spe[:,max_sig_id[i]+delta_peak])
-        max_acc_spe[i] = np.sum(mean_acc_spe[:,max_acc_id[i]+delta_peak])
+        max_sig_spe[i] = np.sum(mean_sig_spe[i,max_sig_id[i]+delta_peak])
+        max_acc_spe[i] = np.sum(mean_acc_spe[i,max_acc_id[i]+delta_peak])
 
     max_sig_spe = (max_sig_spe[::2] + max_sig_spe[1::2])/2
     max_acc_spe = np.mean(max_acc_spe)
