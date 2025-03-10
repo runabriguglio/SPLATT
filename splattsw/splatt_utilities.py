@@ -18,7 +18,9 @@ def start_matlab_engine():
 
     else:
 
-        print('Starting remote matlabe engine ...')
+        print('Starting remote matlab engine ...')
+        mat_eng_cmd='ssh -t labot@193.206.155.220 /bin/bash -ic MatDaemon'
+        subprocess.run(mat_eng_cmd,shell=True)
         import Pyro4
         eng = Pyro4.Proxy("PYRO:matlab_engine@193.206.155.220:9090")
 
