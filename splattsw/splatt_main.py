@@ -73,11 +73,6 @@ for j,freq in enumerate(freq_vec):
     # Start WebDAQ acquisition
     webdaq.start_schedule()
 
-    # Wait for buffer acquisition to end
-    time.sleep(30)
-    tn = eng.get_data('tn',is_numeric=False)
-    tn_list.append(tn)
-
     # Wait for webdaq acquisition to end
     job_status = webdaq.get_jobs_status()
     while job_status[0] != 'completed':
@@ -87,8 +82,13 @@ for j,freq in enumerate(freq_vec):
 
     sp.wdsync()
     wdfile = sp.last_wdfile()
-    # data = sp.openfile(wdfile)
-    # sp.plot_data(data,ch_ids = np.array([1,3],dtype=int))
+    data = sp.openfile(wdfile)
+    sp.plot_data(data,ch_ids = np.array([0,1],dtype=int))
+
+    # Wait for buffer acquisition to end
+    time.sleep(25)
+    tn = eng.get_data('tn')
+    tn_list.append(tn)
 
     wdf_list.append(wdfile)
 
@@ -108,6 +108,10 @@ ps.switch_off(2)
 # Kill the engine
 eng.stop_engine()
 
+# Load and normalize
+V = np.loadtxt('/home/labot/git/SPLATT/SPLATT_Data/mirror_modes.txt')
+V = V/np.sqrt(np.shape(V)[0])
+
 # Post processing
 for k,buf_tn in enumerate(tn_list):
 
@@ -116,7 +120,7 @@ for k,buf_tn in enumerate(tn_list):
     dpos = pos - np.mean(pos,axis=1)
     dmode = V.T @ dpos
 
-    modal_spe, f_vec = utils.spectral_analysis(dmode, dt = (dec+1)/1818)
+    modal_spe, f_vec = utils.spectral_analysis(dmode, dec = dec)
 
     plt.figure()
     plt.plot(f_vec,modal_spe[:3])
