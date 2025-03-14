@@ -20,7 +20,7 @@ def start_matlab_engine():
 
         print('Starting remote matlab engine ...')
         #mat_eng_cmd='ssh -t labot@193.206.155.220 /bin/bash -ic MatDaemon'
-        subprocess.run(mat_eng_cmd,shell=True)
+        #subprocess.run(mat_eng_cmd,shell=True)
         import Pyro4
         eng = Pyro4.Proxy("PYRO:matlab_engine@193.206.155.220:9090")
 
@@ -81,7 +81,7 @@ def read_buffer_data(TN:str = None):
     return data, data_addr, time_vec
 
 
-def spectral_analysis(signal, dec:int = 0):
+def spectral_analysis(signal, dt:float = 0):
     """ This is equivalent to:
         from M4/m4/mini_OTT import time_history as th
         th.spectrum(signal,dt)
@@ -100,7 +100,7 @@ def spectral_analysis(signal, dec:int = 0):
         spe = np.fft.rfft(signal, axis=1, norm="ortho")
         nn = np.sqrt(spe.shape[thedim])
 
-    dt = (dec+1)/1818
+    # dt = (dec+1)/1818
 
     spe = (np.abs(spe)) / nn
     freq = np.fft.rfftfreq(signal.shape[thedim], d=dt)

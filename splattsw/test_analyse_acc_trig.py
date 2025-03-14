@@ -3,105 +3,115 @@ import matplotlib.pyplot as plt
 import splattsw.acceleration_analysis as anal
 import pandas as pd
 
-def acc_trig(wdflist, f_thr = 200):
+
+def analyse_dataframe(dataframe):
+
+    tn_list = dataframe['wdf_tns']
+
+    peak = []
+    peakf = []
+    trig = []
+    trigf = []
+
+    for tn in tn_list:
+        spe_sig1, spe_sig2, f_sig, spe_trig1, spe_trig2, f_trig = get_acc_and_trig_spectra(tn)
+
+        spe_sig = np.sqrt(spe_sig1**2+spe_sig2**2)/2
+        spe_trig = np.sqrt(spe_trig1**2+spe_trig2**2)/2
+
+        peak.append(np.max(spe_trig1))
+        peakf.append(f_sig[np.argmax(spe_sig)])
+        trig.append(np.max(spe_trig))
+        trigf.append(f_trig[np.argmax(spe_trig)])
+
+    dataframe['max_sig_acc'] = np.array(peak)
+    dataframe['max_sig_freq'] = np.array(peakf)
+    dataframe['max_trig_acc'] = np.array(trig)
+    dataframe['max_trig_freq'] = np.array(trigf)
+
+    return dataframe
+
+
+
+
+def get_acc_and_trig_spectra(wdfile, f_thr = 200):
 
     N = 6
     max6ids = np.zeros(N)
     min6ids = np.zeros(N)
 
-    mean_sig_spe = []
-    mean_acc_spe = []
+    data = anal.openfile(wdfile)
 
-    for k,wdf in enumerate(wdflist):
-        data = anal.openfile(wdf)
+    acc = data[1]
+    ids = np.argsort(acc)
 
-        acc = data[1]
-        ids = np.argsort(acc)
+    # Find the N largest and smallest values
+    max_ctr = -1
+    min_ctr = 0
 
-        # Find the N largest and smallest values
-        max_ctr = -1
-        min_ctr = 0
+    max6ids[0] = ids[max_ctr]
+    min6ids[0] = ids[min_ctr]
 
-        max6ids[0] = ids[max_ctr]
-        min6ids[0] = ids[min_ctr]
+    thr = 500
+    for j in np.arange(1,N):
 
-        thr = 500
-        for j in np.arange(1,N):
+        max_ctr -= 1
+        min_ctr += 1
 
+        while np.min(np.abs(max6ids[:j]-ids[max_ctr])) <= thr:
             max_ctr -= 1
+
+        while np.min(np.abs(min6ids[:j]-ids[min_ctr])) <= thr:
             min_ctr += 1
 
-            while np.min(np.abs(max6ids[:j]-ids[max_ctr])) <= thr:
-                max_ctr -= 1
+        max6ids[j] = ids[max_ctr]
+        min6ids[j] = ids[min_ctr]
 
-            while np.min(np.abs(min6ids[:j]-ids[min_ctr])) <= thr:
-                min_ctr += 1
+    # Find signal start
+    ids = (np.minimum(np.sort(min6ids),np.sort(max6ids))).astype(int)
 
-            max6ids[j] = ids[max_ctr]
-            min6ids[j] = ids[min_ctr]
+    sig_len = np.arange(0,1200,dtype=int)
+    sig1 = acc[ids[2]+sig_len]
+    sig2 = acc[ids[3]+sig_len]
 
-        # Find signal start
-        ids = (np.minimum(np.sort(min6ids),np.sort(max6ids))).astype(int)
+    spe1,f_sig = anal.acc_spectrum(sig1)
+    spe2,f_sig = anal.acc_spectrum(sig2)
 
-        sig_len = np.arange(0,1200,dtype=int)
-        sig1 = acc[ids[2]+sig_len]
-        sig2 = acc[ids[3]+sig_len]
+    # Find accelerometer signal
+    acc_len = np.arange(0,500,dtype=int)
+    acc11 = acc[ids[0]+acc_len]
+    acc12 = acc[ids[1]+acc_len]
+    acc21 = acc[ids[4]+acc_len]
+    acc22 = acc[ids[5]+acc_len]
 
-        spe1,f_sig = anal.acc_spectrum(sig1)
-        spe2,f_sig = anal.acc_spectrum(sig2)
+    spacc11,f_acc = anal.acc_spectrum(acc11)
+    spacc12,f_acc = anal.acc_spectrum(acc12)
+    spacc21,f_acc = anal.acc_spectrum(acc21)
+    spacc22,f_acc = anal.acc_spectrum(acc22)
 
-        mean_sig_spe.append((spe1+spe2)/2)
-
-        # Find accelerometer signal
-        acc_len = np.arange(0,500,dtype=int)
-        acc1 = acc[ids[0]+acc_len]
-        acc2 = acc[ids[1]+acc_len]
-        acc3 = acc[ids[4]+acc_len]
-        acc4 = acc[ids[5]+acc_len]
-
-        spacc1,f_acc = anal.acc_spectrum(acc1)
-        spacc2,f_acc = anal.acc_spectrum(acc2)
-        spacc3,f_acc = anal.acc_spectrum(acc3)
-        spacc4,f_acc = anal.acc_spectrum(acc4)
-
-        mean_acc_spe.append((spacc1+spacc2+spacc3+spacc4)/4)
-
-    mean_sig_spe = np.array(mean_sig_spe)
-    mean_acc_spe = np.array(mean_acc_spe)
+    # Perform mean in energy
+    spacc1 = np.sqrt(spacc11**2 + spacc21**2)/2
+    spacc2 = np.sqrt(spacc12**2 + spacc22**2)/2
 
     # Remove high frequencies
-    mean_sig_spe = mean_sig_spe[:,f_sig<f_thr]
-    mean_acc_spe = mean_acc_spe[:,f_acc<f_thr]
+    spe_sig1 = spe1[f_sig<f_thr]
+    spe_sig2 = spe2[f_sig<f_thr]
+    spe_trig1 = spacc1[f_acc<f_thr]
+    spe_trig2 = spacc2[f_acc<f_thr]
     f_sig = f_sig[f_sig<f_thr]
-    f_acc = f_acc[f_acc<f_thr]
+    f_trig = f_acc[f_acc<f_thr]
 
+    # ref_spe,f_ref = anal.acc_spectrum(acc[0:1000])
+    # ref_spe = ref_spe[f_ref<f_thr]
+    # f_ref = f_ref[f_ref < f_thr]
+    #
     # plt.figure()
-    # for i in range(3):
-    #     plt.scatter(f_sig,mean_sig_spe[i]-mean_sig_spe[i+3])
-    #     # plt.scatter(f_acc,(mean_acc_spe[i,:]+mean_acc_spe[i+3,:])/2)
-    # plt.legend(('Mode 1','Mode 2','Mode 3'))
-    # plt.axis([0, f_thr ,0 ,0.006])
+    # plt.scatter(f_ref,ref_spe)
+    # plt.scatter(f_sig,spe_sig1)
     # plt.grid('on')
     # plt.show()
 
-    delta_peak = np.arange(-2,3)
-    max_sig_id = np.argmax(mean_sig_spe,axis=1)
-    f_max_sig = f_sig[max_sig_id]
-
-    max_acc_id = np.argmax(mean_acc_spe,axis=1)
-    f_max_acc = f_acc[max_acc_id]
-
-    max_sig_spe = np.zeros(N)
-    max_acc_spe = np.zeros(N)
-
-    for i in range(N):
-        max_sig_spe[i] = np.sum(mean_sig_spe[i,max_sig_id[i]+delta_peak])
-        max_acc_spe[i] = np.sum(mean_acc_spe[i,max_acc_id[i]+delta_peak])
-
-    max_sig_spe = (max_sig_spe[::2] + max_sig_spe[1::2])/2
-    max_acc_spe = np.mean(max_acc_spe)
-
-    return max_sig_spe, f_max_sig, max_acc_spe, f_max_acc
+    return spe_sig1, spe_sig2, f_sig, spe_trig1, spe_trig2, f_trig
 
 # Gap1, Vac2
 wdflist = ['OBB-Vibration_2025-02-18T17-03-39-102.wdd',
@@ -126,7 +136,6 @@ wdflist = ['OBB-Vibration_2025-02-18T17-03-39-102.wdd',
 'OBB-Vibration_2025-02-18T17-18-03-958.wdd',
 'OBB-Vibration_2025-02-18T17-19-00-840.wdd',
 'OBB-Vibration_2025-02-18T17-19-57-762.wdd',
-
 
 # Gap1, Vac1
 'OBB-Vibration_2025-02-19T16-44-25-595.wdd',
