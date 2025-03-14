@@ -12,14 +12,14 @@ class SPLATTEngine():
         #self.eng.send_command('splattStartup')
 
         print('Initializing mirror variables...')
-        self._shellset = False
-        self.nActs = int(self.eng.get_data('sys_data.mirrNActs'))
+        self._shellIsSet = False
+        self.nActs = int(self.eng.get_data('sys_data.mirrNAct'))
         self.actCoords = self._get_act_coords()
         self._bits2meters = float(self.eng.get_data('2^-sys_data.coeffs.Scale_F_Lin'))
 
 
     def get_shape(self):
-        if self.shellset is False:
+        if self._shellIsSet is False:
             print('Shell must be set before giving commands!')
             self._set_shell()
         posCmdBits = np.array(self.eng.get_data("aoRead('sabu16_position',1:19)"))
@@ -28,7 +28,7 @@ class SPLATTEngine():
 
 
     def set_shape(self, cmd):
-        if self.shellset is False:
+        if self._shellIsSet is False:
             print('Shell must be set before giving commands!')
             self._set_shell()
         self.eng.send_command(f"splattMirrorCommand(cmd,'relative')")

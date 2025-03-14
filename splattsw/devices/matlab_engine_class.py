@@ -13,10 +13,10 @@ class MatlabEngine(object):
     def send_command(self,command):
         self.eng.eval(str(command)+';', nargout=0)
 
-    def get_data(self, command_to_read_data:str):
+    def get_data(self, command_to_read_data:str, n_args_out: int = 1):
         # Note that Pyro does not seem to support numpy, convert
         # any arrays after the call
-        data = self.eng.eval(str(command_to_read_data),nargout=1)
+        data = self.eng.eval(str(command_to_read_data),nargout=n_args_out)
         return data
 
     def stop_engine(self):
