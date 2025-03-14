@@ -7,7 +7,7 @@ from segment_geometry import circular_mask
 import utilities as utils
 
 config_tn = '20240920'
-# config_tn = 'JWST'
+#config_tn = 'JWST'
 dsm = utils.define_dsm(config_tn)
 
 # # Fitting errors
