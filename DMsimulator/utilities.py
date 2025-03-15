@@ -45,7 +45,7 @@ def define_dsm(TN:str, n_global_zern:int = 7, n_local_zern:int = 13):
     tiptiltfocus[2] = 1
     tiptiltfocus[3] = 1
     wf = matmul(sdm.glob_ZM,tiptiltfocus)
-    sdm.plot_surface(wf, plt_title='Global Tip/Tilt + Focus')
+    sdm.acquire_map(wf, plt_title='Global Tip/Tilt + Focus')
     
     # Local Zernike matrix
     print('Computing ' + str(n_local_zern) + ' modes local Zernike interaction matrix ...')
@@ -59,7 +59,7 @@ def define_dsm(TN:str, n_global_zern:int = 7, n_local_zern:int = 13):
     modal_cmd = np.zeros(n_hex*n_local_zern)
     modal_cmd[cmd_ids] = 1
     flat_shape = matmul(INTMAT,modal_cmd)
-    sdm.plot_surface(flat_shape, plt_title='Zernike modes')
+    sdm.acquire_map(flat_shape, plt_title='Zernike modes')
     
     # Global influence functions and global reconstructor
     print('Initializing influence functions and reconstructor matrices ...')
@@ -68,7 +68,7 @@ def define_dsm(TN:str, n_global_zern:int = 7, n_local_zern:int = 13):
     R = sdm.R
     cmd_for_zern = matmul(R,flat_shape)
     flat_img = matmul(IFF,cmd_for_zern)
-    sdm.plot_surface(flat_img, plt_title='Reconstructed Zernike modes')
+    sdm.acquire_map(flat_img, plt_title='Reconstructed Zernike modes')
     
     n_acts = np.shape(IFF)[2]
     cmd = np.zeros(n_hex*n_acts)
@@ -78,7 +78,7 @@ def define_dsm(TN:str, n_global_zern:int = 7, n_local_zern:int = 13):
     cmd_ids = cmd_ids + n_acts*np.arange(n_hex)
     cmd[cmd_ids] = 1 #np.ones(n_hex)
     flat_img = matmul(IFF,cmd)
-    sdm.plot_surface(flat_img, plt_title='Actuators influence functions')
+    sdm.acquire_map(flat_img, plt_title='Actuators influence functions')
     
     return sdm
 

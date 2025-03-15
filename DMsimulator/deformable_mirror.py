@@ -10,22 +10,22 @@ class DeformableMirror():
     This class defines the methods for a generic deformable mirror.
     It implements the following functions:
         
-        - plot_surface(): plot the current shape or a shape in input
+        - acquire_map(): plot the current shape or a shape in input
         
         - get_position(): read and plot the actuator position at the actuator coordinates
+
+        - set_position(): apply a zonal or modal command to the DM
         
         - compute_flat(): computes the flat command of the current shape with an (optional) offset
         
         - apply_flat(): applies the flat command of the current shape with an (optional) offset
-                        
-        - mirror_command(): apply a zonal or modal command to the DM
     """
     
     def __init__(self):
         pass
 
 
-    def plot_surface(self, surf2plot = None, plt_title:str = None, plt_mask = None):
+    def acquire_map(self, surf2plot = None, plt_title:str = None, plt_mask = None):
         """
         Plots surf2plot or (default) the segment's
         current shape on the DM mask
@@ -101,7 +101,7 @@ class DeformableMirror():
         return pos
     
     
-    def mirror_command(self, cmd_amps, absolute:bool = False, modal:bool = False):
+    def set_position(self, cmd_amps, absolute:bool = False, modal:bool = False):
         """
         Computes and applies a zonal/modal amplitude
         command to the segment
@@ -142,7 +142,7 @@ class DeformableMirror():
         self.surface += matmul(self.IFF, cmd_amps)
         
     
-    def compute_flat_cmd(self, offset = None):
+    def compute_flat(self, offset = None):
         """
         Computes the flat command for the current
         mirror shape minus a given offset
@@ -191,9 +191,9 @@ class DeformableMirror():
         """
         
         if self._flat_cmd is None:
-            self.compute_flat_cmd(offset)
+            self.compute_flat(offset)
             
-        self.mirror_command(self._flat_cmd)
+        self.set_position(self._flat_cmd)
         res_shape = self.surface
             
         flat_rms = np.std(res_shape)

@@ -29,30 +29,30 @@ anular_mask = np.logical_or(1-mask_in,mask_out)
 
 # Segment Scramble
 dsm.segment_scramble(reset_shape=True)
-dsm.plot_surface(plt_mask = anular_mask)
+dsm.acquire_map(plt_mask = anular_mask)
 
 dsm.apply_masked_flat(mask = anular_mask)
 dsm.get_position()
-dsm.plot_surface(plt_mask = anular_mask)
-dsm.plot_surface()
+dsm.acquire_map(plt_mask = anular_mask)
+dsm.acquire_map()
 
 dsm.segment_scramble(reset_shape=True)
 dsm.apply_masked_flat(mask = anular_mask, slaving_mode='zero')
 dsm.get_position()
-dsm.plot_surface(plt_mask = anular_mask)
-dsm.plot_surface()
+dsm.acquire_map(plt_mask = anular_mask)
+dsm.acquire_map()
 
 dsm.segment_scramble(reset_shape=True)
 dsm.apply_masked_flat(mask = anular_mask, slaving_mode='interp')
 dsm.get_position()
-dsm.plot_surface(plt_mask = anular_mask)
-dsm.plot_surface()
+dsm.acquire_map(plt_mask = anular_mask)
+dsm.acquire_map()
 
 dsm.segment_scramble(reset_shape=True)
 dsm.apply_masked_flat(mask = anular_mask, slaving_mode='exclude')
 dsm.get_position()
-dsm.plot_surface(plt_mask = anular_mask)
-dsm.plot_surface()
+dsm.acquire_map(plt_mask = anular_mask)
+dsm.acquire_map()
 
 # # CapSens matrix
 # meas_gap = utils.capsens_measure(dm, 1)

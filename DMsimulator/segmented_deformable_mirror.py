@@ -68,7 +68,7 @@ class SegmentedMirror(DM):
                 
             elif np.any(1-local_mask):
                 cmd = segment.masked_flat_cmd(hex_mask, slaving=slaving_mode)
-                segment.mirror_command(cmd)
+                segment.set_position(cmd)
         
         res_shape = self.surface[masked_ids]
         flat_rms = np.std(res_shape)
@@ -133,7 +133,7 @@ class SegmentedMirror(DM):
             self.surface += flat_img - self.surface
             self.act_pos -= self.act_pos
         else:
-            self.plot_surface(flat_img, plt_title = 'Segment scramble')
+            self.acquire_map(flat_img, plt_title = 'Segment scramble')
         
         
     def compute_global_zern_matrix(self, n_modes):
