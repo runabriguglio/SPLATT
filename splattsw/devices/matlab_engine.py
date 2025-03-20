@@ -6,7 +6,6 @@ import numpy as np
 class MatlabEngine(object):
 
     def connect_matlab(self, shared_session_name: str = 'splattEngine'):
-
         names = matlab.engine.find_matlab()
         if shared_session_name in names:
             print(f"Connecting to '{shared_session_name}' ...")
@@ -24,13 +23,10 @@ class MatlabEngine(object):
             self._command(cmd_str)
 
     def read_data(self, command_to_read_data:str, n_args_out: int = 1):
-        # Note that Pyro does not seem to support numpy, convert any arrays after the call
-        mat_data = np.array(self.eng.eval(str(command_to_read_data),nargout=n_args_out), dtype = object)
+        # Pyro does not seem to support numpy: convert any arrays after the call
+        mat_data = self.eng.eval(str(command_to_read_data),nargout=n_args_out)
 
-        if np.size(mat_data) == 1:
-            data = mat_data.tolist()
-        else:
-            mat_data.tolist()
+        if n_args_out > 1:
             data = []
             for val in mat_data:
                 data.append(val)

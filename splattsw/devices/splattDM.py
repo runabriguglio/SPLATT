@@ -1,6 +1,5 @@
 import numpy as np
 
-
 class SPLATTEngine():
 
     def __init__(self, ip:str = '193.206.155.220', port:int = 9090):
@@ -11,7 +10,7 @@ class SPLATTEngine():
         print('Initializing mirror variables...')
         self.eng.send_command('splattInit')
         self._shellset = False
-        self.nActs = int(self.eng.read_data('sys_data.mirrNActs'))
+        self.nActs = int(self.eng.read_data('sys_data.mirrNAct'))
         self.actCoords = self._get_act_coords()
         self._bits2meters = float(self.eng.read_data('2^-sys_data.coeffs.Scale_F_Lin'))
 
