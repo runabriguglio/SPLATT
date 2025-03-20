@@ -1,24 +1,27 @@
 import numpy as np
+# import matplotlib.pyplot as plt
 
 class SPLATTEngine():
 
     def __init__(self, ip:str = '193.206.155.220', port:int = 9090):
+        
         import Pyro4
-        self.eng = Pyro4.Proxy(f"PYRO:matlab_engine@{ip}:{port}")
-        self.eng.connect_matlab()
+        self._eng = Pyro4.Proxy(f"PYRO:matlab_engine@{ip}:{port}")
+        self._eng.connect_matlab()
 
         print('Initializing mirror variables...')
-        self._shellset = False
-        self.nActs = int(self.eng.read_data('sys_data.mirrNAct'))
+        self.nActs = int(self._eng.read_data('sys_data.mirrNAct'))
         self.actCoords = self._get_act_coords()
-        self._bits2meters = float(self.eng.read_data('2^-sys_data.coeffs.Scale_F_Lin'))
+        
+        self._shellset = False
+        self._bits2meters = float(self._eng.read_data('2^-sys_data.coeffs.Scale_F_Lin'))
 
 
     def get_position(self):
         if self.shellset is False:
             print('Shell must be set before giving commands!')
             self._set_shell()
-        posCmdBits = np.array(self.eng.read_data("aoRead('sabu16_position',1:19)"))
+        posCmdBits = np.array(self._eng.read_data("aoRead('sabu16_position',1:19)"))
         posCmd = posCmdBits * self._bits2meters
         return posCmd
 
@@ -27,7 +30,7 @@ class SPLATTEngine():
         if self.shellset is False:
             print('Shell must be set before giving commands!')
             self._set_shell()
-        self.eng.send_command(f"splattMirrorCommand({cmd},'relative')")
+        self._eng.send_command(f"splattMirrorCommand({cmd},'relative')")
 
 
     def read_buffers(self, n_samples:int = 128, decimation:int = 0):
@@ -36,36 +39,49 @@ class SPLATTEngine():
             raise ValueError('Maximum number of samples is 256!')
 
         self.send_command(f"clear opts; opts.dec = {decimation}; opts.sampleNr = {n_samples}; opts.save2fits = 1; opts.save2mat = 0; opts.saveCmds = 1")
+        print('Reading buffers, hold tight ...')
         self.send_command("[pos,cur,buf_tn]=splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
 
-        buf_tn = self.eng.read_data('buf_tn')
-        mean_pos = np.array(self.eng.read_data('mean(pos,2)')*self._bits2meters)
-        mean_cur = np.array(self.eng.read_data('mean(cur,2)'))
+        buf_tn = self._eng.read_data('buf_tn')
+        mean_pos = np.array(self._eng.read_data('mean(pos,2)')*self._bits2meters)
+        mean_cur = np.array(self._eng.read_data('mean(cur,2)'))
 
         return mean_pos, mean_cur, buf_tn
+    
 
+    # def splatt_plot(self, splatt_data):
+
+    #     splatt_data = np.array(splatt_data)
+    #     if np.size(splatt_data) != self.nActs:
+    #         raise ValueError(f'The size of the input vector is {np.size(splatt_data)}, the requested size is {self.nActs}')
+        
+    #     plt.figure()
+    #     plt.scatter(self.actCoords[:,0],self.actCoords[:,1],s=100,c=splatt_data)
+    #     plt.colorbar()
+    #     plt.grid('on')
+    #     plt.show()
 
     def _set_shell(self):
 
         try:
-            pos = np.array(self.eng.read_data('lattGetPos()'))
-            rest_pos = np.array(self.eng.read_data('sys_data.restpos'))
+            pos = np.array(self._eng.read_data('lattGetPos()'))
+            rest_pos = np.array(self._eng.read_data('sys_data.restpos'))
             if min(pos) > max(rest_pos):
                 self._shellset = True
         except:
             print('Performing startup ...')
-            self.eng.send_command('splattStartup')
+            self._eng.send_command('splattStartup')
             
         if self._shellset is False:
             print('Setting the shell...')
-            self.eng.send_command('splattFastSet')
+            self._eng.send_command('splattFastSet')
             self._shellset = True
 
     def _get_act_coords(self):
-        self.eng.send_command("phi = deg2rad(60)")
-        self.eng.send_command("matrixRot = [cos(phi),-sin(phi);sin(phi),cos(phi)]")
-        self.eng.send_command("coord_Act = matrixRot*mirrorData.coordAct'")
-        coordAct = np.array(self.eng.read_data("coord_Act'"))
+        self._eng.send_command("phi = deg2rad(60)")
+        self._eng.send_command("matrixRot = [cos(phi),-sin(phi);sin(phi),cos(phi)]")
+        self._eng.send_command("coord_Act = matrixRot*mirrorData.coordAct'")
+        coordAct = np.array(self._eng.read_data("coord_Act'"))
         return coordAct
 
 

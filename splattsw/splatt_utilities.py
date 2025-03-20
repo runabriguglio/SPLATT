@@ -13,7 +13,7 @@ def start_matlab_engine():
     if '193.206.155.220' in ip: # SPLATTWS
 
         print('Starting local matlab engine ...')
-        from splattsw.devices.matlab_engine_class import MatlabEngine
+        from splattsw.devices.matlab_engine import MatlabEngine
         eng = MatlabEngine()
 
     else:
