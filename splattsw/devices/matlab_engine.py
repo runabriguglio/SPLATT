@@ -22,7 +22,7 @@ class MatlabEngine(object):
         if wait4reply is False:
             self._oneway_command(self,cmd_str)
         else:
-            self._oneway_command(self,cmd_str)
+            self._command(self,cmd_str)
 
     def read_data(self, command_to_read_data:str, n_args_out: int = 1):
         # Note that Pyro does not seem to support numpy, convert any arrays after the call
