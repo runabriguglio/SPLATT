@@ -45,4 +45,17 @@ def read_config(path):
     opt_par = np.array([pix_scale, opt_rad, pup_x, pup_y])
     opt_par = opt_par.astype(float)
 
-    return dm_par, opt_par
+    
+    # Mechanical parameters
+    mech_conf = config['MECH']
+    RoC = mech_conf['RoC']
+    thk = mech_conf['thk']
+    len = mech_conf['len']
+    E = mech_conf['E']
+    rho = mech_conf['rho']
+    nu = mech_conf['nu']
+
+    mech_par = np.array([RoC,thk,len,E,rho,nu])
+    mech_par = mech_par.astype(float)
+
+    return dm_par, opt_par, mech_par

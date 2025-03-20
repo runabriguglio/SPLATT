@@ -1,7 +1,8 @@
 # Ignore files created when changing the configuration
 *.fits
 *.npy
-**/COMSOL_Files/*.txt
+*.asv
+*.txt
 
 # Ignore folders created with configuration parameters
 20240920/
