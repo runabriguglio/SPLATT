@@ -8,14 +8,10 @@ class SPLATTEngine():
         self.eng.connect_matlab()
 
         print('Initializing mirror variables...')
-        self.eng.send_command('splattInit')
         self._shellset = False
         self.nActs = int(self.eng.read_data('sys_data.mirrNAct'))
         self.actCoords = self._get_act_coords()
         self._bits2meters = float(self.eng.read_data('2^-sys_data.coeffs.Scale_F_Lin'))
-
-        print('Performing startup...')
-        self.eng.send_command('splattStartup')
 
 
     def get_position(self):
@@ -50,9 +46,20 @@ class SPLATTEngine():
 
 
     def _set_shell(self):
-        print('Setting the shell...')
-        self.eng.send_command('splattFastSet')
-        self._shellset = True
+
+        try:
+            pos = np.array(self.eng.read_data('lattGetPos()'))
+            rest_pos = np.array(self.eng.read_data('sys_data.restpos'))
+            if min(pos) > max(rest_pos):
+                self._shellset = True
+        except:
+            print('Performing startup ...')
+            self.eng.send_command('splattStartup')
+            
+        if self._shellset is False:
+            print('Setting the shell...')
+            self.eng.send_command('splattFastSet')
+            self._shellset = True
 
     def _get_act_coords(self):
         self.eng.send_command("phi = deg2rad(60)")
