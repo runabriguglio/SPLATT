@@ -26,11 +26,14 @@ class MatlabEngine(object):
         # Pyro does not seem to support numpy: convert any arrays after the call
         mat_data = self.eng.eval(str(command_to_read_data),nargout=n_args_out)
 
-        data = mat_data
         if n_args_out > 1:
             data = []
             for val in mat_data:
-                data.append(val)
+                val = np.array(val)
+                data.append(val.tolist())
+        else:
+            mat_data = np.array(mat_data)
+            data = mat_data.tolist()
 
         return data
 
