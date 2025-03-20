@@ -3,9 +3,9 @@
 *.npy
 *.asv
 *.txt
-*.yaml
 
 # Ignore folders created with configuration parameters
+ConfigFiles/
 20240920/
 20250214/
 JWST/
