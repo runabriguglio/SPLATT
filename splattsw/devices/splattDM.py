@@ -10,28 +10,43 @@ class SPLATTEngine():
         print('Initializing mirror variables...')
         self.eng.send_command('splattInit')
         self._shellset = False
-        self.nActs = int(self.eng.get_data('sys_data.mirrNActs'))
+        self.nActs = int(self.eng.read_data('sys_data.mirrNActs'))
         self.actCoords = self._get_act_coords()
-        self._bits2meters = float(self.eng.get_data('2^-sys_data.coeffs.Scale_F_Lin'))
+        self._bits2meters = float(self.eng.read_data('2^-sys_data.coeffs.Scale_F_Lin'))
 
         print('Performing startup...')
         self.eng.send_command('splattStartup')
 
 
-    def get_shape(self):
+    def get_position(self):
         if self.shellset is False:
             print('Shell must be set before giving commands!')
             self._set_shell()
-        posCmdBits = np.array(self.eng.get_data("aoRead('sabu16_position',1:19)"))
+        posCmdBits = np.array(self.eng.read_data("aoRead('sabu16_position',1:19)"))
         posCmd = posCmdBits * self._bits2meters
         return posCmd
 
 
-    def set_shape(self, cmd):
+    def set_position(self, cmd):
         if self.shellset is False:
             print('Shell must be set before giving commands!')
             self._set_shell()
         self.eng.send_command(f"splattMirrorCommand({cmd},'relative')")
+
+
+    def read_buffers(self, n_samples:int = 128, decimation:int = 0):
+
+        if n_samples > 256:
+            raise ValueError('Maximum number of samples is 256!')
+
+        self.send_command(f"clear opts; opts.dec = {decimation}; opts.sampleNr = {n_samples}; opts.save2fits = 1;")
+        self.send_command("[pos,cur,buf_tn]=splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
+
+        buf_tn = self.eng.read_data('buf_tn')
+        mean_pos = np.array(self.eng.read_data('mean(pos,2)')*self._bits2meters)
+        mean_cur = np.array(self.eng.read_data('mean(cur,2)'))
+
+        return mean_pos, mean_cur, buf_tn
 
 
     def _set_shell(self):
@@ -43,7 +58,7 @@ class SPLATTEngine():
         self.eng.send_command("phi = deg2rad(60)")
         self.eng.send_command("matrixRot = [cos(phi),-sin(phi);sin(phi),cos(phi)]")
         self.eng.send_command("coord_Act = matrixRot*mirrorData.coordAct'")
-        coordAct = np.array(self.eng.get_data("coord_Act'"))
+        coordAct = np.array(self.eng.read_data("coord_Act'"))
         return coordAct
 
 
@@ -64,15 +79,15 @@ class SPLATTDm(BaseDeformableMirror):
         self.refAct         = 1
 
     def get_shape(self):
-        shape = self._dm.get_shape()
+        shape = self._dm.get_position()
         return shape
 
     def set_shape(self, cmd, differential:bool=False):
         if differential:
-            shape = self._dm.get_shape()
+            shape = self._dm.get_position()
             cmd = cmd + shape
         self._checkCmdIntegrity(cmd)
-        self._dm.set_shape(cmd)
+        self._dm.set_position(cmd)
 
     def uploadCmdHistory(self, cmdhist):
         self.cmdHistory = cmdhist

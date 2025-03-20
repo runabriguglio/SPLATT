@@ -6,7 +6,7 @@ import numpy as np
 class MatlabEngine(object):
 
     def start_engine(self):
-        self.eng = matlab.engine.connect_matlab()
+        self.eng = matlab.engine.connect_matlab() # Connects to an existing matlab session or creates a new one
         self.eng.cd(r'/home/labot/SPLATT_SW/Matlab_2024/Matlab/Scripts')
 
     def send_command(self, cmd_str, wait4reply:bool = True):
@@ -15,7 +15,7 @@ class MatlabEngine(object):
         else:
             self._oneway_command(self,cmd_str)
 
-    def get_data(self, command_to_read_data:str, n_args_out: int = 1):
+    def read_data(self, command_to_read_data:str, n_args_out: int = 1):
         # Note that Pyro does not seem to support numpy, convert any arrays after the call
         mat_data = self.eng.eval(str(command_to_read_data),nargout=n_args_out)
         data = []
