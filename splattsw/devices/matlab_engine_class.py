@@ -5,9 +5,18 @@ import numpy as np
 @Pyro4.expose
 class MatlabEngine(object):
 
-    def start_engine(self):
-        self.eng = matlab.engine.connect_matlab() # Connects to an existing matlab session or creates a new one
-        self.eng.cd(r'/home/labot/SPLATT_SW/Matlab_2024/Matlab/Scripts')
+    def connect_matlab(self, shared_session_name: str = 'splattEngine'):
+
+        names = matlab.engine.find_matlab()
+
+        if shared_session_name in names:
+            print(f"Connecting to '{shared_session_name}' ...")
+            self.eng = matlab.engine.connect_matlab(shared_session_name)
+        else:
+            print(f"Shared MATLAB session '{shared_session_name}' not found, starting a new session ...")
+            self.eng = matlab.engine.start_matlab()
+            self.eng.cd(r'/home/labot/SPLATT_SW/Matlab_2024/Matlab/Scripts')
+            self.eng.eval('splattInit',nargout=0)
 
     def send_command(self, cmd_str, wait4reply:bool = True):
         if wait4reply is False:

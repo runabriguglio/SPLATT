@@ -1,11 +1,12 @@
+import numpy as np
+
 
 class SPLATTEngine():
 
     def __init__(self, ip:str = '193.206.155.220', port:int = 9090):
         import Pyro4
         self.eng = Pyro4.Proxy(f"PYRO:matlab_engine@{ip}:{port}")
-        print('Starting the matlab engine...')
-        self.eng.start_engine()
+        self.eng.connect_matlab()
 
         print('Initializing mirror variables...')
         self.eng.send_command('splattInit')
@@ -39,7 +40,7 @@ class SPLATTEngine():
         if n_samples > 256:
             raise ValueError('Maximum number of samples is 256!')
 
-        self.send_command(f"clear opts; opts.dec = {decimation}; opts.sampleNr = {n_samples}; opts.save2fits = 1;")
+        self.send_command(f"clear opts; opts.dec = {decimation}; opts.sampleNr = {n_samples}; opts.save2fits = 1; opts.save2mat = 0; opts.saveCmds = 1")
         self.send_command("[pos,cur,buf_tn]=splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
 
         buf_tn = self.eng.read_data('buf_tn')
