@@ -1,6 +1,9 @@
 import numpy as np
 from tps import ThinPlateSpline # for the simulated IFF
-# from scipy.interpolate import griddata
+
+import os
+import subprocess
+from scipy.interpolate import griddata
 
 from zernike_polynomials import generate_zernike_matrix as assemble_zern_mat
 
@@ -60,16 +63,7 @@ def simulate_influence_functions(act_coords, local_mask, pix_scale, amps = 1.0):
     imposing 'perfect' zonal commands """
     
     n_acts = len(act_coords)
-    
     H,W = np.shape(local_mask)
-    
-    # pix_coords = np.zeros([max_x*max_y,2])
-    # pix_coords[:,0] = np.repeat(np.arange(max_x),max_y)
-    # pix_coords[:,1] = np.tile(np.arange(max_y),max_x)
-    
-    # act_pix_coords = np.zeros([n_acts,2])
-    # act_pix_coords[:,0] = (act_coords[:,1] * pix_scale + max_x/2).astype(int)
-    # act_pix_coords[:,1] = (act_coords[:,0] * pix_scale + max_y/2).astype(int)
     
     pix_coords = get_pixel_coords(local_mask, pix_scale)
     act_pix_coords = get_pixel_coords(local_mask, pix_scale, act_coords)
@@ -96,11 +90,62 @@ def simulate_influence_functions(act_coords, local_mask, pix_scale, amps = 1.0):
     return cube
 
 
-def calculate_influence_functions(act_coords, local_mask, normalized_act_radius):
-    """ Project the actuator influence functions 
-    on the mask via grid interpolation """
-    
-    raise NotImplementedError()
+def calculate_influence_functions(act_coords, local_mask, mech_parameters):
+    """ Calculate the actuator influence functions 
+    using the COMSOL multiphysics FEA software """
+
+    # Define paths
+    script_path = os.path.join(os.getcwd(),'COMSOL_Files')
+    output_path = os.path.join(script_path,'SimOutputFiles')
+    input_path = os.path.join(script_path,'SimInputFiles')
+    script_name = 'hexagonal_shell'
+
+    # Write input data
+    np.savetxt(os.path.join(input_path,'act_coords.txt'), act_coords)
+    np.savetxt(os.path.join(input_path,'mech_parameters.txt'), mech_parameters)
+
+    # Perform the computation
+    subprocess.run(f"matlab -batch {script_name}", cwd = script_path)
+
+    # Read output   
+    K = np.loadtxt(os.path.join(output_path,'stiffness_matrix.txt'))
+    iff_data = np.loadtxt(os.path.join(output_path,'iffs.txt'))
+    in_mesh = np.loadtxt(os.path.join(output_path,'mesh.txt'))
+
+    # Post-process iffs
+    H,W = np.shape(local_mask)
+    iffs = interpolate_influence_functions(iff_data, in_mesh, np.array([W,H]))
+    n_acts = len(act_coords)
+    img_cube = np.zeros([H,W,n_acts])
+
+    for k in range(n_acts):
+        img_k = iffs[:,:,k]
+        flat_img = img_k[~local_mask]        
+        uint8_img = scale2uint8(flat_img) # scale to uint8
+        img_cube[:,:,k] = np.reshape(uint8_img, [H,W])
+
+    # Masked array
+    cube_mask = np.tile(local_mask,n_acts)
+    cube_mask = np.reshape(cube_mask, np.shape(img_cube), order = 'F')
+    cube = np.ma.masked_array(img_cube, cube_mask, dtype=np.uint8)
+
+    return cube, K
+
+
+def interpolate_influence_functions(iffs, in_mesh, npix = np.array([256,256],dtype=int) ):
+    """ Interpolates the influence functions defined on the in_mesh
+    to a new grid of npix by npix points """
+
+    npix_x, npix_y = npix
+
+    x, y = in_mesh[:,0], in_mesh[:,1]
+    new_x = np.linspace(min(x), max(x), npix_x)
+    new_y = np.linspace(min(y), max(y), npix_y)
+    gx, gy = np.meshgrid(new_x, new_y)
+
+    interp_iffs = griddata((x, y), iffs, (gx, gy), method='linear')
+
+    return interp_iffs
 
 
 def cube2mat(cube):

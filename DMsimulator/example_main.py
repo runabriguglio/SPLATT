@@ -20,39 +20,42 @@ dsm = utils.define_dsm(config_tn)
 # utils.update_act_coords_on_ring(dsm, 0)
 # utils.update_act_coords_on_ring(dsm, 2)
 
-# Define anular mask
-r_in = 1.
-r_out = 5.
-mask_in = circular_mask(r_in,dsm.geom.pix_scale,np.shape(dsm.mask))
-mask_out = circular_mask(r_out,dsm.geom.pix_scale,np.shape(dsm.mask))
-anular_mask = np.logical_or(1-mask_in,mask_out)
+# Test comsol simulation
+utils.compute_influence_functions_with_comsol(dsm)
 
-# Segment Scramble
-dsm.segment_scramble(reset_shape=True)
-dsm.acquire_map(plt_mask = anular_mask)
+# # Define anular mask
+# r_in = 1.
+# r_out = 5.
+# mask_in = circular_mask(r_in,dsm.geom.pix_scale,np.shape(dsm.mask))
+# mask_out = circular_mask(r_out,dsm.geom.pix_scale,np.shape(dsm.mask))
+# anular_mask = np.logical_or(1-mask_in,mask_out)
 
-dsm.apply_masked_flat(mask = anular_mask)
-dsm.get_position()
-dsm.acquire_map(plt_mask = anular_mask)
-dsm.acquire_map()
+# # Segment Scramble
+# dsm.segment_scramble(reset_shape=True)
+# dsm.acquire_map(plt_mask = anular_mask)
 
-dsm.segment_scramble(reset_shape=True)
-dsm.apply_masked_flat(mask = anular_mask, slaving_mode='zero')
-dsm.get_position()
-dsm.acquire_map(plt_mask = anular_mask)
-dsm.acquire_map()
+# dsm.apply_masked_flat(mask = anular_mask)
+# dsm.get_position()
+# dsm.acquire_map(plt_mask = anular_mask)
+# dsm.acquire_map()
 
-dsm.segment_scramble(reset_shape=True)
-dsm.apply_masked_flat(mask = anular_mask, slaving_mode='interp')
-dsm.get_position()
-dsm.acquire_map(plt_mask = anular_mask)
-dsm.acquire_map()
+# dsm.segment_scramble(reset_shape=True)
+# dsm.apply_masked_flat(mask = anular_mask, slaving_mode='zero')
+# dsm.get_position()
+# dsm.acquire_map(plt_mask = anular_mask)
+# dsm.acquire_map()
 
-dsm.segment_scramble(reset_shape=True)
-dsm.apply_masked_flat(mask = anular_mask, slaving_mode='exclude')
-dsm.get_position()
-dsm.acquire_map(plt_mask = anular_mask)
-dsm.acquire_map()
+# dsm.segment_scramble(reset_shape=True)
+# dsm.apply_masked_flat(mask = anular_mask, slaving_mode='interp')
+# dsm.get_position()
+# dsm.acquire_map(plt_mask = anular_mask)
+# dsm.acquire_map()
+
+# dsm.segment_scramble(reset_shape=True)
+# dsm.apply_masked_flat(mask = anular_mask, slaving_mode='exclude')
+# dsm.get_position()
+# dsm.acquire_map(plt_mask = anular_mask)
+# dsm.acquire_map()
 
 # # CapSens matrix
 # meas_gap = utils.capsens_measure(dm, 1)

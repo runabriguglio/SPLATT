@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 from segmented_deformable_mirror import SegmentedMirror
 from segment_geometry import HexagonGeometry
-from matrix_calculator import matmul
+from matrix_calculator import matmul, calculate_influence_functions
 import my_fits_package as myfits
 
 
@@ -224,6 +224,31 @@ def update_act_coords_on_ring(dm, n_ring:int, do_save:bool = False):
     
     # Update coordinates accordingly
     dm.update_act_coords(hex_ids, new_coords, do_save)
+
+
+def compute_influence_functions_with_comsol(dm, segment_id:int = 0):
+
+    act_coords = dm.segment[segment_id].act_coords
+    local_mask = dm.segment[segment_id].mask
+    mech_parameters = dm.geom.mech_par
+
+    iff_cube, K = calculate_influence_functions(act_coords, local_mask, mech_parameters)
+
+    plt.figure()
+    plt.imshow(K), plt.colorbar()
+    plt.title('Stiffness matrix')
+
+    n_acts = np.shape(iff_cube)[2]
+    for k in range(n_acts):
+        plt.figure()
+        plt.imshow(iff_cube[:,:,k],origin='lower')
+        plt.colorbar()
+        plt.title(f'Actuator {k}')
+
+
+
+
+
     
     
 # def capsens_measure(dm, segment_id):

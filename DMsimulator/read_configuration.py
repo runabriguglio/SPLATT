@@ -50,7 +50,7 @@ def read_config(path):
     mech_conf = config['MECH']
     RoC = mech_conf['RoC']
     thk = mech_conf['thk']
-    len = mech_conf['len']
+    len = dm_conf['hex_side']
     E = mech_conf['E']
     rho = mech_conf['rho']
     nu = mech_conf['nu']

@@ -218,7 +218,7 @@ class SegmentedMirror(DM):
         if simulate:
             IFF_cube = matcalc.simulate_influence_functions(ref_act_coords, self.geom.local_mask, self.geom.pix_scale)
         else:
-            IFF_cube = matcalc.calculate_influence_functions(ref_act_coords, self.geom.local_mask, self.geom.act_radius/self.geom.hex_side_len)
+            IFF_cube = matcalc.calculate_influence_functions(ref_act_coords, self.geom.local_mask, self.geom.mech_par)
        
         if segment_id is not None:
             for k,idx in enumerate(segment_id):

@@ -1,8 +1,9 @@
-# Ignore files created when changing the configuration
+# Ignore data files
 *.fits
 *.npy
 *.asv
 *.txt
+*.yaml
 
 # Ignore folders created with configuration parameters
 20240920/
