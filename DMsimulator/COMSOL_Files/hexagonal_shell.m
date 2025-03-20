@@ -45,7 +45,7 @@ mphstart(port);
 import com.comsol.model.*
 import com.comsol.model.util.*
 
-model = ModelUtil.create('Model'); %model.modelPath('D:\Users\Matte\INAF\COMSOL');
+model = ModelUtil.create('Model'); 
 
 % Data
 mech_data = load(sprintf('%s/mech_parameters.txt',input_path));
@@ -318,15 +318,9 @@ end
 mesh(:,1) = X(mask==0);
 mesh(:,2) = Y(mask==0);
 
-% try
-%     writematrix(stiff_mat,sprintf('%sStiffnessMatrix.txt',out_path),'Delimiter',' ');
-%     writematrix(iffs,sprintf('%sInfluenceFunctions.txt',out_path),'Delimiter',' ');
-%     writematrix(mesh,sprintf('%sMesh.txt',out_path),'Delimiter',' ');
-% catch
 writematrix(stiff_mat,sprintf('%s/stiffness_matrix.txt',output_path),'Delimiter',' ');
 writematrix(iffs,sprintf('%s/iffs.txt',output_path),'Delimiter',' ');
 writematrix(mesh,sprintf('%s/mesh.txt',output_path),'Delimiter',' ');
-% end
 
 % Disconnect
 ModelUtil.clear;

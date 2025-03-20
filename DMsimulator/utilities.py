@@ -228,10 +228,13 @@ def update_act_coords_on_ring(dm, n_ring:int, do_save:bool = False):
 
 def compute_influence_functions_with_comsol(dm, segment_id:int = 0):
 
+    plt.close('all')
+
     act_coords = dm.segment[segment_id].act_coords
     local_mask = dm.segment[segment_id].mask
     mech_parameters = dm.geom.mech_par
 
+    print(f'Simulating influence functions for segment {segment_id} with COMSOL, this may take a while ...')
     iff_cube, K = calculate_influence_functions(act_coords, local_mask, mech_parameters)
 
     plt.figure()
