@@ -8,7 +8,6 @@ class MatlabEngine(object):
     def connect_matlab(self, shared_session_name: str = 'splattEngine'):
 
         names = matlab.engine.find_matlab()
-
         if shared_session_name in names:
             print(f"Connecting to '{shared_session_name}' ...")
             self.eng = matlab.engine.connect_matlab(shared_session_name)
@@ -20,17 +19,16 @@ class MatlabEngine(object):
 
     def send_command(self, cmd_str, wait4reply:bool = True):
         if wait4reply is False:
-            self._oneway_command(self,cmd_str)
+            self._oneway_command(cmd_str)
         else:
-            self._command(self,cmd_str)
+            self._command(cmd_str)
 
     def read_data(self, command_to_read_data:str, n_args_out: int = 1):
         # Note that Pyro does not seem to support numpy, convert any arrays after the call
-        mat_data = self.eng.eval(str(command_to_read_data),nargout=n_args_out)
+        mat_data = np.array(self.eng.eval(str(command_to_read_data),nargout=n_args_out))
         data = []
-        for n in range(n_args_out):
-            val = np.array(mat_data[n])
-            data.append(val.tolist())
+        for val in mat_data:
+            data.append(val)
         return data
 
     def stop_engine(self):
