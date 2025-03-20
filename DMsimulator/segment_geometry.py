@@ -59,8 +59,8 @@ class HexagonGeometry():
     def __init__(self, TN):
         
         # Read configuration files
-        config_path = './config_par_' + TN + '.yaml'
-        dm_par, opt_par = read_config(config_path)
+        config_path = 'Configuration/config_par_' + TN + '.yaml'
+        dm_par, opt_par, mech_par = read_config(config_path)
         
         self.gap = dm_par[0]
         self.hex_side_len = dm_par[1]
@@ -73,6 +73,8 @@ class HexagonGeometry():
         self.opt_r = opt_par[1]
         self.opt_x = opt_par[2]
         self.opt_y = opt_par[3]
+
+        self.mech_par = mech_par
         
         self.savepath = './' + TN + '/'
         self.n_hex = n_hexagons(self.n_rings)

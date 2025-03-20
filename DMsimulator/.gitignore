@@ -5,7 +5,7 @@
 *.txt
 
 # Ignore folders created with configuration parameters
-ConfigFiles/
+Configuration/
 20240920/
 20250214/
 JWST/
