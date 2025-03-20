@@ -25,10 +25,16 @@ class MatlabEngine(object):
 
     def read_data(self, command_to_read_data:str, n_args_out: int = 1):
         # Note that Pyro does not seem to support numpy, convert any arrays after the call
-        mat_data = np.array(self.eng.eval(str(command_to_read_data),nargout=n_args_out))
-        data = []
-        for val in mat_data:
-            data.append(val)
+        mat_data = np.array(self.eng.eval(str(command_to_read_data),nargout=n_args_out), dtype = object)
+
+        if np.size(mat_data) == 1:
+            data = mat_data.tolist()
+        else:
+            mat_data.tolist()
+            data = []
+            for val in mat_data:
+                data.append(val)
+
         return data
 
     def stop_engine(self):
