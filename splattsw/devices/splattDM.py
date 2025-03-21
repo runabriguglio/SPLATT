@@ -7,7 +7,6 @@ class SPLATTEngine():
         
         import Pyro4
         self._eng = Pyro4.Proxy(f"PYRO:matlab_engine@{ip}:{port}")
-        self._eng.connect_matlab()
 
         print('Initializing mirror variables...')
         self.nActs = int(self._eng.read_data('sys_data.mirrNAct'))
@@ -48,7 +47,7 @@ class SPLATTEngine():
 
         return mean_pos, mean_cur, buf_tn
     
-    
+
     def _set_shell(self):
 
         try:
