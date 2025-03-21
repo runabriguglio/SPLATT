@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 from segmented_deformable_mirror import SegmentedMirror
 from segment_geometry import HexagonGeometry
-from matrix_calculator import matmul, calculate_influence_functions, compute_mirror_modes, cube2mat
+from matrix_calculator import matmul, calculate_influence_functions, compute_mirror_modes, cube2mat, interpolate_influence_functions, scale2uint8
 import my_fits_package as myfits
 
 
@@ -233,13 +233,44 @@ def compute_influence_functions_with_comsol(dm, segment_id:int = 0):
     mech_parameters = dm.geom.mech_par
 
     print(f'Simulating influence functions for segment {segment_id} with COMSOL, this may take a while ...')
-    iff_cube, K = calculate_influence_functions(act_coords, local_mask, mech_parameters)
+    calculate_influence_functions(act_coords, local_mask, mech_parameters)
+    
 
+
+def postprocess_influence_functions(dm, segment_id:int = 0):
+
+    act_coords = dm.segment[segment_id].act_coords
+    local_mask = dm.segment[segment_id].mask
+    mech_parameters = dm.geom.mech_par
+    
+    n_acts = len(act_coords)
+    
+    import os
+    # Define paths
+    script_path = os.path.join(os.getcwd(),'COMSOL_Files')
+    output_path = os.path.join(script_path,'SimOutputFiles')
+    K = np.loadtxt(os.path.join(output_path,'stiffness_matrix.txt'))
+    iff_data = np.loadtxt(os.path.join(output_path,'iffs.txt'))
+    in_mesh = np.loadtxt(os.path.join(output_path,'mesh.txt'))
+    
+    print('Loaded files, starting post-processing...')
+
+    # Post-process iffs
+    H,W = np.shape(local_mask)
+    iffs = interpolate_influence_functions(iff_data, in_mesh, np.array([W,H]))
+    
+    cube_mask = np.tile(local_mask,n_acts)
+    cube_mask = np.reshape(cube_mask, np.shape(iffs), order = 'F')
+    iffs_mask = np.logical_or(np.isnan(iffs),cube_mask)
+    flat_iffs = iffs[~iffs_mask]
+    IFF = np.reshape(flat_iffs,[int(np.size(flat_iffs)/n_acts),n_acts])
+    
     plt.figure()
     plt.imshow(K), plt.colorbar()
     plt.title('Stiffness matrix')
 
-    thk, L = mech_parameters[1:2]
+    thk = mech_parameters[1]
+    L = mech_parameters[2]
     area = 3*np.sqrt(3)/2*L**2 # Area of the hexagon
     volume = area * thk
     rho = mech_parameters[4]
@@ -247,30 +278,37 @@ def compute_influence_functions_with_comsol(dm, segment_id:int = 0):
 
     modes, stiffs = compute_mirror_modes(K)
     freqs = np.sqrt(stiffs/mass)
-    IFF = cube2mat(iff_cube)
 
+    iff_img = IFF.copy()
     mode_img = IFF @ modes
-    Nmodes = len(modes)
-    nrows = np.floor(np.sqrt(Nmodes))
-    ncols = np.ceil(Nmodes/nrows)
+    nrows = int(np.floor(np.sqrt(n_acts)))
+    ncols = int(np.ceil(n_acts/nrows))
+    
+    flat_mask = local_mask.flatten()
 
     plt.figure(figsize=(12,9.6))
-    for k in range(Nmodes):
+    for k in range(n_acts):
         plt.subplot(nrows,ncols,k+1)
         img = np.zeros(np.size(local_mask))
-        img[~local_mask.flatten()] = mode_img[:,k]
+        img[~flat_mask] = mode_img[:,k]
         img = np.reshape(img, np.shape(local_mask))
         img = np.ma.masked_array(img, local_mask)
-        plt.imshow(img, origin='lower',cmap='hot',vmin=-1,vmax=1)
+        plt.imshow(img, origin='lower')
         plt.axis('off')
-        plt.title(f'{freqs:1.0f} [Hz]')
+        plt.title(f'{freqs[k]:1.0f} [Hz]')
+        
+    plt.figure(figsize=(12,9.6))
+    for k in range(n_acts):
+        plt.subplot(nrows,ncols,k+1)
+        img = np.zeros(np.size(local_mask))
+        img[~flat_mask] = iff_img[:,k]
+        img = np.reshape(img, np.shape(local_mask))
+        img = np.ma.masked_array(img, local_mask)
+        plt.imshow(img, origin='lower')
+        plt.axis('off')
+        plt.title(f'Actuator {k}')
     
-    return iff_cube, K
-
-
-
-
-
+    return IFF, K
     
     
 # def capsens_measure(dm, segment_id):

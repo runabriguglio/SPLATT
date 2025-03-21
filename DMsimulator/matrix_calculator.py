@@ -63,13 +63,12 @@ def compute_mirror_modes(K):
     returning the eigenmodes and eignevalues sorted in order
     of increasing stiffness """
 
-    U,S,V = np.linalg.svd(K, full_matrices=False)
+    U,lambdas,V = np.linalg.svd(K, full_matrices=False)
 
-    lambdas = np.diag(S)
     eigvals = np.sort(lambdas)
     col_ids = np.argsort(lambdas)
 
-    eigmodes = V[:,col_ids]
+    eigmodes = V.T[:,col_ids]
 
     return eigmodes, eigvals
 
@@ -122,36 +121,37 @@ def calculate_influence_functions(act_coords, local_mask, mech_parameters):
     np.savetxt(os.path.join(input_path,'mech_parameters.txt'), mech_parameters)
 
     # Perform the computation
-    subprocess.run(f"matlab -batch {script_name}", cwd = script_path, shell=True)
+    subprocess.run(f"matlab -batch {script_name}", cwd = script_path, 
+                   shell=True, check=True, capture_output=True)
 
-    # Read output   
-    K = np.loadtxt(os.path.join(output_path,'stiffness_matrix.txt'))
-    iff_data = np.loadtxt(os.path.join(output_path,'iffs.txt'))
-    in_mesh = np.loadtxt(os.path.join(output_path,'mesh.txt'))
+    # # Read output   
+    # K = np.loadtxt(os.path.join(output_path,'stiffness_matrix.txt'))
+    # iff_data = np.loadtxt(os.path.join(output_path,'iffs.txt'))
+    # in_mesh = np.loadtxt(os.path.join(output_path,'mesh.txt'))
 
-    # Post-process iffs
-    H,W = np.shape(local_mask)
-    iffs = interpolate_influence_functions(iff_data, in_mesh, np.array([W,H]))
-    n_acts = len(act_coords)
-    img_cube = np.zeros([H,W,n_acts])
+    # # Post-process iffs
+    # H,W = np.shape(local_mask)
+    # iffs = interpolate_influence_functions(iff_data, in_mesh, np.array([W,H]))
+    # n_acts = len(act_coords)
+    # img_cube = np.zeros([H,W,n_acts])
 
-    for k in range(n_acts):
-        print(k) # debug
-        img_k = iffs[:,:,k]
-        img_mask = np.isnan(img_k)
-        flat_img = img_k[~img_mask]        
-        uint8_img = scale2uint8(flat_img) # scale to uint8
-        new_img = np.zeros_like(img_mask)
-        new_img[~img_mask] = uint8_img
-        img_cube[:,:,k] = new_img
-        local_mask = np.logical_or(local_mask,img_mask)
+    # for k in range(n_acts):
+    #     print(k) # debug
+    #     img_k = iffs[:,:,k]
+    #     img_mask = np.isnan(img_k)
+    #     flat_img = img_k[~img_mask]        
+    #     uint8_img = scale2uint8(flat_img) # scale to uint8
+    #     new_img = np.zeros_like(img_mask)
+    #     new_img[~img_mask] = uint8_img
+    #     img_cube[:,:,k] = new_img
+    #     local_mask = np.logical_or(local_mask,img_mask)
 
-    # Masked array
-    cube_mask = np.tile(local_mask,n_acts)
-    cube_mask = np.reshape(cube_mask, np.shape(img_cube), order = 'F')
-    cube = np.ma.masked_array(img_cube, cube_mask, dtype=np.uint8)
+    # # Masked array
+    # cube_mask = np.tile(local_mask,n_acts)
+    # cube_mask = np.reshape(cube_mask, np.shape(img_cube), order = 'F')
+    # cube = np.ma.masked_array(img_cube, cube_mask, dtype=np.uint8)
 
-    return cube, K
+    # return cube, K
 
 
 def interpolate_influence_functions(iffs, in_mesh, npix = np.array([256,256],dtype=int) ):
@@ -175,7 +175,7 @@ def cube2mat(cube):
     from the image cube """
     
     n_acts = np.shape(cube)[2]
-    valid_len = np.sum(1-cube[:,:,0].mask)
+    valid_len = int(np.sum(1-cube.mask)/n_acts)
     
     flat_cube = cube.data[~cube.mask]
     local_IFF = np.reshape(flat_cube, [valid_len, n_acts])

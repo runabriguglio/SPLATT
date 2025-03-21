@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 plt.rcParams['mathtext.fontset'] = 'stix'
 plt.rcParams['font.family'] = 'STIXGeneral'
 
-from segment_geometry import circular_mask
+# from segment_geometry import circular_mask
 import utilities as utils
 
 config_tn = '20240920'
@@ -11,7 +11,7 @@ config_tn = '20240920'
 dsm = utils.define_dsm(config_tn)
 
 # Test comsol simulation
-iff_cube, K = utils.compute_influence_functions_with_comsol(dsm)
+iff, K = utils.postprocess_influence_functions(dsm)
 
 # # Fitting errors
 # seg0 = dsm.segment[0]
