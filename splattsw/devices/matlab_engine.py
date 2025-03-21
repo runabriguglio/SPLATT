@@ -11,10 +11,11 @@ class MatlabEngine(object):
             print(f"Connecting to '{shared_session_name}' ...")
             self.eng = matlab.engine.connect_matlab(shared_session_name)
         else:
-            print(f"Shared MATLAB session '{shared_session_name}' not found, starting a new session ...")
-            self.eng = matlab.engine.start_matlab()
+            print(f"No shared MATLAB session found, starting a new shared session '{shared_session_name}'...")
+            self.eng = matlab.engine.connect_matlab() #sharedSession
             self.eng.cd(r'/home/labot/SPLATT_SW/Matlab_2024/Matlab/Scripts')
             self.eng.eval('splattInit',nargout=0)
+            self.eng.shareEngine(f'{shared_session_name}')
 
     def send_command(self, cmd_str, wait4reply:bool = True):
         if wait4reply is False:
@@ -23,7 +24,6 @@ class MatlabEngine(object):
             self._command(cmd_str)
 
     def read_data(self, command_to_read_data:str, n_args_out: int = 1):
-        # Pyro does not seem to support numpy: convert any arrays after the call
         mat_data = self.eng.eval(str(command_to_read_data),nargout=n_args_out)
 
         if n_args_out > 1:

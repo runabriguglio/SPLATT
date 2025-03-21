@@ -19,8 +19,8 @@ def start_matlab_engine():
     else:
 
         print('Starting remote matlab engine ...')
-        #mat_eng_cmd='ssh -t labot@193.206.155.220 /bin/bash -ic MatDaemon'
-        #subprocess.run(mat_eng_cmd,shell=True)
+        mat_eng_cmd='ssh -t labot@193.206.155.220 /bin/bash -ic MatDaemon'
+        subprocess.run(mat_eng_cmd,shell=True)
         import Pyro4
         eng = Pyro4.Proxy("PYRO:matlab_engine@193.206.155.220:9090")
 
@@ -58,6 +58,9 @@ def read_buffer_data(TN:str = None):
     dataR2 = read_fits(where,'dataR2.fits')
     dataW1 = read_fits(where,'dataW1.fits')
     dataW2 = read_fits(where,'dataW2.fits')
+    
+    startPosCmd = read_fits(where,'start_sabu16_position.fits')
+    startCurCmd = read_fits(where,'start_sabi16_force.fits')
 
     print(np.shape(dataR1))
     data_len = np.shape(dataR1)[-1]
@@ -77,6 +80,12 @@ def read_buffer_data(TN:str = None):
     if dataW2 is not None:
         data_addr.append(_read_sab_address(where,'addrW2.fits'))
         data.append(dataW2)
+    if startPosCmd is not None:
+        data_addr.append('start_sabu16_position')
+        data.append(startPosCmd)
+    if startCurCmd is not None:
+        data_addr.append('start_sabi16_force')
+        data.append(startCurCmd)
 
     return data, data_addr, time_vec
 
