@@ -10,6 +10,9 @@ config_tn = '20240920'
 #config_tn = 'JWST'
 dsm = utils.define_dsm(config_tn)
 
+# Test comsol simulation
+iff_cube, K = utils.compute_influence_functions_with_comsol(dsm)
+
 # # Fitting errors
 # seg0 = dsm.segment[0]
 # local_fit_err = utils.fitting_error_plots(seg0.mask, seg0.ZM, seg0.IFF, seg0.R)
@@ -19,9 +22,6 @@ dsm = utils.define_dsm(config_tn)
 # # Update coordinates
 # utils.update_act_coords_on_ring(dsm, 0)
 # utils.update_act_coords_on_ring(dsm, 2)
-
-# Test comsol simulation
-utils.compute_influence_functions_with_comsol(dsm)
 
 # # Define anular mask
 # r_in = 1.

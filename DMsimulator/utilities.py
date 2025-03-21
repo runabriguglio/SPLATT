@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 from segmented_deformable_mirror import SegmentedMirror
 from segment_geometry import HexagonGeometry
-from matrix_calculator import matmul, calculate_influence_functions
+from matrix_calculator import matmul, calculate_influence_functions, compute_mirror_modes, cube2mat
 import my_fits_package as myfits
 
 
@@ -228,8 +228,6 @@ def update_act_coords_on_ring(dm, n_ring:int, do_save:bool = False):
 
 def compute_influence_functions_with_comsol(dm, segment_id:int = 0):
 
-    plt.close('all')
-
     act_coords = dm.segment[segment_id].act_coords
     local_mask = dm.segment[segment_id].mask
     mech_parameters = dm.geom.mech_par
@@ -241,12 +239,33 @@ def compute_influence_functions_with_comsol(dm, segment_id:int = 0):
     plt.imshow(K), plt.colorbar()
     plt.title('Stiffness matrix')
 
-    n_acts = np.shape(iff_cube)[2]
-    for k in range(n_acts):
-        plt.figure()
-        plt.imshow(iff_cube[:,:,k],origin='lower')
-        plt.colorbar()
-        plt.title(f'Actuator {k}')
+    thk, L = mech_parameters[1:2]
+    area = 3*np.sqrt(3)/2*L**2 # Area of the hexagon
+    volume = area * thk
+    rho = mech_parameters[4]
+    mass = rho * volume
+
+    modes, stiffs = compute_mirror_modes(K)
+    freqs = np.sqrt(stiffs/mass)
+    IFF = cube2mat(iff_cube)
+
+    mode_img = IFF @ modes
+    Nmodes = len(modes)
+    nrows = np.floor(np.sqrt(Nmodes))
+    ncols = np.ceil(Nmodes/nrows)
+
+    plt.figure(figsize=(12,9.6))
+    for k in range(Nmodes):
+        plt.subplot(nrows,ncols,k+1)
+        img = np.zeros(np.size(local_mask))
+        img[~local_mask.flatten()] = mode_img[:,k]
+        img = np.reshape(img, np.shape(local_mask))
+        img = np.ma.masked_array(img, local_mask)
+        plt.imshow(img, origin='lower',cmap='hot',vmin=-1,vmax=1)
+        plt.axis('off')
+        plt.title(f'{freqs:1.0f} [Hz]')
+    
+    return iff_cube, K
 
 
 

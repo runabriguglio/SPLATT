@@ -51,11 +51,28 @@ def compute_reconstructor(M, thr:float = 0.):
 
     """
     
-    U,S,Vh = np.linalg.svd(M, full_matrices=False)
+    U,S,V = np.linalg.svd(M, full_matrices=False)
     Sinv = 1/S
     Sinv[Sinv < thr] = 0
-    Rec = (Vh.T * Sinv) @ U.T
+    Rec = (V.T * Sinv) @ U.T
     return Rec
+
+
+def compute_mirror_modes(K):
+    """ Computes the mirror modes from the stiffness matrix,
+    returning the eigenmodes and eignevalues sorted in order
+    of increasing stiffness """
+
+    U,S,V = np.linalg.svd(K, full_matrices=False)
+
+    lambdas = np.diag(S)
+    eigvals = np.sort(lambdas)
+    col_ids = np.argsort(lambdas)
+
+    eigmodes = V[:,col_ids]
+
+    return eigmodes, eigvals
+
 
 
 def simulate_influence_functions(act_coords, local_mask, pix_scale, amps = 1.0):
@@ -105,7 +122,7 @@ def calculate_influence_functions(act_coords, local_mask, mech_parameters):
     np.savetxt(os.path.join(input_path,'mech_parameters.txt'), mech_parameters)
 
     # Perform the computation
-    subprocess.run(f"matlab -batch {script_name}", cwd = script_path)
+    subprocess.run(f"matlab -batch {script_name}", cwd = script_path, shell=True)
 
     # Read output   
     K = np.loadtxt(os.path.join(output_path,'stiffness_matrix.txt'))
@@ -119,10 +136,15 @@ def calculate_influence_functions(act_coords, local_mask, mech_parameters):
     img_cube = np.zeros([H,W,n_acts])
 
     for k in range(n_acts):
+        print(k) # debug
         img_k = iffs[:,:,k]
-        flat_img = img_k[~local_mask]        
+        img_mask = np.isnan(img_k)
+        flat_img = img_k[~img_mask]        
         uint8_img = scale2uint8(flat_img) # scale to uint8
-        img_cube[:,:,k] = np.reshape(uint8_img, [H,W])
+        new_img = np.zeros_like(img_mask)
+        new_img[~img_mask] = uint8_img
+        img_cube[:,:,k] = new_img
+        local_mask = np.logical_or(local_mask,img_mask)
 
     # Masked array
     cube_mask = np.tile(local_mask,n_acts)
