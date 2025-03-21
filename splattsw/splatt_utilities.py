@@ -7,28 +7,6 @@ import glob
 import subprocess
 
 
-def start_matlab_engine():
-
-    ip = _get_local_ip()
-    if '193.206.155.220' in ip: # SPLATTWS
-
-        print('Starting local matlab engine ...')
-        from splattsw.devices.matlab_engine import MatlabEngine
-        eng = MatlabEngine()
-
-    else:
-
-        print('Starting remote matlab engine ...')
-        mat_eng_cmd='ssh -t labot@193.206.155.220 /bin/bash -ic MatDaemon'
-        subprocess.run(mat_eng_cmd,shell=True)
-        import Pyro4
-        eng = Pyro4.Proxy("PYRO:matlab_engine@193.206.155.220:9090")
-
-    eng.start_engine()
-
-    return eng
-
-
 def read_buffer_data(TN:str = None):
 
     ip = _get_local_ip()
