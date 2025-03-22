@@ -2,10 +2,11 @@
 Author(s)
     - Pietro Ferraiuolo : written in 2024
     - Runa Briguglio : written in 2024
+    - Matteo Menessini : adapted for SPLATT in 2025
 
 Description
 -----------
-This module contains the class that defines the M4 Adaptive Unit (M4AU) device.
+This module contains the class that defines the SPLATT deformable mirror device.
 """
 import os
 import time
@@ -44,7 +45,7 @@ class SPLATTDm(BaseDeformableMirror):
      def uploadCmdHistory(self, cmdhist):
          self.cmdHistory = cmdhist
 
-     def runCmdHistory(self, interf=None, delay=0.5, save:str=None, differential:bool=True):
+     def runCmdHistory(self, interf=None, delay=0.2, save:str=None, differential:bool=True):
          if self.cmdHistory is None:
              raise ValueError("No Command History to run!")
          else:
@@ -52,6 +53,7 @@ class SPLATTDm(BaseDeformableMirror):
              print(f"{tn} - {self.cmdHistory.shape[-1]} images to go.")
              datafold = os.path.join(self.baseDataPath, tn)
              s = self.get_shape()
+             self._force = self._dm.get_ff_force()
              if not os.path.exists(datafold) and interf is not None:
                  os.mkdir(datafold)
              for i,cmd in enumerate(self.cmdHistory.T):
@@ -69,17 +71,19 @@ class SPLATTDm(BaseDeformableMirror):
 
      def nActuators(self):
          return self.nActs
+     
+     def saveFlatTN(self):
+         tn = self._dm._eng.read_data('tn=lattSaveFlat()')
+         return tn
+     
+     def loadFlatTN(self, tn):
+         self._dm._eng.send_command(f"lattLoadFlat('{tn}')")
 
      def _checkCmdIntegrity(self, cmd):
-         mcmd = np.max(cmd)
-         if mcmd > 5e-6:
-             raise ValueError(f"Command value {mcmd} is greater than 5 [um]")
-         mcmd = np.min(cmd)
-         if mcmd < -5e-6:
-             raise ValueError(f"Command value {mcmd} is smaller than -5 [um]")
-         scmd = np.std(cmd)
-         if scmd > 0.1:
-             raise ValueError(f"Command standard deviation {scmd} is greater than 0.1.")
+         force = self._force + self._dm.ffMatrix * cmd
+         force_thr = self._dm.maxForce
+         if np.max(np.abs(force)) >= force_thr:
+             raise ValueError(f"Command would require more than {force_thr} [N], saturating {np.sum(force >= force_thr)} coils.")
 
 
 class SPLATTEngine():
@@ -93,9 +97,15 @@ class SPLATTEngine():
         self.nActs = int(self._eng.read_data('sys_data.mirrNAct'))
         self.actCoords = np.array(self._eng.read_data('mirrorData.coordAct'))
         self.mirrorModes = np.array(self._eng.read_data('sys_data.ff_v'))
+        self.ffMatrix = np.array(self._eng.read_data('sys_data.ff_matrix'))
 
         self._shellset = False
         self._bits2meters = float(self._eng.read_data('2^-sys_data.coeffs.Scale_F_Lin'))
+        self._N2bits = float(self._eng.read_data('sys_data.coeffs.Force2DAC_V'))
+        self._satThreshold = float(self._eng.read_data('sys_data.currentSatThreshold'))
+
+        self.maxForce = self._satThreshold / self._N2bits
+
 
 
     def get_position(self):
@@ -115,7 +125,8 @@ class SPLATTEngine():
 
 
     def get_ff_force(self):
-        ff_force = np.array(self._eng.read_data("aoRead('sabi16_force',1:19)"))
+        ff_forceBits = np.array(self._eng.read_data("aoRead('sabi16_force',1:19)"))
+        ff_force = ff_forceBits / self._N2bits
         return ff_force
     
 
