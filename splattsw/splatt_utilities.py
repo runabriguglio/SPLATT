@@ -11,6 +11,7 @@ def read_buffer_data(TN:str = None):
 
     ip = _get_local_ip()
     if '193.206.155.43' in ip: # M4WS
+        print('Syncrhonizing buffer folder ...')
         os.system('buffsync')
         SPLATT_BUFFER_FOLDER = '/mnt/jumbo/SPLATT/Buffer/'
 

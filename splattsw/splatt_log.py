@@ -3,7 +3,7 @@ import numpy as np
 
 import utils.folder_paths
 from utils.timestamp import Timestamp
-from devices import moxa_io as mx
+from devices.moxa_io import Moxa_ai0
 
 basepath = '/mnt/jumbo/SPLATT/'
 logfile = basepath+(Timestamp.now())[0:8]+'.log'
@@ -48,8 +48,8 @@ def log_temperature():
 
     tn=Timestamp()
     time = tn.now()
-    pt1 = mx.moxa_ai('PT1')
-    temp = pt1.read()
+    pt1 = Moxa_ai0()
+    temp = pt1.read_pressure()
 
     info_line = f'{time}     {str(temp[0:3])}\n'
 

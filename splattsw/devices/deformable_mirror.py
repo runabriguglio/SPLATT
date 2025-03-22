@@ -130,14 +130,17 @@ class SPLATTEngine():
         return ff_force
     
 
-    def read_buffers(self, n_samples:int = 128, decimation:int = 0):
+    def read_buffers(self, internal_buffers: bool = True, n_samples:int = 128, decimation:int = 0):
 
         if n_samples > 256:
             raise ValueError('Maximum number of samples is 256!')
 
         self.send_command(f"clear opts; opts.dec = {decimation}; opts.sampleNr = {n_samples}; opts.save2fits = 1; opts.save2mat = 0")
-        print('Reading buffers, hold tight ...')
-        self.send_command("[pos,cur,buf_tn]=splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
+        print('Reading buffers, hold tight: this may take a while ...')
+        if internal_buffers:
+            self.send_command("[pos,cur,buf_tn]=splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
+        else:
+            self.send_command("[pos,cur,buf_tn]=splattAcqBufExt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
 
         buf_tn = self._eng.read_data('buf_tn')
         mean_pos = np.array(self._eng.read_data('mean(pos,2)')*self._bits2meters)

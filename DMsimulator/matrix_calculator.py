@@ -121,8 +121,8 @@ def calculate_influence_functions(act_coords, local_mask, mech_parameters):
     np.savetxt(os.path.join(input_path,'mech_parameters.txt'), mech_parameters)
 
     # Perform the computation
-    subprocess.run(f"matlab -batch {script_name}", cwd = script_path, 
-                   shell=True, check=True, capture_output=True)
+    res = subprocess.run(f"matlab -batch {script_name}", cwd = script_path, 
+                         shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     # # Read output   
     # K = np.loadtxt(os.path.join(output_path,'stiffness_matrix.txt'))
