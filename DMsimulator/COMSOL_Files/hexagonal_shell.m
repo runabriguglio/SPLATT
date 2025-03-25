@@ -28,7 +28,7 @@ function hexagonal_shell() %out_path)
 % Define paths
 input_path = 'SimInputFiles/';
 output_path = 'SimOutputFiles/';
-comsol_filepath = 'c:/Program Files/COMSOL/COMSOL62/Multiphysics/'; % CHANGE THIS TO THE COMSOL PATH ON YOUR MACHINE!
+comsol_filepath = 'c:/Program Files/COMSOL/COMSOL62/Multiphysics/'; 
 
 % Kill any running mph process
 system('taskkill /IM comsolmphserver.exe /F');
@@ -145,6 +145,17 @@ model.component('comp1').geom('geom1').run;
 % Create mesh
 model.component('comp1').mesh.create('mesh1');
 model.component('comp1').mesh('mesh1').feature('size').set('hauto', 1);
+model.component('comp1').mesh('mesh1').create('ftri1', 'FreeTri');
+model.component('comp1').mesh('mesh1').create('cpf1', 'CopyFace');
+model.component('comp1').mesh('mesh1').feature('ftri1').selection.set(4);
+model.component('comp1').mesh('mesh1').feature('ftri1').create('size1', 'Size');
+model.component('comp1').mesh('mesh1').feature('ftri1').feature('size1').set('custom', 'on');
+model.component('comp1').mesh('mesh1').feature('ftri1').feature('size1').set('hmax', '9e-3'); % was 6e-3
+model.component('comp1').mesh('mesh1').feature('ftri1').feature('size1').set('hmaxactive', true);
+model.component('comp1').mesh('mesh1').feature('ftri1').feature('size1').set('hmin', '6e-3');
+model.component('comp1').mesh('mesh1').feature('ftri1').feature('size1').set('hminactive', true);
+model.component('comp1').mesh('mesh1').feature('cpf1').selection('source').set(4);
+model.component('comp1').mesh('mesh1').feature('cpf1').selection('destination').set([1 2 3 5 6]);
 model.component('comp1').mesh('mesh1').run;
 
 % Coordinate systems
@@ -179,39 +190,54 @@ end
 % find origin
 [~,origin] = min(x_vtx.^2 + y_vtx.^2);
 
-% Find edge boundary ids
-clear boundary_edge_ids
-k = 0;
-for ik = 1:length(edges)
-    xi = edges(ik).coo(:,1);
-    yi = edges(ik).coo(:,2);
+% % Find edge boundary ids
+% clear boundary_edge_ids
+% k = 0;
+% for ik = 1:length(edges)
+%     xi = edges(ik).coo(:,1);
+%     yi = edges(ik).coo(:,2);
+% 
+%     if abs(xi) <= hex_side*0.5
+% 
+%         if abs(yi) >= (hex_side * sin(pi/3))*0.99
+%             k = k + 1;
+%             boundary_edge_ids(k) = ik;
+% %             xi,yi
+%         end
+% 
+%     else
+% 
+%         if abs(abs(yi) - (sin(pi/3) - (abs(xi)-0.5)*tan(pi/3))) <= 1e-13
+%             k = k + 1;
+%             boundary_edge_ids(k) = ik;
+% %             xi,yi
+%         end
+% 
+%     end
+% 
+% end
 
-    if abs(xi) <= hex_side*0.5
+% Find vertex boundary ids
+clear boundary_vtx_ids
+r_vtx = sqrt(x_vtx.^2+y_vtx.^2);
+ids = 1:length(r_vtx);
+r_thr = 0.99*hex_side;
+boundary_vtx_ids = ids(r_vtx >= r_thr);
 
-        if abs(yi) >= (hex_side * sin(pi/3))*0.99
-            k = k + 1;
-            boundary_edge_ids(k) = ik;
-%             xi,yi
-        end
+% mphsave('hexagonal_shell.mph')
 
-    else
+% % No rotation on boundary
+% model.component('comp1').physics('shell').create('disp2', 'Displacement1', 1);
+% model.component('comp1').physics('shell').feature('disp2').selection.set(boundary_edge_ids);
+% model.component('comp1').physics('shell').feature('disp2').set('Direction', {'free'; 'prescribed'; 'free'});
+% model.component('comp1').physics('shell').feature('disp2').set('coordinateSystem', 'sys2');
 
-        if abs(abs(yi) - (sin(pi/3) - (abs(xi)-0.5)*tan(pi/3))) <= 1e-13
-            k = k + 1;
-            boundary_edge_ids(k) = ik;
-%             xi,yi
-        end
-
-    end
-
-end
-
-
-% No rotation on boundary
-model.component('comp1').physics('shell').create('disp2', 'Displacement1', 1);
-model.component('comp1').physics('shell').feature('disp2').selection.set(boundary_edge_ids);
-model.component('comp1').physics('shell').feature('disp2').set('Direction', {'free'; 'prescribed'; 'free'});
-model.component('comp1').physics('shell').feature('disp2').set('coordinateSystem', 'sys2');
+% Spring on boundary
+model.component('comp1').physics('shell').create('spf2', 'SpringFoundation0', 0);
+model.component('comp1').physics('shell').feature('spf2').selection.set(boundary_vtx_ids); %[1 12 13 55 56 67]
+model.component('comp1').physics('shell').feature('spf2').set('SpringType', 'FDef');
+model.component('comp1').physics('shell').feature('spf2').set('FDef', {'0[N/m]*shell.uspring1_spf2'; 'k_p*shell.uspring2_spf2'; '0[N/m]*shell.uspring3_spf2'});
+model.component('comp1').physics('shell').feature('spf2').set('coordinateSystem', 'sys2');
 
 % Fixed actuators in radial direction
 model.component('comp1').physics('shell').create('disp5', 'Displacement0', 0);
@@ -287,6 +313,20 @@ for k = 1:Nacts
     iffs_vec(k,1,:) = iffstruct.p(1,:);
     iffs_vec(k,2,:) = iffstruct.p(2,:);
     iffs_vec(k,3,:) = iffstruct.d1/displ;
+
+    % Check spring forces
+    spX = mpheval(model, 'shell.Fspx', 'edim', 0, 'selection', origin, 'dataset', dataset_name);
+    spY = mpheval(model, 'shell.Fspy', 'edim', 0, 'selection', origin, 'dataset', dataset_name);
+    spRot = mpheval(model, 'shell.Fspx*y/hex_side_len+shell.Fspy*x/hex_side_len', 'edim', 0, 'selection', boundary_vtx_ids, 'dataset', dataset_name);
+
+    if max(abs([spX.d1,spY.d1])) > 1e-6
+        warning('Spring force in the origin is: (%1.2e,%1.2e) [N]',spX.d1, spY.d1);
+    end
+
+    if abs(sum(spRot.d1)) > 1e-6
+        warning('Net spring force on the edge is: %1.2e [N]',sum(spRot.d1));
+    end
+
 end
 
 % post-processing
