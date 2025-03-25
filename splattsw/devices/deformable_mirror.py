@@ -16,6 +16,8 @@ from m4.configuration import config_folder_names as fn
 from m4.devices.base_deformable_mirror import BaseDeformableMirror
 from m4.ground import logger_set_up as lsu, timestamp, read_data as rd
 
+_ts = timestamp.Timestamp()
+
 class SPLATTDm(BaseDeformableMirror):
      """
      SPLATT interface with M4 software.
@@ -30,22 +32,23 @@ class SPLATTDm(BaseDeformableMirror):
          self.cmdHistory     = None
          self.baseDataPath   = fn.OPD_IMAGES_ROOT_FOLDER
          self.refAct         = 16
+         self._force         = self._dm.get_ff_force()
 
      def get_shape(self):
         shape = self._dm.get_position()
         return shape
 
      def set_shape(self, cmd, differential:bool=False):
+         #self._checkCmdIntegrity(cmd)
          if differential:
              shape = self._dm.get_position()
              cmd = cmd + shape
-         self._checkCmdIntegrity(cmd)
          self._dm.set_position(cmd)
 
      def uploadCmdHistory(self, cmdhist):
          self.cmdHistory = cmdhist
 
-     def runCmdHistory(self, interf=None, delay=0.2, save:str=None, differential:bool=True):
+     def runCmdHist(self, interf=None, delay=0.2, save:str=None, differential:bool=True):
          if self.cmdHistory is None:
              raise ValueError("No Command History to run!")
          else:
@@ -63,7 +66,7 @@ class SPLATTDm(BaseDeformableMirror):
                  self.set_shape(cmd)
                  if interf is not None:
                      time.sleep(delay)
-                     img = interf.acquire_phasemap()
+                     img = interf.acquire_map()
                      path = os.path.join(datafold, f"image_{i:05d}.fits")
                      rd.save_phasemap(path, img)
          self.set_shape(s)
@@ -83,7 +86,7 @@ class SPLATTDm(BaseDeformableMirror):
          force = self._force + self._dm.ffMatrix * cmd
          force_thr = self._dm.maxForce
          if np.max(np.abs(force)) >= force_thr:
-             raise ValueError(f"Command would require more than {force_thr} [N], saturating {np.sum(force >= force_thr)} coils.")
+             raise ValueError(f"Command would require {force_thr} [N]")
 
 
 class SPLATTEngine():
@@ -109,19 +112,24 @@ class SPLATTEngine():
 
 
     def get_position(self):
-        if self.shellset is False:
+        if self._shellset is False:
             print('Shell must be set before giving commands!')
-            self._set_shell()
         posCmdBits = np.array(self._eng.read_data("aoRead('sabu16_position',1:19)"))
         posCmd = posCmdBits * self._bits2meters
+        posCmd = np.reshape(posCmd, self.nActs)
         return posCmd
 
+    def set_position1(self, cmd):    #mod to implement absolute command at low level (diff is implemented at higher level)
+        if self._shellset is False:
+            print('Shell must be set before giving commands!')
+        self._eng.send_command(f"splattMirrorCommand({cmd},'relative')")
 
     def set_position(self, cmd):
-        if self.shellset is False:
+        if self._shellset is False:
             print('Shell must be set before giving commands!')
-            self._set_shell()
-        self._eng.send_command(f"splattMirrorCommand({cmd},'relative')")
+        cmd1 = cmd/ self._bits2meters
+        cmd1 = cmd1.tolist()
+        self._eng.send_command(f"aoWrite('sabu16_position',{cmd1}',1:19)")
 
 
     def get_ff_force(self):
