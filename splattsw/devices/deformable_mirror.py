@@ -37,24 +37,24 @@ class SPLATTDm(BaseDeformableMirror):
         shape = self._dm.get_position()
         return shape
 
-     def set_shape(self, cmd, add2LastCmd:bool=False):
-         if add2LastCmd:
-             cmd = cmd + self.get_shape()
-         cmd = cmd - self._dm.flatPos # set_position is relative to flatPos
+     def set_shape(self, cmd, differential:bool=False):
+         if differential:
+            lastCmd = self._dm.get_position_command()
+            cmd = cmd + lastCmd
          self._checkCmdIntegrity(cmd) # now check integrity on the relative command
          self._dm.set_position(cmd) 
 
      def uploadCmdHistory(self, cmdhist):
          self.cmdHistory = cmdhist
 
-     def runCmdHist(self, interf=None, delay=0.2, save_tn:str=None, differential:bool=True):
+     def runCmdHistory(self, interf=None, delay=0.2, save:str=None, differential:bool=True):
          if self.cmdHistory is None:
              raise ValueError("No Command History to run!")
          else:
-             tn = _ts.now() if save_tn is None else save_tn
+             tn = _ts.now() if save is None else save
              print(f"{tn} - {self.cmdHistory.shape[-1]} images to go.")
              datafold = os.path.join(self.baseDataPath, tn)
-             s = self._dm.flatPos # self.get_shape()
+             s = self._dm.get_position_command()  #self._dm.flatPos # self.get_shape()
              if not os.path.exists(datafold) and interf is not None:
                  os.mkdir(datafold)
              for i,cmd in enumerate(self.cmdHistory.T):
@@ -79,7 +79,7 @@ class SPLATTDm(BaseDeformableMirror):
      
      def loadFlatTN(self, tn:str):
          self._dm._eng.send_command(f"lattLoadFlat('{tn}')")
-         self._dm.flatPos, self._dm.flatForce = self._dm.read_flat_data()
+         self._dm.flatPos, self._dm.flatTN = self._dm.read_flat_data()
 
      def _checkCmdIntegrity(self, cmd):
          pos = cmd + self._dm.flatPos
@@ -87,11 +87,6 @@ class SPLATTDm(BaseDeformableMirror):
             raise ValueError(f'End position is too high at {np.max(pos)*1e+3:1.2f} [mm]')
          if np.min(pos) < 450e-6:
             raise ValueError(f'End position is too low at {np.min(pos)*1e+3:1.2f} [mm]')
-         # Check force
-         force = self._dm.flatForce + self._dm.ffMatrix * (cmd - np.mean(cmd))
-         force_thr = self._dm.maxForce
-         if np.max(np.abs(force)) >= force_thr:
-             raise ValueError(f"Command would require {force_thr} [N]")
 
 
 class SPLATTEngine():
@@ -109,45 +104,35 @@ class SPLATTEngine():
 
         self._bits2meters = float(self._eng.read_data('2^-sys_data.coeffs.Scale_F_Lin'))
         self._N2bits = float(self._eng.read_data('sys_data.coeffs.Force2DAC_V'))
-        self._satThreshold = float(self._eng.read_data('sys_data.currentSatThreshold'))
-
+        
         self._shellset = True
         try:
-            self.flatPos, self.flatForce = self.read_flat_data()
+            self.flatPos, self.flatTN = self.read_flat_data()
         except:
             self._shellset = False
             print('Unable to read set position: remember to perform startup and set shell')
 
-        self.maxForce = self._satThreshold / self._N2bits
-
-    def get_position(self):
+    def get_position_command(self): # relative to flatPos
         posCmdBits = np.array(self._eng.read_data("aoRead('sabu16_position',1:19)"))
         posCmd = posCmdBits * self._bits2meters
         posCmd = np.reshape(posCmd, self.nActs)
+        posCmd -= self.flatPos
         return posCmd
 
-    def set_position1(self, cmd): 
+    def get_position(self):
+        pos = np.array(self._eng.read_data("lattGetPos()"))
+        pos = np.reshape(pos, self.nActs)
+        return pos
+
+    def get_force(self):
+        force = np.array(self._eng.read_data("lattGetForce()"))
+        force = np.reshape(force, self.nActs)
+        return force
+
+    def set_position(self, cmd): 
         if self._shellset is False: print('Shell must be set before giving commands!')
         cmd = cmd.tolist()
-        self._eng.send_command(f"splattMirrorCommand({cmd}','zonal')")
-
-    def set_position2(self, cmd):
-        if self._shellset is False: print('Shell must be set before giving commands!')
-        cmd += self.flatPos
-        cmd_bits = cmd / self._bits2meters
-        cmd_bits = cmd_bits.tolist()
-        f_cmd = self.ffMatrix * cmd
-        f_cmd_bits = f_cmd * self._N2bits + self.flatForce
-        f_cmd_bits = f_cmd_bits.tolist()
-        self._eng.send_command(f"aoWrite('sabu16_position',{cmd_bits}',1:19)")
-        self._eng.send_command(f"lattApplyForce({f_cmd_bits}')")
-
-    def set_position(self, cmd):
-        if self._shellset is False: print('Shell must be set before giving commands!')
-        cmd += self.flatPos
-        cmd_bits = cmd / self._bits2meters
-        cmd_bits = cmd_bits.tolist()
-        self._eng.send_command(f"aoWrite('sabu16_position',{cmd_bits}',1:19)")
+        self._eng.send_command(f"splattMirrorCommand({cmd}')")
 
 
     def read_buffers(self, external: bool = False, n_samples:int = 128, decimation:int = 0):
@@ -174,9 +159,8 @@ class SPLATTEngine():
     def read_flat_data(self):
         flatPos = np.array(self._eng.read_data('sys_data.flatPos')) * self._bits2meters
         flatPos = np.reshape(flatPos,self.nActs)
-        flatForce = np.array(self._eng.read_data('sys_data.flatCur')) / self._N2bits
-        flatForce = np.reshape(flatForce,self.nActs)
-        return flatPos, flatForce
+        flatTN = self._eng.read_data('sys_data.flatTN')
+        return flatPos, flatTN
 
     def _set_shell(self):
 
