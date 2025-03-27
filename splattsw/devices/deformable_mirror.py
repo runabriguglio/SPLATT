@@ -37,7 +37,7 @@ class SPLATTDm(BaseDeformableMirror):
         shape = self._dm.get_position()
         return shape
 
-     def set_shape(self, cmd, differential:bool=False):
+     def set_shape(self, cmd, incremental:bool=False):
          if differential:
             lastCmd = self._dm.get_position_command()
             cmd = cmd + lastCmd
@@ -73,13 +73,17 @@ class SPLATTDm(BaseDeformableMirror):
      def nActuators(self):
          return self.nActs
      
-     def saveFlatTN(self):
-         tn = self._dm._eng.read_data('tn=lattSaveFlat()')
+     def saveFlatTN(self, tn:str = None):
+         if tn is None:
+            tn = self._dm._eng.read_data('lattSaveFlat()')
+         else:
+            tn = self._dm._eng.read_data(f'lattSaveFlat({tn})')
          return tn
      
-     def loadFlatTN(self, tn:str):
-         self._dm._eng.send_command(f"lattLoadFlat('{tn}')")
-         self._dm.flatPos, self._dm.flatTN = self._dm.read_flat_data()
+     def updateFlatTN(self, tn:str = None):
+         if tn is not None:
+            self._dm._eng.send_command(f"lattLoadFlat('{tn}')")
+         self._dm.flatPos = self._dm.read_flat_data()
 
      def _checkCmdIntegrity(self, cmd):
          pos = cmd + self._dm.flatPos
@@ -87,6 +91,8 @@ class SPLATTDm(BaseDeformableMirror):
             raise ValueError(f'End position is too high at {np.max(pos)*1e+3:1.2f} [mm]')
          if np.min(pos) < 450e-6:
             raise ValueError(f'End position is too low at {np.min(pos)*1e+3:1.2f} [mm]')
+         if np.std(cmd) > 1e-6:
+            raise ValueError(f'Command RMS is too high at {np.std(cmd)*1e+6:1.2f} [um]')
 
 
 class SPLATTEngine():
@@ -96,7 +102,6 @@ class SPLATTEngine():
         import Pyro4
         self._eng = Pyro4.Proxy(f"PYRO:matlab_engine@{ip}:{port}")
         
-        print('Reading mirror variables ...')
         self.nActs = int(self._eng.read_data('sys_data.mirrNAct'))
         self.actCoords = np.array(self._eng.read_data('mirrorData.coordAct'))
         self.mirrorModes = np.array(self._eng.read_data('sys_data.ff_v'))
@@ -107,10 +112,12 @@ class SPLATTEngine():
         
         self._shellset = True
         try:
-            self.flatPos, self.flatTN = self.read_flat_data()
+            self.flatPos = self.read_flat_data()
         except:
             self._shellset = False
             print('Unable to read set position: remember to perform startup and set shell')
+
+        print('Initialized SPLATT deformable mirror')
 
     def get_position_command(self): # relative to flatPos
         posCmdBits = np.array(self._eng.read_data("aoRead('sabu16_position',1:19)"))
@@ -159,8 +166,7 @@ class SPLATTEngine():
     def read_flat_data(self):
         flatPos = np.array(self._eng.read_data('sys_data.flatPos')) * self._bits2meters
         flatPos = np.reshape(flatPos,self.nActs)
-        flatTN = self._eng.read_data('sys_data.flatTN')
-        return flatPos, flatTN
+        return flatPos
 
     def _set_shell(self):
 
