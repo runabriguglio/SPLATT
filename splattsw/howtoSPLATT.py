@@ -43,6 +43,7 @@ rebinfact = 4
 ifp.process(tn,  save_and_rebin_cube=(True,rebinfact))
 
 fl = Flattening(tn)
+fl.filterIntCube([1,2,3])
 img = interf.acquire_map(1, rebin=rebinfact)
 #fl.applyFlatCommand(adm, interf, 820, modes2discard=modes2remove[x])
 fl.loadImage2Shape(img)

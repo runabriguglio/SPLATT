@@ -37,7 +37,7 @@ class SPLATTDm(BaseDeformableMirror):
         shape = self._dm.get_position()
         return shape
 
-     def set_shape(self, cmd, incremental:bool=False):
+     def set_shape(self, cmd, differential:bool=False):
          if differential:
             lastCmd = self._dm.get_position_command()
             cmd = cmd + lastCmd
@@ -91,8 +91,6 @@ class SPLATTDm(BaseDeformableMirror):
             raise ValueError(f'End position is too high at {np.max(pos)*1e+3:1.2f} [mm]')
          if np.min(pos) < 450e-6:
             raise ValueError(f'End position is too low at {np.min(pos)*1e+3:1.2f} [mm]')
-         if np.std(cmd) > 1e-6:
-            raise ValueError(f'Command RMS is too high at {np.std(cmd)*1e+6:1.2f} [um]')
 
 
 class SPLATTEngine():
@@ -139,7 +137,7 @@ class SPLATTEngine():
     def set_position(self, cmd): 
         if self._shellset is False: print('Shell must be set before giving commands!')
         cmd = cmd.tolist()
-        self._eng.send_command(f"splattMirrorCommand({cmd}')")
+        self._eng.send(f"splattMirrorCommand({cmd}')")
 
 
     def read_buffers(self, external: bool = False, n_samples:int = 128, decimation:int = 0):
