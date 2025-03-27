@@ -70,6 +70,15 @@ class SPLATTDm(BaseDeformableMirror):
          self.set_shape(s)
          return tn
 
+     def sendBufferCommand(self, cmd, differential:bool=False, delay = 1.0):
+         if differential:
+            lastCmd = self._dm.get_position_command()
+            cmd = cmd + lastCmd
+         self._checkCmdIntegrity(cmd) 
+         tn = self._dm._eng.send(f"prepareCmdHistory({cmd}')")
+         self._dm._eng.oneway_send(f'pause({delay}); sendCmdHistory()')
+         return tn
+
      def nActuators(self):
          return self.nActs
      
