@@ -75,8 +75,10 @@ class SPLATTDm(BaseDeformableMirror):
             lastCmd = self._dm.get_position_command()
             cmd = cmd + lastCmd
          self._checkCmdIntegrity(cmd) 
-         tn = self._dm._eng.send(f"prepareCmdHistory({cmd}')")
-         self._dm._eng.oneway_send(f'pause({delay}); sendCmdHistory()')
+         cmd = cmd.tolist()
+         tn = self._dm._eng.send(f'prepareCmdHistory({cmd})')
+         #print('Debugging pyro4 oneway')
+         self._dm._eng.oneway_send(f'pause({delay}); sendCmdHistory(buffer)')
          return tn
 
      def nActuators(self):
