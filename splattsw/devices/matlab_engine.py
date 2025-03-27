@@ -21,18 +21,26 @@ class MatlabEngine(object):
         self._session_id = shared_session_name
         self.close()
 
-    def send_command(self, cmd_str, oneway:bool = False):
+    def send(self, cmd_str:str):
         self.connect()
-        if oneway is True:
-            self._oneway_command(cmd_str)
-        else:
-            self._command(cmd_str)
+        
+        try:
+            self.eng.eval(str(cmd_str)+';',nargout=0)
+        except:
+            self.close()
+            raise Pyro4.errors.DaemonError(f"Execution of matlab command '{cmd_str}' encountered an error")
+
         self.close()
 
 
-    def read_data(self, command_to_read_data:str, n_args_out: int = 1):
+    def read(self, cmd_returning_data:str, n_args_out: int = 1):
         self.connect()
-        mat_data = self.eng.eval(str(command_to_read_data),nargout=n_args_out)
+
+        try:
+            mat_data = self.eng.eval(str(cmd_returning_data),nargout=n_args_out)
+        except:
+            self.close()
+            raise Pyro4.errors.DaemonError(f"Execution of matlab command '{cmd_returning_data}' encountered an error")
 
         if n_args_out > 1:
             data = []
@@ -45,32 +53,17 @@ class MatlabEngine(object):
         self.close()
 
         return data
+
+    @Pyro4.oneway
+    def oneway_send(self, cmd_str:str):
+        self.send(cmd_str)
     
     def connect(self):
         self.eng = matlab.engine.connect_matlab(self._session_id)
 
-    def _test_exception(self,cmd):
-        self.connect()
-
-        try:
-            self.eng.eval(str(cmd),nargout=0)
-        except matlab.engine.EngineError:
-            print("matlab command refused")
-
-        self.close()
-
-
     @Pyro4.oneway
     def close(self):
         self.eng.quit()
-
-    def _command(self,command):
-        self.eng.eval(str(command)+';', nargout=0)
-
-    @Pyro4.oneway
-    def _oneway_command(self,command):
-        self.eng.eval(str(command)+';', nargout=0)
-
 
 
 def main():

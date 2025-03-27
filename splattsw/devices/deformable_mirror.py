@@ -75,14 +75,14 @@ class SPLATTDm(BaseDeformableMirror):
      
      def saveFlatTN(self, tn:str = None):
          if tn is None:
-            tn = self._dm._eng.read_data('lattSaveFlat()')
+            tn = self._dm._eng.read('lattSaveFlat()')
          else:
-            tn = self._dm._eng.read_data(f'lattSaveFlat({tn})')
+            tn = self._dm._eng.read(f'lattSaveFlat({tn})')
          return tn
      
      def updateFlatTN(self, tn:str = None):
          if tn is not None:
-            self._dm._eng.send_command(f"lattLoadFlat('{tn}')")
+            self._dm.send(f"lattLoadFlat('{tn}')")
          self._dm.flatPos = self._dm.read_flat_data()
 
      def _checkCmdIntegrity(self, cmd):
@@ -102,13 +102,13 @@ class SPLATTEngine():
         import Pyro4
         self._eng = Pyro4.Proxy(f"PYRO:matlab_engine@{ip}:{port}")
         
-        self.nActs = int(self._eng.read_data('sys_data.mirrNAct'))
-        self.actCoords = np.array(self._eng.read_data('mirrorData.coordAct'))
-        self.mirrorModes = np.array(self._eng.read_data('sys_data.ff_v'))
-        self.ffMatrix = np.array(self._eng.read_data('sys_data.ff_matrix'))
+        self.nActs = int(self._eng.read('sys_data.mirrNAct'))
+        self.actCoords = np.array(self._eng.read('mirrorData.coordAct'))
+        self.mirrorModes = np.array(self._eng.read('sys_data.ff_v'))
+        self.ffMatrix = np.array(self._eng.read('sys_data.ff_matrix'))
 
-        self._bits2meters = float(self._eng.read_data('2^-sys_data.coeffs.Scale_F_Lin'))
-        self._N2bits = float(self._eng.read_data('sys_data.coeffs.Force2DAC_V'))
+        self._bits2meters = float(self._eng.read('2^-sys_data.coeffs.Scale_F_Lin'))
+        self._N2bits = float(self._eng.read('sys_data.coeffs.Force2DAC_V'))
         
         self._shellset = True
         try:
@@ -120,19 +120,19 @@ class SPLATTEngine():
         print('Initialized SPLATT deformable mirror')
 
     def get_position_command(self): # relative to flatPos
-        posCmdBits = np.array(self._eng.read_data("aoRead('sabu16_position',1:19)"))
+        posCmdBits = np.array(self._eng.read("aoRead('sabu16_position',1:19)"))
         posCmd = posCmdBits * self._bits2meters
         posCmd = np.reshape(posCmd, self.nActs)
         posCmd -= self.flatPos
         return posCmd
 
     def get_position(self):
-        pos = np.array(self._eng.read_data("lattGetPos()"))
+        pos = np.array(self._eng.read("lattGetPos()"))
         pos = np.reshape(pos, self.nActs)
         return pos
 
     def get_force(self):
-        force = np.array(self._eng.read_data("lattGetForce()"))
+        force = np.array(self._eng.read("lattGetForce()"))
         force = np.reshape(force, self.nActs)
         return force
 
@@ -147,24 +147,24 @@ class SPLATTEngine():
         if n_samples > 256:
             raise ValueError('Maximum number of samples is 256!')
 
-        self._eng.send_command(f"clear opts; opts.dec = {decimation}; opts.sampleNr = {n_samples}; opts.save2fits = 1; opts.save2mat = 0")
+        self._eng.send(f"clear opts; opts.dec = {decimation}; opts.sampleNr = {n_samples}; opts.save2fits = 1; opts.save2mat = 0")
         print('Reading buffers, hold tight: this may take a while ...')
         if external:
-            self._eng.send_command("[pos,cur,buf_tn]=splattAcqBufExt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
+            self._eng.send("[pos,cur,buf_tn]=splattAcqBufExt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
         else:
-            self._eng.send_command("[pos,cur,buf_tn]=splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
+            self._eng.send("[pos,cur,buf_tn]=splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
 
-        buf_tn = self._eng.read_data('buf_tn')
-        mean_pos = np.array(self._eng.read_data('mean(pos,2)')) * self._bits2meters
+        buf_tn = self._eng.read('buf_tn')
+        mean_pos = np.array(self._eng.read('mean(pos,2)')) * self._bits2meters
         mean_pos = np.reshape(mean_pos,self.nActs)
-        mean_cur = np.array(self._eng.read_data('mean(cur,2)'))
+        mean_cur = np.array(self._eng.read('mean(cur,2)'))
         mean_cur = np.reshape(mean_cur, self.nActs)
 
         return mean_pos, mean_cur, buf_tn
     
 
     def read_flat_data(self):
-        flatPos = np.array(self._eng.read_data('sys_data.flatPos')) * self._bits2meters
+        flatPos = np.array(self._eng.read('sys_data.flatPos')) * self._bits2meters
         flatPos = np.reshape(flatPos,self.nActs)
         return flatPos
 
@@ -172,7 +172,7 @@ class SPLATTEngine():
 
         if self._shellset is False:
             print('Setting the shell...')
-            self._eng.send_command('splattFastSet')
+            self._eng.send('splattFastSet')
             self._shellset = True
         else:
             print('Shell set variable is True, overwrite it if you wish to set again')
