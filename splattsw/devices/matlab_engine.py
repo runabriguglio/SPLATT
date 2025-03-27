@@ -21,9 +21,9 @@ class MatlabEngine(object):
         self._session_id = shared_session_name
         self.close()
 
-    def send_command(self, cmd_str, wait4reply:bool = True):
+    def send_command(self, cmd_str, oneway:bool = False):
         self.connect()
-        if wait4reply is False:
+        if oneway is True:
             self._oneway_command(cmd_str)
         else:
             self._command(cmd_str)
@@ -48,6 +48,17 @@ class MatlabEngine(object):
     
     def connect(self):
         self.eng = matlab.engine.connect_matlab(self._session_id)
+
+    def _test_exception(self,cmd):
+        self.connect()
+
+        try:
+            self.eng.eval(str(cmd),nargout=0)
+        except matlab.engine.EngineError:
+            print("matlab command refused")
+
+        self.close()
+
 
     @Pyro4.oneway
     def close(self):
