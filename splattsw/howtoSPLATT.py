@@ -54,18 +54,27 @@ time.sleep(1)
 fimg = interf.acquire_phasemap(5, rebin=4))
 
 ffv = dm.mirrorModes
-mode_id = 7
-mode_amp = 4e-6
-cmd = ffv[:,mode_if]*mode_amp
-tn_buf = dm.sendBufferCommand(cmd)
+mode_id = 4
+mode_amp = 5e-6
+cmd = ffv[:,mode_id]*mode_amp
+tn_buf = dm.sendBufferCommand(cmd, delay = 1.0)
 tn = interf.capture(500)
+interf.produce(tn)
+
 
 
 from splattsw import userscripts as usr
+import matplotlib.pyplot as plt
 
 v = usr.analyze_opt_step(tn)
-
-
-
+em = usr.analyze_buf_step(tn_buf, ffv)
+tvec = em['time']
+pos = em['position']
+pos_cmd = em['position_command']
+plt.figure()
+plt.plot(tvec,pos[:,1:],label='CapSens measure')
+plt.plot(tvec,pos_cmd[:,1:],'--',label='Command')
+plt.grid(True)
+plt.legend()
 
 '''

@@ -11,8 +11,6 @@ def read_buffer_data(TN:str = None):
 
     ip = _get_local_ip()
     if '193.206.155.43' in ip: # M4WS
-        print('Syncrhonizing buffer folder ...')
-        os.system('buffsync')
         SPLATT_BUFFER_FOLDER = '/mnt/jumbo/SPLATT/Buffer/'
 
     elif '193.206.155.220' in ip: # SPLATTWS
@@ -31,42 +29,40 @@ def read_buffer_data(TN:str = None):
 
     dec = read_fits(where,'decimation.fits')
     if dec is None:
-        raise FileNotFoundError('The TN does not seem to contain any decimation.fits file')
+        try:
+            print('Synchronizing buffer folder ...')
+            subprocess.run("rsync -av --include='*/' --include='*.fits' --exclude='*' --prune-empty-dirs labot@splatt:/home/labot/Desktop/Data/SPLATT/Buffer/ /mnt/jumbo/SPLATT/Buffer/",shell=True)
+            dec = read_fits(where,'decimation.fits')
+        except:
+            raise FileNotFoundError('The TN does not seem to contain any decimation.fits file')
 
     dataR1 = read_fits(where,'dataR1.fits')
-    dataR2 = read_fits(where,'dataR2.fits')
-    dataW1 = read_fits(where,'dataW1.fits')
-    dataW2 = read_fits(where,'dataW2.fits')
-    
-    startPosCmd = read_fits(where,'start_sabu16_position.fits')
-    startCurCmd = read_fits(where,'start_sabi16_force.fits')
-
     print(np.shape(dataR1))
+
+    #startPosCmd = read_fits(where,'start_sabu16_position.fits')
+    #startCurCmd = read_fits(where,'start_sabi16_force.fits')
+
     data_len = np.shape(dataR1)[-1]
     dt = 1./freq*(dec+1.)
     time_vec = np.arange(data_len)*dt
 
-    data = []
-    data_addr = []
-    data.append(dataR1)
-    data_addr.append(_read_sab_address(where,'addrR1.fits'))
-    if dataR2 is not None:
-        data_addr.append(_read_sab_address(where,'addrR2.fits'))
-        data.append(dataR2)
-    if dataW1 is not None:
-        data_addr.append(_read_sab_address(where,'addrW1.fits'))
-        data.append(dataW1)
-    if dataW2 is not None:
-        data_addr.append(_read_sab_address(where,'addrW2.fits'))
-        data.append(dataW2)
-    if startPosCmd is not None:
-        data_addr.append('start_sabu16_position')
-        data.append(startPosCmd)
-    if startCurCmd is not None:
-        data_addr.append('start_sabi16_force')
-        data.append(startCurCmd)
+    # Build a data dictionary:
+    addrR1 = _read_sab_address(where,'addrR1.fits')
+    addrR2 = _read_sab_address(where,'addrR2.fits')
+    addrW1 = _read_sab_address(where,'addrW1.fits')
+    addrW2 = _read_sab_address(where,'addrW2.fits')
+    data = {addrR1 : dataR1}
+    if addrR2 is not None:
+        dataR2 = read_fits(where,'dataR2.fits')
+        data[addrR2] = dataR2
+    if addrW1 is not None:
+        dataW1 = read_fits(where,'dataW1.fits')
+        data[addrW1] = dataW1
+    if addrW2 is not None:
+        dataW2 = read_fits(where,'dataW2.fits')
+        data[addrW2] = dataW2
 
-    return data, data_addr, time_vec
+    return data, time_vec
 
 
 def spectral_analysis(signal, dt:float = 0):
@@ -189,12 +185,15 @@ def mirror_mesh(values):
 
 def _read_sab_address(folder_path, file_name):
 
-    raw_addr = read_fits(folder_path, file_name)
-    int_addr = (raw_addr[0]).astype(int)
+    try:
+        raw_addr = read_fits(folder_path, file_name)
+        int_addr = (raw_addr[0]).astype(int)
 
-    addr = chr(int_addr[0])
-    for i in range(len(int_addr)-1):
-        addr += chr(int_addr[i+1])
+        addr = chr(int_addr[0])
+        for i in range(len(int_addr)-1):
+            addr += chr(int_addr[i+1])
+    except FileNotFoundError:
+        addr = None
 
     return addr
 
@@ -202,11 +201,8 @@ def _read_sab_address(folder_path, file_name):
 def read_fits(file_path:str, file_name:str):
 
     which = os.path.join(file_path,file_name)
-    try:
-        hdu = pyfits.open(which)
-        read_data =np.array(hdu[0].data)
-    except FileNotFoundError:
-        read_data = None
+    hdu = pyfits.open(which)
+    read_data =np.array(hdu[0].data)
 
     return read_data
 

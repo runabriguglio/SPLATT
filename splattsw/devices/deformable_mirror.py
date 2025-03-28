@@ -78,7 +78,6 @@ class SPLATTDm(BaseDeformableMirror):
          self._checkCmdIntegrity(cmd) 
          cmd = cmd.tolist()
          tn = self._dm._eng.send(f'prepareCmdHistory({cmd})')
-         #print('Debugging pyro4 oneway')
          self._dm._eng.oneway_send(f'pause({delay}); sendCmdHistory(buffer)')
          return tn
 
@@ -160,14 +159,14 @@ class SPLATTEngine():
 
         return mean_pos, mean_cur, buf_tn
     
-     def saveFlatTN(self, tn:str = None):
+    def saveFlatTN(self, tn:str = None):
          if tn is None:
             tn = self._eng.read('lattSaveFlat()')
          else:
             tn = self._eng.read(f'lattSaveFlat({tn})')
          return tn
 
-     def updateFlatTN(self, tn:str = None):
+    def updateFlatTN(self, tn:str = None):
          if tn is not None:
             self._eng.send(f"lattLoadFlat('{tn}')")
          self.flatPos = self._read_flat_data()
