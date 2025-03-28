@@ -74,10 +74,12 @@ class SPLATTDm(BaseDeformableMirror):
          # cmd is a command relative to self._dm.flatPos
          if differential:
             lastCmd = self._dm.get_position_command()
-            cmd = cmd + lastCmd - self._dm.flatPos
+            cmd = cmd + lastCmd
          self._checkCmdIntegrity(cmd) 
          cmd = cmd.tolist()
-         tn = self._dm._eng.send(f'prepareCmdHistory({cmd})')
+         tn = self._dm._eng.read(f'prepareCmdHistory({cmd})')
+         #if accelerometers is not None:
+         #   accelerometers.start_schedule()
          self._dm._eng.oneway_send(f'pause({delay}); sendCmdHistory(buffer)')
          return tn
 
@@ -169,13 +171,12 @@ class SPLATTEngine():
     def updateFlatTN(self, tn:str = None):
          if tn is not None:
             self._eng.send(f"lattLoadFlat('{tn}')")
-         self.flatPos = self._read_flat_data()
+         self.flatPos = self.read_flat_data()
 
-    def _read_flat_data(self):
+    def read_flat_data(self):
         flatPos = np.array(self._eng.read('sys_data.flatPos')) * self._bits2meters
         flatPos = np.reshape(flatPos,self.nActs)
         return flatPos
-
 
     def _set_shell(self):
 

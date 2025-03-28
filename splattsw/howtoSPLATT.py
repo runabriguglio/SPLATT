@@ -53,14 +53,25 @@ dm.set_shape(deltacmd, differential=True)
 time.sleep(1)
 fimg = interf.acquire_phasemap(5, rebin=4))
 
+from splattsw import acceleration_analysis as acc
+from splattsw.devices.webDAQ import WebDAQ
+
+wbdq = WebDAQ()
+wbdq.connect()
+
 ffv = dm.mirrorModes
 mode_id = 4
 mode_amp = 5e-6
 cmd = ffv[:,mode_id]*mode_amp
-tn_buf = dm.sendBufferCommand(cmd, delay = 1.0)
-tn = interf.capture(500)
-interf.produce(tn)
 
+wbdq.start_schedule()
+tn_buf = dm.sendBufferCommand(cmd, delay = 1.0, accelerometers = wbdq)
+tn = interf.capture(500)
+wbdq.stop_schedule()
+
+acc.wdsync()
+wdfile = acc.last_wdfile()
+interf.produce(tn)
 
 
 from splattsw import userscripts as usr
@@ -72,9 +83,30 @@ tvec = em['time']
 pos = em['position']
 pos_cmd = em['position_command']
 plt.figure()
-plt.plot(tvec,pos[:,1:],label='CapSens measure')
-plt.plot(tvec,pos_cmd[:,1:],'--',label='Command')
+plt.plot(tvec,pos[:,1:])
+plt.plot(tvec,pos_cmd[:,1:],'--')
+plt.grid(True)
+plt.title(tn_buf)
+
+pos_rms = em['pos_rms']
+plt.figure()
+plt.plot(tvec,pos_rms,label='position RMS (first 4 modes removed)')
 plt.grid(True)
 plt.legend()
+plt.title(tn_buf)
 
-'''
+interf_freq = 80
+tt = np.arange(len(v))/interf_freq
+plt.figure()
+plt.plot(tt,v)
+plt.grid(True)
+plt.title(tn)
+
+data = acc.openfile(wdfile)
+freq_WebDAQ = 1651
+tacc = np.arange(np.shape(data)[-1])/freq_WebDAQ
+plt.figure()
+plt.plot(tacc,data[0:2].T)
+plt.legend('Channel 0','Channel 1')
+plt.title(wdfile)
+

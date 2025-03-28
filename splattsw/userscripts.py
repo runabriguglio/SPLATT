@@ -15,11 +15,15 @@ def analyze_buf_step(tn, modes, bits2m:float = 2**-26, bits2N:float = 1.0/99643)
     pos_cmd_modes = get_modal_projection(pos_cmd, modes)
     cur_cmd_modes = get_modal_projection(cur_cmd, modes)
 
+    no_rigid_modes = pos_modes[4:,:]
+    modes_rms = no_rigid_modes.std(axis=0)
+
     data_modes = {
         'position' : pos_modes.T,
         'force' : cur_modes.T,
         'position_command' : pos_cmd_modes.T,
         'force_command' : cur_cmd_modes.T,
+        'pos_rms' : modes_rms.T,
         'time' : time_vec.T}
 
     return data_modes

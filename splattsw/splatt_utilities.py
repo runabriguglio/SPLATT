@@ -199,10 +199,13 @@ def _read_sab_address(folder_path, file_name):
 
 
 def read_fits(file_path:str, file_name:str):
-
-    which = os.path.join(file_path,file_name)
-    hdu = pyfits.open(which)
-    read_data =np.array(hdu[0].data)
+    
+    try:
+        which = os.path.join(file_path,file_name)
+        hdu = pyfits.open(which)
+        read_data =np.array(hdu[0].data)
+    except FileNotFoundError:
+        read_data = None
 
     return read_data
 
