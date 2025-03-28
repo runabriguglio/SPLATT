@@ -53,20 +53,19 @@ dm.set_shape(deltacmd, differential=True)
 time.sleep(1)
 fimg = interf.acquire_phasemap(5, rebin=4))
 
+ffv = dm.mirrorModes
+mode_id = 7
+mode_amp = 4e-6
+cmd = ffv[:,mode_if]*mode_amp
+tn_buf = dm.sendBufferCommand(cmd)
+tn = interf.capture(500)
 
 
-#debug
-from m4.dmutils import iff_acquisition_preparation as ifa
+from splattsw import userscripts as usr
 
-    ifc = ifa.IFFCapturePreparation(dm)
-    tch = ifc.createTimedCmdHistory(modesList, amplitude, template, shuffle)
-    info = ifc.getInfoToSave()
-    tn = _ts.now()
-    iffpath = os.path.join(fn.IFFUNCTIONS_ROOT_FOLDER, tn)
+v = usr.analyze_opt_step(tn)
 
-from m4.mini_OTT import timehistory as th
 
-fl = th.fileList(tn)
-cc = th.get
+
 
 '''
