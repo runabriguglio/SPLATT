@@ -41,7 +41,7 @@ class SPLATTDm(BaseDeformableMirror):
          if differential:
             lastCmd = self._dm.get_position_command()
             cmd = cmd + lastCmd
-         self._checkCmdIntegrity(cmd) # now check integrity on the relative command
+         self._checkCmdIntegrity(cmd)
          self._dm.set_position(cmd) 
 
      def uploadCmdHistory(self, cmdhist):
@@ -71,9 +71,10 @@ class SPLATTDm(BaseDeformableMirror):
          return tn
 
      def sendBufferCommand(self, cmd, differential:bool=False, delay = 1.0):
+         # cmd is a command relative to self._dm.flatPos
          if differential:
             lastCmd = self._dm.get_position_command()
-            cmd = cmd + lastCmd
+            cmd = cmd + lastCmd - self._dm.flatPos
          self._checkCmdIntegrity(cmd) 
          tn = self._dm._eng.send(f"prepareCmdHistory({cmd}')")
          self._dm._eng.oneway_send(f'pause({delay}); sendCmdHistory()')
@@ -81,18 +82,6 @@ class SPLATTDm(BaseDeformableMirror):
 
      def nActuators(self):
          return self.nActs
-     
-     def saveFlatTN(self, tn:str = None):
-         if tn is None:
-            tn = self._dm._eng.read('lattSaveFlat()')
-         else:
-            tn = self._dm._eng.read(f'lattSaveFlat({tn})')
-         return tn
-     
-     def updateFlatTN(self, tn:str = None):
-         if tn is not None:
-            self._dm.send(f"lattLoadFlat('{tn}')")
-         self._dm.flatPos = self._dm.read_flat_data()
 
      def _checkCmdIntegrity(self, cmd):
          pos = cmd + self._dm.flatPos
@@ -169,11 +158,23 @@ class SPLATTEngine():
 
         return mean_pos, mean_cur, buf_tn
     
+     def saveFlatTN(self, tn:str = None):
+         if tn is None:
+            tn = self._eng.read('lattSaveFlat()')
+         else:
+            tn = self._eng.read(f'lattSaveFlat({tn})')
+         return tn
 
-    def read_flat_data(self):
+     def updateFlatTN(self, tn:str = None):
+         if tn is not None:
+            self._eng.send(f"lattLoadFlat('{tn}')")
+         self.flatPos = self._read_flat_data()
+
+    def _read_flat_data(self):
         flatPos = np.array(self._eng.read('sys_data.flatPos')) * self._bits2meters
         flatPos = np.reshape(flatPos,self.nActs)
         return flatPos
+
 
     def _set_shell(self):
 
