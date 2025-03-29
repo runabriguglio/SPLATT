@@ -173,7 +173,7 @@ model.component('comp1').physics('shell').feature('emm1').set('rho', 'rho_z');
 model.component('comp1').physics('shell').feature('to1').set('d', 'thk');
 
 % Find actuator indices
-[x_vtx, y_vtx, ~, edges, ~] = get_geometry_solid(model);
+[x_vtx, y_vtx, ~, ~, ~] = get_geometry_solid(model);
 
 dist = @(x,y) sqrt(x.^2+y.^2);
 act_ids = zeros(Nacts,1);
