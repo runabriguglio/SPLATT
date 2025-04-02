@@ -115,6 +115,10 @@ def last_wdfile(N:int=1,ext=None):
         print(fname)
         file_list.append(fname)
 
+    if N == 1:
+        file_list = file_list[0]
+
+
     return file_list
 
 
