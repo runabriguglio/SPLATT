@@ -204,6 +204,28 @@ def damp_sinusoid_coeffs(signal):
     return amp, eta, omega, phi
 
 
+def find_peaks(signal, Npeaks:int=2, min_sep:int=10):
+
+    abs_sig = np.abs(signal)
+    sorted_ids = np.argsort(abs_sig)
+
+    ctr = -1
+    peak_ids = np.zeros(Npeaks,dtype=int)
+    peak_ids[0] = sorted_ids[ctr]
+
+    for ii in range(Npeaks-1):
+        ctr -= 1
+        peak_id = sorted_ids[ctr]
+
+        while np.min(np.abs(peak_id-peak_ids)) < min_sep:
+            ctr -= 1
+            peak_id = sorted_ids[ctr]
+
+        peak_ids[ii+1] = peak_id
+
+    return peak_ids
+
+
 ###### Filters #####
 def butterworth_bandpass_filter(data, f_low, f_high, f_sample, order=6):
     b,a = butter(order, [f_low,f_high], fs=f_sample, btype='band')
