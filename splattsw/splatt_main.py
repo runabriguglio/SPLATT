@@ -4,14 +4,13 @@ import matplotlib.pyplot as plt
 import time
 import os
 
-from splattsw.devices.webDAQ import WebDAQ as wbdq
-from splattsw.devices.powersupplier import PowerSupplier
-from splattsw.devices.moxa_io import Moxa_ai0
+from devices.webDAQ import WebDAQ as wbdq
+from devices.powersupplier import PowerSupplier
+#from devices.moxa_io import Moxa_ai0
 import splatt_utilities as utils
-from splattsw import acceleration_analysis as sp
-from splattsw.devices.wavegenerators import WaveGenerator
-
-eng = utils.start_matlab_engine()
+import acceleration_analysis as sp
+from devices.wavegenerators import WaveGenerator
+from devices.deformable_mirror import SPLATTEngine
 
 # Connect to WebDAQ
 webdaq = wbdq()
@@ -20,58 +19,63 @@ webdaq.connect()
 # Start accelerometers
 print('Starting accelerometers to remove startup transient')
 webdaq.start_schedule()
-job_status = webdaq.get_jobs_status()
-while job_status[0] != 'completed':
-    time.sleep(10)
-    job_status = webdaq.get_jobs_status()
+time.sleep(10)
 webdaq.stop_schedule()
 
+dm = SPLATTEngine()
+eng = dm._eng
 
-# Connect to moxa
-mx = Moxa_ai0()
-pres = mx.read_pressure()
+# # Connect to moxa
+# mx = Moxa_ai0()
+# pres = mx.read_pressure()
 
-# Connect to power supplier
-ps = PowerSupplier()
-ps.load_default_state()
-time.sleep(1) # wait for load
-ps.switch_on(1)
-ps.switch_on(2)
-ps.switch_on(3)
+# # Connect to power supplier
+# ps = PowerSupplier()
+# ps.load_default_state()
+# time.sleep(1) # wait for load
+# ps.switch_on(1)
+# ps.switch_on(2)
+# ps.switch_on(3)
 
-# Connect to wavegenerator
-wg = WaveGenerator()
-amp = 1
+# # Connect to wavegenerator
+# wg = WaveGenerator()
+# amp = 1
 
-# Perform  init
-eng.send_command('splattInit')
-eng.send_command('splattStartup')
+# # Perform  init
+# eng.send('splattStartup')
 
-# Set the shell
-eng.send_command('splattFastSet()')
+# # Set the shell
+# eng.send('splattFastSet()')
 
-# Define useful data
-V = eng.get_data('sys_data.ff_v')
-dec = 2
-eng.send_command(f'clear opts; opts.dec = {dec:%d}; opts.save2fits = 1; opts.save2mat = 0; opts.sampleNr = 256; opts.saveCmds = 1')
+# # Define useful data
+# V = eng.read('sys_data.ff_v')
+# dec = 2
+# eng.send(f'clear opts; opts.dec = {dec:%d}; opts.save2fits = 1; opts.save2mat = 0; opts.sampleNr = 256; opts.saveCmds = 1')
 
-# Define frequency range
-freq_vec = np.arange(10,130,10)
+# # Define frequency range
+# freq_vec = np.arange(10,130,10)
 
 wdf_list = []
-tn_list = []
+# tn_list = []
 
-for j,freq in enumerate(freq_vec):
+Nrep = 3
+amp_vec = np.array([1000,1500,2000])
 
-    # Send wave
-    wg.set_wave1(amp,0,freq,'SIN')
-    time.sleep(2) # wait for piezo command
-
-    # Start buffer acquisition
-    eng.send_command("[pos,cur,tn]=splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
+for kk in range(Nrep):
+    fcmd = np.array(eng.read("aoRead('sabi16_force',1:19)"))
+    fcmd = np.reshape(fcmd,dm.nActs)
+    old_fcmd = fcmd.tolist()
 
     # Start WebDAQ acquisition
     webdaq.start_schedule()
+
+    time.sleep(2) # wait for schedule to actually start
+
+    for j,amp in enumerate(amp_vec):
+        new_fcmd = (old_fcmd+amp).tolist()
+        eng.send(f'lattApplyForce({new_fcmd})')
+        eng.send(f'lattApplyForce({old_fcmd})')
+        print(f'{j+1}/{len(amp_vec)}')
 
     # Wait for webdaq acquisition to end
     job_status = webdaq.get_jobs_status()
@@ -82,23 +86,16 @@ for j,freq in enumerate(freq_vec):
 
     sp.wdsync()
     wdfile = sp.last_wdfile()
-    data = sp.openfile(wdfile)
+    data = sp.openfile(wdfile,18*1652)
     sp.plot_data(data,ch_ids = np.array([0,1],dtype=int))
-
-    # Wait for buffer acquisition to end
-    time.sleep(25)
-    tn = eng.get_data('tn')
-    tn_list.append(tn)
 
     wdf_list.append(wdfile)
 
-
 print(wdf_list)
-print(tn_list)
-print(pres)
+
 
 # Dock the shell
-eng.send_command("splattRIP")
+eng.send("splattRIP")
 
 # Switch off all channels
 ps.switch_off(3)
