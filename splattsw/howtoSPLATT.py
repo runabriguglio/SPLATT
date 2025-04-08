@@ -27,23 +27,27 @@ from m4.dmutils import iff_processing as ifp
 from m4.dmutils import iff_module as ifm
 from m4.dmutils.flattening import Flattening
 
-
+'''
 icp = IFFCapturePreparation(dm)
 cmh = icp.createTimedCmdHistory(modesList=[0,1,2,3,4,5,6],modesAmp=1e-6)
 dm.uploadCmdHistory(cmh)
 dm.runCmdHistory(interf)
+'''
 #the following command makes all together
-mlist = [0,1,2,3]
+mlist = [0,1,2,3,4,5,6]
+mamp = 5e-6
 nmodes2flat = len(mlist)
 nmodes2discard = 3
-tn = ifm.iffDataAcquisition(dm, interf,mlist,amplitude=1e-6)
+tn = ifm.iffDataAcquisition(dm, interf,mlist,amplitude=mamp)
 
 rebinfact = 4
 #adm.set_shape(np.zeros(19))
 ifp.process(tn,  save_and_rebin_cube=(True,rebinfact))
 
 fl = Flattening(tn)
-fl.filterIntCube([1,2,3])
+fl.filterInitCube([1,2,3])
+fl.applyFlatCommand(dm, interf, mlist, nframes=1,modes2discard=nmodes2discard)
+
 img = interf.acquire_map(1, rebin=rebinfact)
 #fl.applyFlatCommand(adm, interf, 820, modes2discard=modes2remove[x])
 fl.loadImage2Shape(img)

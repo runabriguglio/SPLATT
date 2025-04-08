@@ -10,6 +10,7 @@ from devices.moxa_io import Moxa_ai0
 import acceleration_analysis as sp
 from devices.wavegenerators import WaveGenerator
 from devices.deformable_mirror import SPLATTEngine
+import splatt_utilities as utils
 
 dm = SPLATTEngine
 eng = dm._eng
@@ -21,12 +22,11 @@ webdaq.connect()
 # Start accelerometers
 print('Starting accelerometers to remove startup transient')
 webdaq.start_schedule()
-job_status = webdaq.get_jobs_status()
-while job_status[0] != 'completed':
-    time.sleep(10)
-    job_status = webdaq.get_jobs_status()
+time.sleep(10)
 webdaq.stop_schedule()
 
+dm = SPLATTEngine()
+eng = dm._eng
 
 # Connect to moxa
 mx = Moxa_ai0()
@@ -45,16 +45,15 @@ wg = WaveGenerator()
 amp = 1
 
 # Perform  init
-eng.send_command('splattInit')
-eng.send_command('splattStartup')
+eng.send('splattStartup')
 
 # Set the shell
-eng.send_command('splattFastSet()')
+eng.send('splattFastSet()')
 
 # Define useful data
 V = dm.mirrorModes
 dec = 2
-eng.send_command(f'clear opts; opts.dec = {dec:%d}; opts.save2fits = 1; opts.save2mat = 0; opts.sampleNr = 256')
+eng.send(f'clear opts; opts.dec = {dec:%d}; opts.save2fits = 1; opts.save2mat = 0; opts.sampleNr = 256')
 
 # Define frequency range
 freq_vec = np.arange(10,130,10)
@@ -62,14 +61,13 @@ freq_vec = np.arange(10,130,10)
 wdf_list = []
 tn_list = []
 
-for j,freq in enumerate(freq_vec):
+for k, freq in enumerate(freq_vec):
 
-    # Send wave
-    wg.set_wave1(amp,0,freq,'SIN')
-    time.sleep(2) # wait for piezo command
+    wg.set_wave1(amp, freq=freq, wave_form='SIN')
+    time.sleep(1)
 
     # Start buffer acquisition
-    eng.send_command("[pos,cur,tn]=splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
+    eng.oneway_send("[pos,cur,tn]=splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
 
     # Start WebDAQ acquisition
     webdaq.start_schedule()
@@ -83,23 +81,19 @@ for j,freq in enumerate(freq_vec):
 
     sp.wdsync()
     wdfile = sp.last_wdfile()
-    data = sp.openfile(wdfile)
+    data = sp.openfile(wdfile,18*1652)
     sp.plot_data(data,ch_ids = np.array([0,1],dtype=int))
 
-    # Wait for buffer acquisition to end
-    time.sleep(25)
-    tn = eng.get_data('tn')
-    tn_list.append(tn)
+    buf_tn = eng.read('tn')
 
     wdf_list.append(wdfile)
-
+    tn_list.append(buf_tn)
 
 print(wdf_list)
-print(tn_list)
-print(pres)
+
 
 # Dock the shell
-eng.send_command("splattRIP")
+eng.send("splattRIP")
 
 # Switch off all channels
 ps.switch_off(3)
