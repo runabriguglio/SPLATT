@@ -4,14 +4,15 @@ import matplotlib.pyplot as plt
 import time
 import os
 
-from splattsw.devices.webDAQ import WebDAQ as wbdq
-from splattsw.devices.powersupplier import PowerSupplier
-from splattsw.devices.moxa_io import Moxa_ai0
-import splatt_utilities as utils
-from splattsw import acceleration_analysis as sp
-from splattsw.devices.wavegenerators import WaveGenerator
+from devices.webDAQ import WebDAQ as wbdq
+from devices.powersupplier import PowerSupplier
+from devices.moxa_io import Moxa_ai0
+import acceleration_analysis as sp
+from devices.wavegenerators import WaveGenerator
+from devices.deformable_mirror import SPLATTEngine
 
-eng = utils.start_matlab_engine()
+dm = SPLATTEngine
+eng = dm._eng
 
 # Connect to WebDAQ
 webdaq = wbdq()
@@ -51,9 +52,9 @@ eng.send_command('splattStartup')
 eng.send_command('splattFastSet()')
 
 # Define useful data
-V = eng.get_data('sys_data.ff_v')
+V = dm.mirrorModes
 dec = 2
-eng.send_command(f'clear opts; opts.dec = {dec:%d}; opts.save2fits = 1; opts.save2mat = 0; opts.sampleNr = 256; opts.saveCmds = 1')
+eng.send_command(f'clear opts; opts.dec = {dec:%d}; opts.save2fits = 1; opts.save2mat = 0; opts.sampleNr = 256')
 
 # Define frequency range
 freq_vec = np.arange(10,130,10)
