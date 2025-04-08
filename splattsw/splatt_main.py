@@ -90,7 +90,7 @@ for k, freq in enumerate(freq_vec):
     tn_list.append(buf_tn)
 
 print(wdf_list)
-
+print(tn_list)
 
 # Dock the shell
 eng.send("splattRIP")
@@ -101,11 +101,12 @@ ps.switch_off(1)
 ps.switch_off(2)
 
 # Kill the engine
-eng.stop_engine()
+eng.close()
 
 # Load and normalize
-V = np.loadtxt('/home/labot/git/SPLATT/SPLATT_Data/mirror_modes.txt')
 V = V/np.sqrt(np.shape(V)[0])
+
+utils.buffsync()
 
 # Post processing
 for k,buf_tn in enumerate(tn_list):

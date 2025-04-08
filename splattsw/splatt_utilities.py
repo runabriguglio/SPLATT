@@ -7,6 +7,11 @@ import glob
 import subprocess
 
 
+def buffsync():
+    print('Synchronizing buffer folder ...')
+    subprocess.run("rsync -av --include='*/' --include='*.fits' --exclude='*' --prune-empty-dirs labot@splatt:/home/labot/Desktop/Data/SPLATT/Buffer/ /mnt/jumbo/SPLATT/Buffer/", shell=True)
+
+
 def read_buffer_data(TN:str = None):
 
     ip = _get_local_ip()
@@ -29,12 +34,7 @@ def read_buffer_data(TN:str = None):
 
     dec = read_fits(where,'decimation.fits')
     if dec is None:
-        try:
-            print('Synchronizing buffer folder ...')
-            subprocess.run("rsync -av --include='*/' --include='*.fits' --exclude='*' --prune-empty-dirs labot@splatt:/home/labot/Desktop/Data/SPLATT/Buffer/ /mnt/jumbo/SPLATT/Buffer/",shell=True)
-            dec = read_fits(where,'decimation.fits')
-        except:
-            raise FileNotFoundError('The TN does not seem to contain any decimation.fits file')
+        raise FileNotFoundError('The TN does not seem to contain any decimation.fits file')
 
     dataR1 = read_fits(where,'dataR1.fits')
     print(np.shape(dataR1))
