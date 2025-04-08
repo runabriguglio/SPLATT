@@ -2,7 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import time
-import os
 
 from devices.webDAQ import WebDAQ as wbdq
 from devices.powersupplier import PowerSupplier
@@ -12,7 +11,7 @@ from devices.wavegenerators import WaveGenerator
 from devices.deformable_mirror import SPLATTEngine
 import splatt_utilities as utils
 
-dm = SPLATTEngine
+dm = SPLATTEngine()
 eng = dm._eng
 
 # Connect to WebDAQ
@@ -24,9 +23,6 @@ print('Starting accelerometers to remove startup transient')
 webdaq.start_schedule()
 time.sleep(10)
 webdaq.stop_schedule()
-
-dm = SPLATTEngine()
-eng = dm._eng
 
 # Connect to moxa
 mx = Moxa_ai0()
