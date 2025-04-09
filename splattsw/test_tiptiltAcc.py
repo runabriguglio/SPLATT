@@ -15,12 +15,6 @@ eng = dm._eng
 webdaq = wbdq()
 webdaq.connect()
 
-# Start accelerometers
-print('Starting accelerometers to remove startup transient')
-webdaq.start_schedule()
-time.sleep(10)
-webdaq.stop_schedule()
-
 # Define piston/tip/tilt
 coords = dm.actCoords
 x,y = coords[:,0], coords[:,1]
@@ -29,10 +23,11 @@ tip = x/np.max(np.abs(coords))
 tilt = y/np.max(np.abs(coords))
 
 # Define useful variables
-amp = 3e-6
-delay = 2
+amp = 10e-6
+delay = 0.5
 
-cmds = np.hstack((tip,tilt,piston)) * amp
+cmds = np.vstack((tip,tilt,piston)) 
+cmds = np.array(cmds)
 
 # Define frequency range
 freq_vec = np.arange(10,130,12)
@@ -42,27 +37,21 @@ tn_list = []
 
 for cmd in cmds:
 
+    cmd = cmd.T * amp
     cmd = cmd.tolist()
 
     for k, freq in enumerate(freq_vec):
 
         print(f'Testing frequency: {freq:1.2f} [Hz]')
         buf_tn = eng.read(f'prepareDynCmdHistory({cmd},{freq})')
-        eng.oneway_send(f'pause({delay}); sendCmdHistory(buffer)')
 
-        # Start WebDAQ acquisition
         webdaq.start_schedule()
-
-        # Wait for webdaq acquisition to end
-        job_status = webdaq.get_jobs_status()
-        while job_status[0] != 'completed':
-            time.sleep(1)
-            job_status = webdaq.get_jobs_status()
+        eng.send(f'pause({delay}); sendCmdHistory(buffer)')
         webdaq.stop_schedule()
 
         sp.wdsync()
         wdfile = sp.last_wdfile()
-        data = sp.openfile(wdfile,18*1652)
+        data = sp.openfile(wdfile)
         sp.plot_data(data,ch_ids = np.array([0,1],dtype=int))
 
         wdf_list.append(wdfile)

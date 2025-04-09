@@ -30,25 +30,24 @@ def plot_data(data, ch_ids = None, freq = freqwebdaq, title_str = None):
 
     t_vec = np.arange(0,np.max(data_size))*1/freq
 
-
     plt.figure()
-    plt.legend('Channel' + str(ch_ids))
     if title_str is not None:
         plt.title(title_str)
-    for ch in ch_ids:
+    for k,ch in enumerate(ch_ids):
 
         if len(data_size) == 1:
             vec = data
         else:
             vec = data[int(ch)]
 
-        plt.plot(t_vec,vec)
+        plt.plot(t_vec,vec,label='Channel ' + str(ch))
 
-        plt.xlabel('Time [s]')
-        plt.ylabel('Acceleration [g]')
-        plt.show()
-        plt.grid('on')
-        plt.axis('tight')
+    plt.legend()
+    plt.xlabel('Time [s]')
+    plt.ylabel('Acceleration [g]')
+    plt.grid('on')
+    plt.axis('tight')
+    
 
 
 
