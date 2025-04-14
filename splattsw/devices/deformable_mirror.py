@@ -70,16 +70,21 @@ class SPLATTDm(BaseDeformableMirror):
          self.set_shape(s)
          return tn
 
-     def sendBufferCommand(self, cmd, differential:bool=False, delay = 1.0):
-         # cmd is a command relative to self._dm.flatPos
+    def get_forces(self):
+        forces = self._dm.get_force()
+        return forces
+
+     def sendBufferCommand(self, cmd, differential:bool=False, cmdPreTime:float = 10e-3, freq:float = None, delay = 1.0): 
+        # cmd is a command relative to self._dm.flatPos
          if differential:
             lastCmd = self._dm.get_position_command()
             cmd = cmd + lastCmd
          self._checkCmdIntegrity(cmd) 
          cmd = cmd.tolist()
-         tn = self._dm._eng.read(f'prepareCmdHistory({cmd})')
-         #if accelerometers is not None:
-         #   accelerometers.start_schedule()
+         if freq is not None:
+            tn = self._dm._eng.read(f'prepareDynCmdHistory({cmd},{freq})')   
+         else:
+            tn = self._dm._eng.read(f'prepareCmdHistory({cmd},{cmdPreTime})')
          self._dm._eng.oneway_send(f'pause({delay}); sendCmdHistory(buffer)')
          return tn
 
@@ -89,7 +94,8 @@ class SPLATTDm(BaseDeformableMirror):
      def _checkCmdIntegrity(self, cmd):
          pos = cmd + self._dm.flatPos
          if np.max(pos) > 1.2e-3:
-            raise ValueError(f'End position is too high at {np.max(pos)*1e+3:1.2f} [mm]')
+            raise ValueError(f'End position is too high at {np.max(pos)*1e+3:1.2f} [mm]')            tn = self._dm._eng.read(f'prepareCmdHistory({cmd},{cmdPreTime})')
+
          if np.min(pos) < 450e-6:
             raise ValueError(f'End position is too low at {np.min(pos)*1e+3:1.2f} [mm]')
 

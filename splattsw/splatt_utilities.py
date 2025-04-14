@@ -138,8 +138,9 @@ def read_fits(file_path:str, file_name:str):
     
     try:
         which = os.path.join(file_path,file_name)
-        hdu = pyfits.open(which)
-        read_data =np.array(hdu[0].data)
+        with pyfits.open(which) as hdu:
+            hdu.verify('fix')
+            read_data =np.array(hdu[0].data)
     except FileNotFoundError:
         read_data = None
 

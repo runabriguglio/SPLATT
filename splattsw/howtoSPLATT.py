@@ -24,7 +24,6 @@ dm = SPLATTDm()
 from m4.dmutils import iff_module as ifm
 from m4.dmutils.iff_acquisition_preparation import IFFCapturePreparation
 from m4.dmutils import iff_processing as ifp
-from m4.dmutils import iff_module as ifm
 from m4.dmutils.flattening import Flattening
 
 '''
@@ -45,7 +44,7 @@ rebinfact = 4
 ifp.process(tn,  save_and_rebin_cube=(True,rebinfact))
 
 fl = Flattening(tn)
-fl.filterInitCube([1,2,3])
+fl.filterIntCube([1,2,3])
 fl.applyFlatCommand(dm, interf, mlist, nframes=1,modes2discard=nmodes2discard)
 
 img = interf.acquire_map(1, rebin=rebinfact)
@@ -55,7 +54,7 @@ fl.computeRecMat(nmodes2discard)
 deltacmd = fl.computeFlatCmd(nmodes2flat)
 dm.set_shape(deltacmd, differential=True)
 time.sleep(1)
-fimg = interf.acquire_phasemap(5, rebin=4))
+fimg = interf.acquire_map(5, rebin=4))
 
 from splattsw import acceleration_analysis as acc
 from splattsw.devices.webDAQ import WebDAQ
@@ -69,7 +68,7 @@ mode_amp = 5e-6
 cmd = ffv[:,mode_id]*mode_amp
 
 wbdq.start_schedule()
-tn_buf = dm.sendBufferCommand(cmd, delay = 1.0, accelerometers = wbdq)
+tn_buf = dm.sendBuffer))
 tn = interf.capture(500)
 wbdq.stop_schedule()
 
