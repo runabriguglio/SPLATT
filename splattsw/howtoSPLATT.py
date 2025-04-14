@@ -26,13 +26,6 @@ from m4.dmutils.iff_acquisition_preparation import IFFCapturePreparation
 from m4.dmutils import iff_processing as ifp
 from m4.dmutils.flattening import Flattening
 
-'''
-icp = IFFCapturePreparation(dm)
-cmh = icp.createTimedCmdHistory(modesList=[0,1,2,3,4,5,6],modesAmp=1e-6)
-dm.uploadCmdHistory(cmh)
-dm.runCmdHistory(interf)
-'''
-#the following command makes all together
 mlist = [0,1,2,3,4,5,6]
 mamp = 5e-6
 nmodes2flat = len(mlist)
@@ -47,14 +40,15 @@ fl = Flattening(tn)
 fl.filterIntCube([1,2,3])
 fl.applyFlatCommand(dm, interf, mlist, nframes=1,modes2discard=nmodes2discard)
 
-img = interf.acquire_map(1, rebin=rebinfact)
+nimgs = 4
+img = interf.acquire_map(nimgs, rebin=rebinfact)
 #fl.applyFlatCommand(adm, interf, 820, modes2discard=modes2remove[x])
 fl.loadImage2Shape(img)
 fl.computeRecMat(nmodes2discard)
 deltacmd = fl.computeFlatCmd(nmodes2flat)
 dm.set_shape(deltacmd, differential=True)
 time.sleep(1)
-fimg = interf.acquire_map(5, rebin=4))
+fimg = interf.acquire_map(nimgs, rebin=rebinfact))
 
 from splattsw import acceleration_analysis as acc
 from splattsw.devices.webDAQ import WebDAQ
