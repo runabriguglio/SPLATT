@@ -97,8 +97,8 @@ class WaveGenerator(SCPI):
         self.tx_txt(f":SOUR{ch}:SWE:TIME {period}")
         self.tx_txt(f":SOUR{ch}:SWE:RTIM 0")
         self.tx_txt(f":SOUR{ch}:VOLT {amp}") # Set amplitude
-        self.tx_txt(f":SOUR{ch}:SWE:STAT 1") # Sweep mode on
-        # self.tx_txt(f"OUTPUT{ch}:STATE ON") # Start actual sweep
+        self.tx_txt(':SOUR{ch}:SWE:TRIG:SOUR MAN')
+        #self.tx_txt(f":SOUR{ch}:SWE:TRIG") # Start sweep immediately
         self.close()
 
     def pulse_train(self, ch, amp, offs, freq, dc, duration=None):

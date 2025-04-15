@@ -22,7 +22,6 @@ dm = SPLATTDm()
 
 #IFF and flattening
 from m4.dmutils import iff_module as ifm
-from m4.dmutils.iff_acquisition_preparation import IFFCapturePreparation
 from m4.dmutils import iff_processing as ifp
 from m4.dmutils.flattening import Flattening
 
@@ -62,7 +61,7 @@ mode_amp = 5e-6
 cmd = ffv[:,mode_id]*mode_amp
 
 wbdq.start_schedule()
-tn_buf = dm.sendBuffer))
+tn_buf = dm.sendBufferCommand()
 tn = interf.capture(500)
 wbdq.stop_schedule()
 
