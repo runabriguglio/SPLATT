@@ -6,7 +6,6 @@ import numpy as np
 #import jdcal
 from astropy.io import fits as pyfits
 from SPLATT.splattsw.devices.webDAQ import WebDAQ
-#from M4.m4.mOTT_analysis import timehistory as th
 from M4.m4.mini_OTT import timehistory as th
 wd = WebDAQ()
 from matplotlib.pyplot import *
@@ -20,7 +19,7 @@ from SPLATT.splattsw import splatt4dmeas as comm4d
 #ic = InterferometerConverter()
 
 from aoptics import analyzer as th
-from aoptics.devices.interferometer import PhaseCam as PhaseCam
+from aoptics.devices.interferometer import PhaseCam
 phasecam = PhaseCam()
 # update the conf file here!!
 logfile = '/mnt/jumbo/SPLATT/'
@@ -31,7 +30,7 @@ freqwebdaq = 1651.6129 #Hz; minimum sampling frequency
 ftpwebdacq = '/home/ftpuser/ftp/'
 
 basepathbuffer = '/mnt/jumbo/SPLATT/Buffer/'
-freqbuff = 118
+freqbuff = 1/550e-6
 
 basepath4d = '/mnt/jumbo/SPLATT/OPTData/'
 freq4d = 122.64 #80.62
@@ -184,13 +183,6 @@ def wf_spectrum(tn, freq=None):
     spe, f = th.spectrum(wf, dt=1/freqsp)
     return spe, f
 
-
-
-
-def timevec():
-
-    return tv
-
     
 def runningMean(vec, npoints):
     
@@ -334,14 +326,6 @@ def accpeak_analysis(wdfile, bound=np.array([4,300])):
         #plot(f, spe[2,:])
         #plot(f, spe[3,:])
         return peakOBBint,peakStandint
-
-def plotwaves(v):
-    v1 = v[id1,:]
-    v2 = v[id2,:]
-    v = v/np.std(v1)
-    
-    plot(v1)
-    plot(v2)
 
 
 
