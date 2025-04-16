@@ -18,6 +18,11 @@ from SPLATT.splattsw import splatt4dmeas as comm4d
 #from m4.ground import zernike
 #from m4.ground.read_data import InterferometerConverter
 #ic = InterferometerConverter()
+
+from aoptics import analyzer as th
+from aoptics.devices.interferometer import PhaseCam as PhaseCam
+phasecam = PhaseCam()
+# update the conf file here!!
 logfile = '/mnt/jumbo/SPLATT/'
 
 basepathwebdaq= '/mnt/jumbo/SPLATT/WebDaqData/' #'/home/labot/ftp/'
@@ -33,6 +38,29 @@ freq4d = 122.64 #80.62
 tn='tn0'
 z2fit = np.array([1,2,3])
 tiltselect = 1 #TBC
+
+def fileList(tn):
+    flist=th.fileList(tn, fold=basepath4d)
+    return(flist)
+
+def tiltvec(tn):
+
+    flist=th.fileList(tn, fold=basepath4d)
+    tt = th.zernikePlot(flist, modes=z2fit)
+
+    return tt
+
+def tttimevec(tn):
+    flist=th.fileList(tn, fold=basepath4d)
+    tvec = np.arange(len(flist))/freq4d
+
+    return tvec
+
+def acc_timevec(v):
+    q=openfile(v)
+    npo=len(q[0,:])
+    tve = np.arange(npo)/freqwebdaq
+    return tve
 
 
 def wdsync():
@@ -53,6 +81,31 @@ def ttplot(v,f):
     bar(f,v)
     xlabel('Frequency [Hz]')
     ylabel('Tilt amplitude [m]')
+
+def tt_spectrum(v, freq=None):
+    mytype = type(v)
+    if mytype is list:
+        v1 = openfile(v)
+        flist=th.getDataFileList(tn)
+        v1 = th.zernikePlot(flist, modes=z2fit)
+
+    if mytype is np.ndarray:
+        v1=v
+
+    mytype = type(freq)
+    if mytype is str:
+        freqsp = get_freq4d(freq)
+        freq = freqsp
+    if mytype is np.ndarray or mytype is np.int:
+        freqsp=freq
+
+    if freq is None:
+        freqsp=freq4d
+    if freqsp == 0:
+        freqsp = freq4d
+    print(freqsp)
+    spe, f = th.spectrum(v1, dt=1/freqsp)
+    return spe, f
 
 
 def openfile(name):
@@ -101,53 +154,6 @@ def acc_spectrum(v):
     spe, f = th.spectrum(v1, dt=1/freqwebdaq)
     return spe, f
 
-def fileList(tn):
-    flist=th.fileList(tn, fold=basepath4d)
-    return(flist)
-
-def tiltvec(tn):
-    
-    flist=th.fileList(tn, fold=basepath4d)
-    tt = th.zernikePlot(flist, modes=z2fit)
-    
-    return tt
-
-def tttimevec(tn):
-    flist=th.fileList(tn, fold=basepath4d)
-    tvec = np.arange(len(flist))/freq4d
-
-    return tvec
-
-def acc_timevec(v):
-    q=openfile(v)
-    npo=len(q[0,:])
-    tve = np.arange(npo)/freqwebdaq
-    return tve
-
-def tt_spectrum(v, freq=None):
-    mytype = type(v)
-    if mytype is list:
-        v1 = openfile(v)
-        flist=th.fileList(tn, fold=basepath4d)
-        v1 = th.zernikePlot(flist, modes=z2fit)
-
-    if mytype is np.ndarray:
-        v1=v
-
-    mytype = type(freq)
-    if mytype is str:
-        freqsp = get_freq4d(freq)
-        freq = freqsp
-    if mytype is np.ndarray or mytype is np.int:
-        freqsp=freq
-
-    if freq is None: 
-        freqsp=freq4d
-    if freqsp == 0:
-        freqsp = freq4d
-    print(freqsp)
-    spe, f = th.spectrum(v1, dt=1/freqsp)
-    return spe, f
 
 def wf_list(tn):
     flist=th.fileList(tn, fold=basepath4d)
