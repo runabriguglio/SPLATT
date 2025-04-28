@@ -17,101 +17,121 @@ import os
 import time
 import numpy as np
 
-# Define devices
-interf=PhaseCam4020()
-webdaq= wdq()
-wavegen = wg()
-mx = Moxa_ai0()
-eng = None
+class Acquisition():
 
-def acq_sweep(fmin = 30, fmax = 110, duration = 11, ampPI = 2, nframes:int = 2250, chPI:int = 1, produce:bool = False):
+    def __init__(self):
 
+        # Define interferometer
+        self.interf = None
+        try:
+            self.interf=PhaseCam4020()
+        except:
+            print('Interferometer not found')
 
-    webdaq.connect()
+        # Accelerometers
+        self.webdaq=wdq()
+        self.webdaq.connect()
 
-    # Setup sweep parameters
-    wavegen.set_wave(ch=chPI,ampl=ampPI,offs=0,freq=fmin,wave_form='SIN')
-    time.sleep(4)
-    wavegen.sweep(chPI,fmin,fmax,duration,amp=ampPI)
+        # Signal generator
+        self.wavegen = wg()
 
-    # Start acquisition and sweep
-    webdaq.start_schedule()
-    wavegen.trigger_sweep(chPI)
-    time.sleep(0.5)
-    tn=interf.capture(nframes)
-    
-    # Acquisition end
-    #wavegen.clear_wave(chPI)
-    print(f'Capture completed! Saved in: {tn}')
-    webdaq.stop_schedule()
+        # SPLATT dm
+        self.dm = None
+        try:
+            dm = SPLATTEngine()
+            self.dm = dm._eng
+        except:
+            print('SPLATT dm not found')
 
-    # Post-processing
-    time.sleep(1)
-    sp.wdsync()
-    wdfile=sp.last_wdfile()
-    print(f'Acceleration data: {wdfile}')
-    pres = mx.read_pressure()
-    print(f'The vacuarium pressure is {pres:1.3f} [bar]')
+        # MOXA
+        self.mx = None
+        try:
+            self.mx = Moxa_ai0()
+        except:
+            print('Moxa device not found')
 
-    if produce:
-        interf.produce(tn)
+    def acq_sweep(self, fmin = 30, fmax = 110, duration = 11, ampPI = 2, nframes:int = 2250, chPI:int = 1, produce:bool = False):
 
+        # Setup sweep parameters
+        self.wavegen.set_wave(ch=chPI,ampl=ampPI,offs=0,freq=fmin,wave_form='SIN')
+        time.sleep(4)
+        self.wavegen.sweep(chPI,fmin,fmax,duration,amp=ampPI)
 
-
-def acq_freq(freqPI,  ampPI=2, nframes:int = 2000, chPI:int = 1, produce:bool = False, buffer:bool = False):
-
-    if buffer:
-        # Connect to SPLATT
-        
-        dm = SPLATTEngine()
-        eng = dm._eng
-        eng.send('clear opts; opts.dec = 0; opts.sampleNR = 256; opts.save2mat = 0; opts.save2fits = 1')
-    
-    # Start acquisition and sine wave
-    webdaq.connect()
-    wavegen.set_wave(ch=chPI, ampl=ampPI, offs=0, freq=freqPI, wave_form='SIN')
-    if buffer:
-        eng.oneway_send("[pos,cur,tn]=splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
-    t0 = time.time()
-    time.sleep(4)
-    webdaq.start_schedule()
-    t0a = time.time()
-    if nframes > 0:
-        tn=interf.capture(nframes)
-    
-    t1a = time.time()
-    dt = t1a-t0a
-    if dt < 10:
-        time.sleep(10-dt)
-
-    # Acquisition end
-    wavegen.wave_off(chPI)
-
-    if nframes > 0:
+        # Start acquisition and sweep
+        self.webdaq.start_schedule()
+        self.wavegen.trigger_sweep(chPI)
+        time.sleep(0.5)
+        tn=self.interf.capture(nframes)
         print(f'Capture completed! Saved in: {tn}')
-    webdaq.stop_schedule()
-    
-    # Post-processing
-    time.sleep(1)
-    sp.wdsync()
-    wdfile=sp.last_wdfile()
-    print(f'Acceleration data: {wdfile}')
-    p_bar = mx.read_pressure()
-    print(f'The vacuarium pressure is {p_bar:1.3f} [bar]')
 
-    if np.logical_and( nframes > 0, produce):
-        interf.produce(tn)
+        # Wait for webDAQ acquisition to end
+        status = self.webdaq.get_jobs_status()
+        while status[0] != 'completed':
+            status = self.webdaq.get_jobs_status()
+            time.sleep(1)
 
-    if buffer:
-        # Wait for buffer to end before reading tn
-        t1 = time.time()
-        dt = t1-t0
+        # Post-processing
+        sp.wdsync()
+        wdfile=sp.last_wdfile()
+        print(f'Acceleration data: {wdfile}')
 
-        if dt < 45:
-            time.sleep(45-dt)
+        if self.mx is not None:
+            pres = self.mx.read_pressure()
+            print(f'The vacuarium pressure is {pres:1.3f} [bar]')
 
-        buf_tn = eng.read('tn')
-        print(f'Buffer TN is: {buf_tn}')
+        if produce:
+            self.interf.produce(tn)
+
+
+
+    def acq_freq(self, freqPI,  ampPI=2, nframes:int = 2000, chPI:int = 1, produce:bool = False, buffer:bool = False):
+
+        # Start acquisition and sine wave
+        self.wavegen.set_wave(ch=chPI, ampl=ampPI, offs=0, freq=freqPI, wave_form='SIN')
+        if buffer:
+            self.dm.send('clear opts; opts.dec = 0; opts.sampleNR = 256; opts.save2mat = 0; opts.save2fits = 1')
+            self.eng.oneway_send("[pos,cur,tn]=splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
+        t0 = time.time()
+        time.sleep(4) # wait for transient
+        self.webdaq.start_schedule()
+        if nframes > 0:
+            tn=self.interf.capture(nframes)
+        
+        # Wait for webDAQ acquisition to end
+        status = self.webdaq.get_jobs_status()
+        while status[0] != 'completed':
+            status = self.webdaq.get_jobs_status()
+            time.sleep(1)
+
+        # Acquisition end
+        self.wavegen.wave_off(chPI)
+
+        if nframes > 0:
+            print(f'Capture completed! Saved in: {tn}')
+        self.webdaq.stop_schedule()
+        
+        # Post-processing
+        time.sleep(1)
+        sp.wdsync()
+        wdfile=sp.last_wdfile()
+        print(f'Acceleration data: {wdfile}')
+        if self.mx is not None:
+            p_bar = self.mx.read_pressure()
+            print(f'The vacuarium pressure is {p_bar:1.3f} [bar]')
+
+        if np.logical_and( nframes > 0, produce):
+            self.interf.produce(tn)
+
+        if buffer:
+            # Wait for buffer to end before reading tn
+            t1 = time.time()
+            dt = t1-t0
+
+            if dt < 45:
+                time.sleep(45-dt)
+
+            buf_tn = self.dm.read('tn')
+            print(f'Buffer TN is: {buf_tn}')
 
 
 

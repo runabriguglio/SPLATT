@@ -27,7 +27,6 @@ def tt_spectrum(tn, tt = None):
     if tt is None:
         print('Computing Z vec')
         tt = tiltvec(tn)
-#aggiungere unwrap
     spe, f = th.spectrum(tt, dt=1/freq4d)
     return spe ,f
 
@@ -38,6 +37,7 @@ def acc_spectrum(wdname):
 
 def mech_spectrum(wdname):
     spe, f = acc_spectrum(wdname)
+    # pos = spe / (2*np.pi)**2 / f**2
     npacc = np.shape(spe)
     spei = np.zeros(npacc)
     for i in range(npacc[0]):
