@@ -226,6 +226,22 @@ def update_act_coords_on_ring(dm, n_ring:int, do_save:bool = False):
     dm.update_act_coords(hex_ids, new_coords, do_save)
 
 
+def find_act_ids(img, thr:float = None):
+
+    if isinstance(img, np.masked_array):
+        flat_img = img.data[~img.mask]
+    else:
+        flat_img = img.flatten()
+
+    if thr is None:
+        thr = 0.95*np.max(np.abs(flat_img))
+
+    ids = np.arange(np.size(flat_img))
+    pix_ids = ids[np.abs(flat_img) > thr]
+
+    return pix_ids
+
+
 def compute_influence_functions_with_comsol(dm, segment_id:int = 0):
 
     act_coords = dm.segment[segment_id].act_coords

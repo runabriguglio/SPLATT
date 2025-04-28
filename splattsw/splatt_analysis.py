@@ -4,7 +4,6 @@ from matplotlib.pyplot import *
 import json, struct
 z2fit = [1,2,3]
 tiltselect = 1 #confirmed with PhaseCam4020 ex refurb 4030 and 4DFocus
-obbacc = 0
 basepathwebdaq= '/mnt/jumbo/SPLATT/WebDaqData/' #'/home/labot/ftp/'
 freqwebdaq = 1651.6129 #Hz; minimum sampling f
 
@@ -83,11 +82,14 @@ def averageFrames(tn,first=None,last=None):
     return aveimg
 
 
-def runningMean(vec, npoints):
-    v1 = th.runningMean(vec, npoints)
+
+def runningMean(v, npo):
+    v1 = th.runningMean(v, npo)
+    #v1 = np.convolve(v,np.ones(npo)/npo)
     return v1
 
 def signal_unwrap(x, thr=632e-9/4, phase = 632e-9/2):
+    # v = np.unwrap(x-x[0], period = 632e-9/2)
     v = x-x[0]
     npx = np.size(v)
     for i in np.arange(1,npx):

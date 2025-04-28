@@ -24,7 +24,7 @@ def read_buffer_data(TN:str = None):
     else:
         raise Exception(f"Local ip {ip} might not have access to buffer folders")
 
-    freq = 1818 # [Hz]
+    freq = 1/550e-6 # [Hz]
 
     if TN is not None:
         where = os.path.join(SPLATT_BUFFER_FOLDER,TN)
@@ -38,9 +38,6 @@ def read_buffer_data(TN:str = None):
 
     dataR1 = read_fits(where,'dataR1.fits')
     print(np.shape(dataR1))
-
-    #startPosCmd = read_fits(where,'start_sabu16_position.fits')
-    #startCurCmd = read_fits(where,'start_sabi16_force.fits')
 
     data_len = np.shape(dataR1)[-1]
     dt = 1./freq*(dec+1.)

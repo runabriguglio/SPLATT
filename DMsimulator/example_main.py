@@ -6,12 +6,11 @@ plt.rcParams['font.family'] = 'STIXGeneral'
 # from segment_geometry import circular_mask
 import utilities as utils
 
-config_tn = '20240920'
-#config_tn = 'JWST'
-dsm = utils.define_dsm(config_tn)
+tn = '20240920'
+dsm = utils.define_dsm(tn)
 
 # Test comsol simulation
-iff, K = utils.postprocess_influence_functions(dsm)
+# iff, K = utils.postprocess_influence_functions(dsm)
 
 # # Fitting errors
 # seg0 = dsm.segment[0]
