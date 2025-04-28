@@ -1,182 +1,118 @@
 
-from splattsw import splatt4dmeas as comm4d
-from splattsw import splatt_analysis as sp
-from importlib  import reload #for reload
-#power on and connect the RedPitaya
-#start the redpitaya server
-#systemctl start redpitaya_scpi 
+#from splattsw import splatt_analysis as sp
+from splattsw import acceleration_analysis as sp
+from splattsw.devices.wavegenerators import WaveGenerator as wg
 from splattsw.devices.webDAQ import WebDAQ as wdq
-from splattsw.devices import redpitaya as rp
-from splattsw import splatt_log as slog
-from matplotlib.pyplot import *
 
+#import aoptics
+#pyconf = '/mnt/libero/SPLATTData/Data/SysConfigurations/configuration.yaml'
+#aoptics.load_configuration_file(pyconf)
+
+from aoptics.devices.interferometer import PhaseCam4020
+from splattsw.devices.moxa_io import Moxa_ai0
+from splattsw.devices.deformable_mirror import SPLATTEngine
+
+import matplotlib.pyplot as plt
 import os
-import numpy as np
 import time
+import numpy as np
+
+# Define devices
+interf=PhaseCam4020()
 webdaq= wdq()
-webdaq.connect()
-nframes = 2000
-pauseStart = 10
+wavegen = wg()
+mx = Moxa_ai0()
+eng = None
 
-def acq(freqPI, freq4d, ampPI=2, bound=None,process=None):
-    nfr = nframes
-    #rp.splatt_trigger(freqPI, freq4d, ampPI)
-    rp.splatt_trigger2(freqPI, freq4d, ampPI)  # with pulse
-    print('Command to RedPitaya: done!')
-    print('Now waiting for transitory oscillations to damp')
-    time.sleep(pauseStart)
+def acq_sweep(fmin = 30, fmax = 110, duration = 11, ampPI = 2, nframes:int = 2250, chPI:int = 1, produce:bool = False):
+
+
+    webdaq.connect()
+
+    # Setup sweep parameters
+    wavegen.set_wave(ch=chPI,ampl=ampPI,offs=0,freq=fmin,wave_form='SIN')
+    time.sleep(4)
+    wavegen.sweep(chPI,fmin,fmax,duration,amp=ampPI)
+
+    # Start acquisition and sweep
     webdaq.start_schedule()
+    wavegen.trigger_sweep(chPI)
+    time.sleep(0.5)
+    tn=interf.capture(nframes)
     
-    tn=comm4d.capture(nfr)
-    print('Capture completed!')
-    print('Remember to transfer the webDAQ file')
-    print(tn)
-    time.sleep(3)
-    rp.set_wave1(0.01, 0, 10, 'SINE')
-    
-    #os.system("read -p 'Press Enter to produce the 4D frames...' var")
-    sp.wdsync()
-    wdfile=sp.lastwdfile()
-    print(wdfile)
-    comm4d.produce(tn)
-    comm4d.frames_transfer(tn)
-    comm4d.save_acqdata(tn,freq4d, ampPI, freqPI)
-    sp.freq4d=freq4d
-    print('Freq 4d:')
-    print(sp.freq4d)
-    if bound is not None:
-        boundfreq=bound
-    else:
-        boundfreq=np.array([freqPI-2, freqPI+2])
+    # Acquisition end
+    #wavegen.clear_wave(chPI)
+    print(f'Capture completed! Saved in: {tn}')
+    webdaq.stop_schedule()
 
-    #os.system("read -p 'Press Enter to run the analysis...' var")
-    #wdfile=sp.lastwdfile()
-    #print(tn)
-    #print(wdfile)
-    if process is None:
-        slog.log_data([tn, wdfile],[freq4d,ampPI])
-    else:
-        sp.peak_analysis(tn, wdfile=wdfile,bound=boundfreq)
-    print(tn)
-    print(wdfile)
-
-def acq_pulse(ampPI, freqPI):
-    freq4d  =264
-    #rp.waves_on()
-    #time.sleep(1)
-    #rp.trigg4d_pulse(freq4d)
-    #time.sleep(0.2)
-    #rp.pulse_train(1,0.1,0,50,0.3,2)
-    #rp.pulse_train(1,ampPI,0,freqPI,0.1)
-    nfr = nframes
-    rp.splatt_pulse(freqPI,freq4d,ampPI)
-    #rp.splatt_trigger(freqPI, freq4d, ampPI)
-    #rp.splatt_trigger2(freqPI, freq4d, ampPI)  # with pulse
-    print('Command to RedPitaya: done!')
-    print('Now waiting for transitory oscillations to damp')
-    time.sleep(5)
-    webdaq.start_schedule()
-
-    tn=comm4d.capture(nfr)
-    print('Capture completed!')
-    print('Remember to transfer the webDAQ file')
-    print(tn)
-    rp.set_wave1(0.01, 0, 10, 'SINE')
-    #rp.clear_wave(1)
-
-    #os.system("read -p 'Press Enter to produce the 4D frames...' var")
-    comm4d.produce(tn)
-    sp.wdsync()
-    comm4d.frames_transfer(tn)
-    comm4d.save_acqdata(tn,freq4d, ampPI, freqPI)
-    '''
-    sp.freq4d=freq4d
-    print('Freq 4d:')
-    print(sp.freq4d)
-    if bound is not None:
-        boundfreq=bound
-    else:
-        boundfreq=np.array([freqPI-2, freqPI+2])
-
-    os.system("read -p 'Press Enter to run the analysis...' var")
-    wdfile=sp.lastwdfile()
-    print(tn)
-    print(wdfile)
-    sp.peak_analysis(tn, wdfile=wdfile,bound=boundfreq)
-    '''
-    wdfile=sp.lastwdfile()
-    print(tn)
-    print(wdfile)
-
-def acq_bench(ampPI, freqPI):
-    rp.splatt_trigger2(freqPI, 264, ampPI)  # with pulse
-    pauseStart=5
-    print('Command to RedPitaya: done!')
-    print('Now waiting for transitory oscillations to damp')
-    time.sleep(pauseStart)
-    webdaq.start_schedule()
-    time.sleep(10)
-    sp.wdsync()
-    time.sleep(1)
-    rp.set_wave1(0.01, 0, 10, 'SINE')
-    #os.system("read -p 'Press Enter after sync the WD file... ' var")
-
-    wdfile = sp.lastwdfile()
-    peakOBBint, peakStandint, peakAcc2int, peakAcc3int=sp.acc_peak_analysis(wdfile,bound=np.array([freqPI-2, freqPI+2]), allaccel=1)
-    print(peakOBBint, peakStandint, peakAcc2int, peakAcc3int)
-    slog.log_data(['NA', wdfile],[0,ampPI,freqPI, peakOBBint, peakStandint, peakAcc2int, peakAcc3int ])
-
-def acq_bench_seq(amp):
-    startFreq= 20
-    endFreq = 120
-    spa = 10
-    npo = np.int((endFreq-startFreq)/spa+1)
-    #amp = 2
-    fvec = np.linspace(startFreq, endFreq, npo)
-    for i in fvec:
-        s = ('Now running at: %s Hz' %i)
-        print(s)
-        acq_bench(amp, i)
-
-def acq_sweep(nframes, freq4d):
-    
-    #suggested nframes 6000
-    #  
-    print('Connect Tektronik to 4D and Piezo, RedPitaya#2 to Tek trigger')
-    rp.single_pulse(2)
-    time.sleep(0.1)
-    webdaq.start_schedule()
-
-    tn=comm4d.capture(nframes)
-    print('Capture completed!')
-    print(tn)
+    # Post-processing
     time.sleep(1)
     sp.wdsync()
-    wdfile=sp.lastwdfile()
-    print(wdfile) 
-    comm4d.produce(tn)
-    comm4d.frames_transfer(tn)
-    comm4d.save_acqdata(tn,freq4d, 0, 0)
-    slog.log_data([tn, wdfile,'Sweep'],[freq4d])
+    wdfile=sp.last_wdfile()
+    print(f'Acceleration data: {wdfile}')
+    pres = mx.read_pressure()
+    print(f'The vacuarium pressure is {pres:1.3f} [bar]')
 
-    print(tn)
-    print(wdfile)
+    if produce:
+        interf.produce(tn)
 
-def test_sweep():
-    #rp.clear_wave(2)
-    #time.sleep(0.2)
-    #rp.wave_on(2)
-    rp.single_pulse(2)
-    t0=time.time()
-    #rp.splatt_pulse(1,250,0.1)
-    time.sleep(0.1)
+
+
+def acq_freq(freqPI,  ampPI=2, nframes:int = 2000, chPI:int = 1, produce:bool = False, buffer:bool = False):
+
+    if buffer:
+        # Connect to SPLATT
+        
+        dm = SPLATTEngine()
+        eng = dm._eng
+        eng.send('clear opts; opts.dec = 0; opts.sampleNR = 256; opts.save2mat = 0; opts.save2fits = 1')
+    
+    # Start acquisition and sine wave
+    webdaq.connect()
+    wavegen.set_wave(ch=chPI, ampl=ampPI, offs=0, freq=freqPI, wave_form='SIN')
+    if buffer:
+        eng.oneway_send("[pos,cur,tn]=splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
+    t0 = time.time()
+    time.sleep(4)
     webdaq.start_schedule()
-    t1=time.time()
-    print(t1-t0)
-    time.sleep(15)
+    t0a = time.time()
+    if nframes > 0:
+        tn=interf.capture(nframes)
+    
+    t1a = time.time()
+    dt = t1a-t0a
+    if dt < 10:
+        time.sleep(10-dt)
+
+    # Acquisition end
+    wavegen.wave_off(chPI)
+
+    if nframes > 0:
+        print(f'Capture completed! Saved in: {tn}')
+    webdaq.stop_schedule()
+    
+    # Post-processing
+    time.sleep(1)
     sp.wdsync()
-    wdfile=sp.lastwdfile()
-    spea, fa=sp.acc_spectrum(wdfile)
-    plot(fa, spea[0,:])
-    #yscale('log')
-    #xlim(0,200)
+    wdfile=sp.last_wdfile()
+    print(f'Acceleration data: {wdfile}')
+    p_bar = mx.read_pressure()
+    print(f'The vacuarium pressure is {p_bar:1.3f} [bar]')
+
+    if np.logical_and( nframes > 0, produce):
+        interf.produce(tn)
+
+    if buffer:
+        # Wait for buffer to end before reading tn
+        t1 = time.time()
+        dt = t1-t0
+
+        if dt < 45:
+            time.sleep(45-dt)
+
+        buf_tn = eng.read('tn')
+        print(f'Buffer TN is: {buf_tn}')
+
+
+
+

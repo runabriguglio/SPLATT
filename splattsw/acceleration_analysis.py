@@ -6,7 +6,6 @@ import glob
 import json
 import struct
 
-from scipy.signal import butter, lfilter, lfilter_zi, filtfilt, sosfilt
 
 # WebDAQ variables
 freqwebdaq = 1651.6129 #Hz; minimum sampling frequency
@@ -15,7 +14,7 @@ basepathwebdaq = '/mnt/jumbo/SPLATT/WebDaqData/'
 ftpwebdacq = '/home/ftpuser/ftp/files/' # new files, from 2024 Q4 onwards
 
 def wdsync():
-    os.system('rsync -av '+ftpwebdacq+' '+basepathwebdaq)
+    os.system('rsync -av -q -i '+ftpwebdacq+' '+basepathwebdaq)
 
 def openfile(name, data_len = None):
     file_path = os.path.join(basepathwebdaq, name)
@@ -228,28 +227,6 @@ def find_peaks(signal, Npeaks:int=2, min_sep:int=10):
 
     return peak_ids
 
-
-###### Filters #####
-def butterworth_bandpass_filter(data, f_low, f_high, f_sample, order=6):
-    b,a = butter(order, [f_low,f_high], fs=f_sample, btype='band')
-    zi = lfilter_zi(b,a) # filter initial condition
-    y,_ = lfilter(b,a,data,zi=zi*data[0])
-    return y
-
-def sos_butterworth(data, f_low, f_high, fs, order=3):
-    fnyq = fs/2
-    low = f_low/fnyq
-    high = f_high/fnyq
-
-    sos = butter(order, [low,high], analog=False, btype='band', output='sos')
-    y = sosfilt(sos,data)
-    return y
-
-def filtfilt_butterworth(data, f_low, f_high, fs, order=3):
-    b,a = butter(order, [f_low,f_high], fs=fs, btype='band')
-    y = filtfilt(b,a,data)
-    return y
-###### Filters #####
 
 
 def _openwdd(fname, manual_acq_data_len = None):

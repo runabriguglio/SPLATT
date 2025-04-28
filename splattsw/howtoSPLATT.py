@@ -19,11 +19,24 @@ import gentle
 interf = gentle.PhaseCam()
 dm = SPLATTDm()
 '''
+#general imports
+##### launch      calpy -f /mnt/libero/SPLATTData/Data/SysConfig     #####
 
-#IFF and flattening
-from m4.dmutils import iff_module as ifm
-from m4.dmutils import iff_processing as ifp
-from m4.dmutils.flattening import Flattening
+#import aoptics
+#pyconf = '/mnt/libero/SPLATTData/Data/SysConfigurations/configuration.yaml'
+#aoptics.load_configuration_file(pyconf)
+
+from aoptics.devices.interferometer import PhaseCam4020
+from aoptics.devices.deformable_mirrors import SplattDm
+from SPLATT.splattsw import splatt_analysis as sp
+
+interf = PhaseCam4020()
+dm = SplattDm()
+
+### InfFunctions and Flattening###
+from aoptics.dmutils import iff_module as ifm
+from aoptics.dmutils import iff_processing as ifp
+from aoptics.dmutils.flattening import Flattening
 
 mlist = [0,1,2,3,4,5,6]
 mamp = 5e-6

@@ -70,7 +70,7 @@ class SPLATTDm(BaseDeformableMirror):
          self.set_shape(s)
          return tn
 
-    def get_forces(self):
+     def get_forces(self):
         forces = self._dm.get_force()
         return forces
 
@@ -94,8 +94,8 @@ class SPLATTDm(BaseDeformableMirror):
      def _checkCmdIntegrity(self, cmd):
          pos = cmd + self._dm.flatPos
          if np.max(pos) > 1.2e-3:
-            raise ValueError(f'End position is too high at {np.max(pos)*1e+3:1.2f} [mm]')            tn = self._dm._eng.read(f'prepareCmdHistory({cmd},{cmdPreTime})')
-
+            raise ValueError(f'End position is too high at {np.max(pos)*1e+3:1.2f} [mm]')            
+            
          if np.min(pos) < 450e-6:
             raise ValueError(f'End position is too low at {np.min(pos)*1e+3:1.2f} [mm]')
 

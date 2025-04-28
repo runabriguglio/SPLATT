@@ -12,14 +12,17 @@ class WaveGenerator(SCPI):
         super().__init__(IP,port,TIMEOUT)
         # self.name = device_name
         # self = scpi.scpi(self.name)
-        self.ampTrigger4d = 2
-        self.offsetTrigger4d = 2.3
-        self.ampTrigger4dPulse = 4.
-        self.offsetTrigger4dPulse = 5
-        self.pulseDurationTrigger = 100e-6
-        self.amplifierGain = 10.
-        self.ampPiezo = 2.
         self.delay = 0.1
+        #print('Setting default values: 30 Hz, 0.01 Vpp')
+        #for ch in range(2):
+        #    self.tx_txt(f'SOUR{ch+1}:FREQ:FIX 30')
+        #    time.sleep(self.delay)
+        #    self.tx_txt('SOUR{ch+1}:VOLT 1')
+        #    time.sleep(self.delay)
+        #    self.tx_txt('SOUR{ch+1}:VOLT 0.01')
+        #    time.sleep(self.delay)
+
+
 
 
     def splatt_trigger(self, freqPI, freq4d, ampPI=None):
@@ -87,18 +90,36 @@ class WaveGenerator(SCPI):
         self.clear_wave(ch)
         self.wave_on(ch)
 
-    def sweep(self, ch, fmin, fmax, period=20, amp=1):
+    def sweep(self, ch, fmin, fmax, duration=20, amp=1):
         self.connect()
         if fmin<10 or fmax>150:
             raise ValueError(f"Are you sure you want to go from {fmin} Hz to {fmax} Hz ?!")
-        self.tx_txt(f"OUTPUT{ch}:STATE ON")
+
+        self.tx_txt(f":SOUR{ch}:FUNC SIN")
+        time.sleep(self.delay)
+        self.tx_txt(f":SOUR{ch}:VOLT {amp}")
+        time.sleep(self.delay)
+
+        # Sweep parameters
         self.tx_txt(f":SOUR{ch}:FREQ:STAR {fmin}")
+        time.sleep(self.delay)
         self.tx_txt(f":SOUR{ch}:FREQ:STOP {fmax}")
-        self.tx_txt(f":SOUR{ch}:SWE:TIME {period}")
-        self.tx_txt(f":SOUR{ch}:SWE:RTIM 0")
-        self.tx_txt(f":SOUR{ch}:VOLT {amp}") # Set amplitude
-        self.tx_txt(':SOUR{ch}:SWE:TRIG:SOUR MAN')
-        #self.tx_txt(f":SOUR{ch}:SWE:TRIG") # Start sweep immediately
+        time.sleep(self.delay)
+        self.tx_txt(f":SOUR{ch}:SWE:TIME {duration}")
+        time.sleep(self.delay)
+        self.tx_txt(f":SOUR{ch}:SWE:RTIM 2")
+        time.sleep(self.delay)
+        self.tx_txt(f':SOUR{ch}:SWE:TRIG:SOUR MAN')
+        time.sleep(self.delay)
+        self.tx_txt(f':SOUR{ch}:SWE:STAT ON')
+        time.sleep(self.delay)
+        
+        self.tx_txt(f"OUTPUT{ch}:STATE ON")
+        self.close()
+
+    def trigger_sweep(self, ch):
+        self.connect()
+        self.tx_txt(f":SOUR{ch}:SWE:TRIG")
         self.close()
 
     def pulse_train(self, ch, amp, offs, freq, dc, duration=None):
