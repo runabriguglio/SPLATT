@@ -1,8 +1,13 @@
 import numpy as np
 from aoptics import analyzer as th
 from matplotlib.pyplot import *
+import json, struct
 z2fit = [1,2,3]
 tiltselect = 1 #confirmed with PhaseCam4020 ex refurb 4030 and 4DFocus
+obbacc = 0
+basepathwebdaq= '/mnt/jumbo/SPLATT/WebDaqData/' #'/home/labot/ftp/'
+freqwebdaq = 1651.6129 #Hz; minimum sampling f
+
 
 
 def plot_ttspectra(spe,f, tn=None):
@@ -14,17 +19,6 @@ def plot_ttspectra(spe,f, tn=None):
     legend(['Tilt Y','Tilt X'])
     if tn is not None:
         title(tn)
-
-def plot_multispec(spvec,f):
-    ntn = len(tnlist)
-    figure()
-    for i in range(ntn):
-        spe = spvec[i]
-        plot(f, spe[1,:])
-        #plot(f, spe[2,:])
-    xlabel('Freq [Hz]')
-    ylabel('Amp Spectrum [nm]')
-    #legend(tnlist)
 
 
 
@@ -38,7 +32,21 @@ def tt_spectrum(tn, tt = None):
     spe, f = th.spectrum(tt, dt=1/freq4d)
     return spe ,f
 
+def acc_spectrum(wdname):
+    q = openwdfile(wdname)
+    spe, f = th.spectrum(q, dt=1/freqwebdaq)
+    return spe, f
 
+def mech_spectrum(wdname):
+    spe, f = acc_spectrum(wdname)
+    npacc = np.shape(spe)
+    spei = np.zeros(npacc)
+    for i in range(npacc[0]):
+        v = spe[i,:]
+        s = acc_integrate(v,f)
+        spei[i,:] =s
+    spei = np.array(spei)
+    return spei, f
 
 def tiltvec(tn, unwrap=True):
     flist=fileList(tn)
@@ -91,3 +99,30 @@ def signal_unwrap(x, thr=632e-9/4, phase = 632e-9/2):
     return v
 
 
+def openwdfile(thename):
+    fname = basepathwebdaq+thename
+    hdr = {}
+    with open(fname,"rb") as wdf:
+        rawData = wdf.read(564)
+        hdr['version'] = int.from_bytes(rawData[0:4], 'little')
+        hdr['size'] = int.from_bytes(rawData[4:8], 'little')
+        hdr['nchannels']= int.from_bytes(rawData[8:12], 'little')
+        hdr['scan_rate']= int.from_bytes(rawData[12:20], 'little')
+        hdr['start_time']= int.from_bytes(rawData[20:28], 'little')
+        hdr['timezone']= rawData[28:44].decode("utf-8")
+        json_hdr_size =  int.from_bytes(rawData[560:564], 'little')
+        jsonRaw = wdf.read(json_hdr_size)
+        hdr['json_hdr']=json.loads(jsonRaw)
+        ndata = hdr['json_hdr']['jobDescriptor']['acquisition']['stopTrigger']['sampleCount']
+        data_it = struct.iter_unpack('<d', wdf.read(ndata*hdr['nchannels']*8)) #4 because double precision 64 bit\n",
+        tmp = np.asarray(list(data_it), dtype='double')
+        data=tmp.reshape(int(tmp.size/4), 4)
+        data = data.T
+    return data
+
+def acc_integrate(acc, freq):
+    #acc is the acceleration value in g
+    #print('Is the acceleration provided as [g]?')
+    acc = acc * 9.81 #converts to m/s2
+    amp = acc/(4*np.pi**2*freq**2)
+    return amp
