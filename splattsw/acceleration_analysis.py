@@ -5,16 +5,22 @@ import os
 import glob
 import json
 import struct
-
+from astropy.io import fits as pyfits
 
 # WebDAQ variables
 freqwebdaq = 1651.6129 #Hz; minimum sampling frequency
 basepathwebdaq = '/mnt/jumbo/SPLATT/WebDaqData/'
 #ftpwebdacq = '/home/ftpuser/ftp/' # old files
 ftpwebdacq = '/home/ftpuser/ftp/files/' # new files, from 2024 Q4 onwards
+webdext = 'OBB'
 
-def wdsync():
+def wdsync(tn=None):
     os.system('rsync -av -q -i '+ftpwebdacq+' '+basepathwebdaq)
+
+def savefile(wdfname, tn):
+    data = openfile(wdfname)
+    pyfits.writeto(basepathwebdaq+tn+'.fits',data)
+
 
 def openfile(name, data_len = None):
     file_path = os.path.join(basepathwebdaq, name)
@@ -101,7 +107,7 @@ def acc_spectrum(v):
 
 
 def last_wdfile(N:int=1,ext=None):
-    searchext = 'OBB*'
+    searchext = webdext+'*'  #'OBB*'
     if ext is not None:
         searchext = ext+'*'
     fl = sorted(glob.glob(basepathwebdaq+searchext))
