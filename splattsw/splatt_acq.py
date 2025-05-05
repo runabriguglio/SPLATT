@@ -12,10 +12,9 @@ from aoptics.devices.interferometer import PhaseCam4020
 from splattsw.devices.moxa_io import Moxa_ai0
 from splattsw.devices.deformable_mirror import SPLATTEngine
 
-import matplotlib.pyplot as plt
-import os
 import time
 import numpy as np
+from datetime import datetime
 
 class Acquisition():
 
@@ -52,6 +51,9 @@ class Acquisition():
 
     def acq_sweep(self, fmin = 30, fmax = 110, duration = 11, ampPI = 2, nframes:int = 2250, chPI:int = 1, produce:bool = False):
 
+        # Generate new tn
+        tn = self._generate_tn()
+
         # Setup sweep parameters
         self.wavegen.set_wave(ch=chPI,ampl=ampPI,offs=0,freq=fmin,wave_form='SIN')
         time.sleep(4)
@@ -61,8 +63,7 @@ class Acquisition():
         self.webdaq.start_schedule()
         self.wavegen.trigger_sweep(chPI)
         time.sleep(0.5)
-        tn=self.interf.capture(nframes)
-        print(f'Capture completed! Saved in: {tn}')
+        self.interf.capture(nframes, tn)
 
         # Wait for webDAQ acquisition to end
         status = self.webdaq.get_jobs_status()
@@ -73,7 +74,7 @@ class Acquisition():
         # Post-processing
         sp.wdsync()
         wdfile=sp.last_wdfile()
-        print(f'Acceleration data: {wdfile}')
+        # Add saving to fits while renaming with correct tn
 
         if self.mx is not None:
             pres = self.mx.read_pressure()
@@ -82,20 +83,25 @@ class Acquisition():
         if produce:
             self.interf.produce(tn)
 
+        return tn
+
 
 
     def acq_freq(self, freqPI,  ampPI=2, nframes:int = 2000, chPI:int = 1, produce:bool = False, buffer:bool = False):
 
+        # Generate new tn
+        tn = self._generate_tn()
+
         # Start acquisition and sine wave
         self.wavegen.set_wave(ch=chPI, ampl=ampPI, offs=0, freq=freqPI, wave_form='SIN')
         if buffer:
-            self.dm.send('clear opts; opts.dec = 0; opts.sampleNR = 256; opts.save2mat = 0; opts.save2fits = 1')
-            self.eng.oneway_send("[pos,cur,tn]=splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
+            self.dm.send(f'clear opts; opts.dec = 0; opts.sampleNR = 256; opts.save2mat = 0; opts.save2fits = 1; opts.tn = {tn}')
+            self.eng.oneway_send("splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
         t0 = time.time()
         time.sleep(4) # wait for transient
         self.webdaq.start_schedule()
         if nframes > 0:
-            tn=self.interf.capture(nframes)
+            self.interf.capture(nframes, tn)
         
         # Wait for webDAQ acquisition to end
         status = self.webdaq.get_jobs_status()
@@ -105,16 +111,14 @@ class Acquisition():
 
         # Acquisition end
         self.wavegen.wave_off(chPI)
-
-        if nframes > 0:
-            print(f'Capture completed! Saved in: {tn}')
         self.webdaq.stop_schedule()
         
         # Post-processing
         time.sleep(1)
         sp.wdsync()
         wdfile=sp.last_wdfile()
-        print(f'Acceleration data: {wdfile}')
+        # Add saving to fits while renaming with correct tn
+
         if self.mx is not None:
             p_bar = self.mx.read_pressure()
             print(f'The vacuarium pressure is {p_bar:1.3f} [bar]')
@@ -129,9 +133,16 @@ class Acquisition():
 
             if dt < 45:
                 time.sleep(45-dt)
+        
+        return tn
 
-            buf_tn = self.dm.read('tn')
-            print(f'Buffer TN is: {buf_tn}')
+
+    @staticmethod
+    def _generate_tn():
+        tn = datetime.now()
+        tn.strftime('%Y%m%d_%H%M%S')
+
+        return tn
 
 
 
