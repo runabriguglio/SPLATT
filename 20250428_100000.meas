@@ -1,0 +1,17 @@
+[DATASET]
+tnrip = '20250424_155319'
+tnset = ['20250424_162052','20250424_163213','20250424_163920','20250424_164635']
+idlabel = ['P=1b','P=0.8b','P=0.7b','P=0.55b']
+
+[MEASUREMENT]
+type     = sweep #single
+accdata  = True
+lattdata = True
+freq0    = 30
+freq1    = 110
+freqvec  = [] #empty if sweep
+
+[ANALYSIS]
+runnmeanpoints = 9
+
+

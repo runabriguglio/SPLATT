@@ -2,11 +2,12 @@ import numpy as np
 from aoptics import analyzer as th
 from matplotlib.pyplot import *
 import json, struct
-z2fit = [1,2,3]
-tiltselect = 1 #confirmed with PhaseCam4020 ex refurb 4030 and 4DFocus
-basepathwebdaq= '/mnt/jumbo/SPLATT/WebDaqData/' #'/home/labot/ftp/'
-freqwebdaq = 1651.6129 #Hz; minimum sampling f
 
+z2fit           = [1,2,3]
+tiltselect       = 1 #confirmed with PhaseCam4020 ex refurb 4030 and 4DFocus
+basepathwebdaq   = '/mnt/jumbo/SPLATT/WebDaqData/' #'/home/labot/ftp/'
+freqwebdaq       = 1651.6129 #Hz; minimum sampling f
+foldanalysisconf = '/home/labot/git/SPLATT/'
 
 
 def plot_ttspectra(spe,f, tn=None):
@@ -61,6 +62,36 @@ def tiltvec(tn, unwrap=True):
     else:
         tt1 = tt
     return tt1
+
+def zvec(tn, overwrite = False):
+    resultpath = resultfold+tn+'/'
+    if overwrite == True or os.path.exists(resultpath) == False:
+        os.mkdir(resultpath)
+        flist=fileList(tn)
+        nfiles = nel(flist)
+        imgcube = th.createCube(flist)
+        zzvec = np.zeros(nzern, nfiles)
+        rrvec = np.zeros(nfiles)
+        for i in range(nfiles):
+            cc, m = th.zern.zernikeFit(imgcube[i],nzern)
+            zzvec[:,i] = cc
+            zr = np.sum(cc**2)
+            rrvec[i] = np.sqrt(imgcube[i].std()**2 - zr)
+        pyfits.writeto(resultpath+'-ZernVec.fits',zzvec)
+        pyfits.writeto(resultpath+'-stdVec.fits', rrvec)
+    else:
+        h0 = pyfits.open(resultpath+'-ZernVec.fits')
+        zzvec = h0[0].data
+        h0.close()
+        h0 = pyfits.open(resultpath+'-stdVec.fits')
+        rrvec = h0[0].data
+        h0.close()
+    return zzvec, rrvec
+
+
+
+
+
 
 def timevec(tn):
     flist=fileList(tn)
@@ -128,3 +159,144 @@ def acc_integrate(acc, freq):
     acc = acc * 9.81 #converts to m/s2
     amp = acc/(4*np.pi**2*freq**2)
     return amp
+
+
+def read_analysisconf(tn):
+    import configparser
+    config=configparser.ConfigParser()
+    config.read(foldanalysisconf+tn+'.meas')
+    dataset = config['DATASET']
+    meas    = config['MEASUREMENT']
+    return dataset, meas
+
+def sweep_analysis(tn):
+    '''
+    speczrip: 
+    specsrip
+    spec
+    '''
+    tninfo,measinfo = read_analysisconf(tn)
+    '''
+    content of theconf:
+        tnrip
+        tnset: list of tracknums. each tracknum includes optical data, accelerometer data, buffer and test config
+        idlabel: list (same len as tnset) of identifier to be associated with tnset tracknums. is to be used as labels for the plot
+    '''
+    tnrip = tninfo['tnrip']
+    tnset = tninfo['tnset']
+    idlabel = tninfo['idlabel']
+
+    nrunnmean
+
+    ntn = len(tnset)
+    freq4d = th.osu.getFrameRate(tn)
+    zv_rip, st_rip = zvec(tnrip)
+    speczrip, f = th.spectrum(zv_rip, dt=1/freq4d) 
+    specsrip, f = th.spectrum(st_rip, dt=1/freq4d)
+    speczrip = th.runningmean(speczrip, nrunnmean)
+    specsrip = th.runningmean(specsrip, nrunnmean)
+    zv       = []
+    sv       = []
+    speczset = []
+    specsset = []
+    spenz    = []
+    spens    = []
+    for i in tnset:
+        zvi, svi = zvec(i)
+        zv.append(zvi)
+        sv.append(svi)
+        specz, f = th.spectrum(zvi, dt=1/freq4d)
+        specz    = th.runningmean(specz, nrunnmean)
+        specs, f = th.spectrum(svi, dt=1/freq4d)
+        specs    = th.runningmean(specs, nrunnmean)
+        speczset.append(specz)
+        specsset.append(specs)
+        spenz.append(specz/speczrip)
+        spens.append(specs/speczrip)
+
+    frunn = th.runningmean(f, nrunnmean)
+    ## plot of single spectra
+    ### Excited Tilt
+    plot(frunn, speczrip[tiltselect,:],'.')
+    for i in range(tnset):
+        thespec = speczset[i]
+        plot(frunn, thespec[tiltselect,:],'.')
+    title(tn+' Y Opt. tilt amp spectrum')
+    xlabel('Freq [Hz]')
+    ylabel('Tilt amp. [m]')
+    label(['RIP',idlabel])
+    yscale('log')
+
+    ### Global Tilt
+    #??? è corretto sommare in quadr. le ampiezze degli spettri???
+    tiltrip = sqrt(speczrip[1,:]**2+ speczrip[2,:]**2)
+    plot(frunn, tiltrip,'.')
+    for i in range(tnset):
+        thespec = speczset[i]
+        thetilt = sqrt(thespec[1,:]**2+ thespec[2,:]**2)
+        plot(frunn, thespec,'.')
+    title(tn+' Opt. tilt amp spectrum')
+    xlabel('Freq [Hz]')
+    ylabel('Tilt amp. [m]')
+    label(['RIP',idlabel])
+    yscale('log')
+
+
+    ### Astigmatism
+    #??? è corretto sommare in quadr. le ampiezze degli spettri???
+    asttrip = sqrt(speczrip[4,:]**2+ speczrip[5,:]**2)
+    plot(frunn, tiltrip,'.')
+    for i in range(tnset):
+        thespec = speczset[i]
+        theast = sqrt(thespec[4,:]**2+ thespec[5,:]**2)
+        plot(frunn, theast,'.')
+    title(tn+' Opt. Astigm amp spectrum')
+    xlabel('Freq [Hz]')
+    ylabel('Astigm amp. [m]')
+    label(['RIP',idlabel])
+    yscale('log')
+
+
+    ### Global RMS
+    #??? è corretto sommare in quadr. le ampiezze degli spettri???
+    plot(frunn, specsrip,'.')
+    for i in range(tnset):
+        thespec = specsset[i]
+        plot(frunn, thespec,'.')
+    title(tn+' Res. SFE spectrum')
+    xlabel('Freq [Hz]')
+    ylabel('SFE [m]')
+    label(['RIP',idlabel])
+    yscale('log')
+
+    ##Normalized dataset
+    ### Excited Tilt
+    plot(frunn, np.ones(len(frunn)),'.')
+    for i in range(tnset):
+        thespec = specnz[i]
+        plot(frunn, thespec[tiltselect,:],'.')
+    title(tn+' Y Opt. tilt amp spectrum')
+    xlabel('Freq [Hz]')
+    ylabel('Tilt norm. amp. [m]')
+    label(['REF',idlabel])
+    yscale('log')
+
+
+    ### Normalized RMS
+    #??? è corretto sommare in quadr. le ampiezze degli spettri???
+    plot(frunn, np.ones(len(frunn)),'.')
+    for i in range(tnset):
+        thespec = specns[i]
+        plot(frunn, thespec,'.')
+    title(tn+' Res. SFE spectrum')
+    xlabel('Freq [Hz]')
+    ylabel('SFE-norm. [m]')
+    label(['REF',idlabel])
+    yscale('log')
+
+    pass
+
+def singlefreq_analysis(tn):
+    pass
+
+
