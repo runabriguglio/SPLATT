@@ -169,7 +169,7 @@ def read_analysisconf(tn):
     meas    = config['MEASUREMENT']
     return dataset, meas
 
-def sweep_analysis(tn):
+def sweep_analysis(tn, nrunnmean: int = 5):
     '''
     speczrip: 
     specsrip
@@ -185,8 +185,6 @@ def sweep_analysis(tn):
     tnrip = tninfo['tnrip']
     tnset = tninfo['tnset']
     idlabel = tninfo['idlabel']
-
-    nrunnmean
 
     ntn = len(tnset)
     freq4d = th.osu.getFrameRate(tn)
@@ -229,11 +227,11 @@ def sweep_analysis(tn):
 
     ### Global Tilt
     #??? è corretto sommare in quadr. le ampiezze degli spettri???
-    tiltrip = sqrt(speczrip[1,:]**2+ speczrip[2,:]**2)
+    tiltrip = np.sqrt(speczrip[1,:]**2+ speczrip[2,:]**2)
     plot(frunn, tiltrip,'.')
     for i in range(tnset):
         thespec = speczset[i]
-        thetilt = sqrt(thespec[1,:]**2+ thespec[2,:]**2)
+        thetilt = np.sqrt(thespec[1,:]**2+ thespec[2,:]**2)
         plot(frunn, thespec,'.')
     title(tn+' Opt. tilt amp spectrum')
     xlabel('Freq [Hz]')
@@ -244,11 +242,11 @@ def sweep_analysis(tn):
 
     ### Astigmatism
     #??? è corretto sommare in quadr. le ampiezze degli spettri???
-    asttrip = sqrt(speczrip[4,:]**2+ speczrip[5,:]**2)
+    asttrip = np.sqrt(speczrip[4,:]**2+ speczrip[5,:]**2)
     plot(frunn, tiltrip,'.')
     for i in range(tnset):
         thespec = speczset[i]
-        theast = sqrt(thespec[4,:]**2+ thespec[5,:]**2)
+        theast = np.sqrt(thespec[4,:]**2+ thespec[5,:]**2)
         plot(frunn, theast,'.')
     title(tn+' Opt. Astigm amp spectrum')
     xlabel('Freq [Hz]')
@@ -294,7 +292,6 @@ def sweep_analysis(tn):
     label(['REF',idlabel])
     yscale('log')
 
-    pass
 
 def singlefreq_analysis(tn):
     pass

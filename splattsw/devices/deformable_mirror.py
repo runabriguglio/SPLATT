@@ -167,6 +167,20 @@ class SPLATTEngine():
 
         return mean_pos, mean_cur, buf_tn
     
+    def get_state(self):
+
+        mean_gap = np.mean(self.get_position())
+        mean_cur = np.mean(self.get_force())*self._N2bits
+        Kp = self._eng.read('sys_data.ctrPar.Kp')
+        Kd = self._eng.read('sys_data.ctrPar.Kd')
+        Ki = self._eng.read('sys_data.ctrPar.Ki')
+        aPid = self._eng.read('sys_data.ctrPar.aPid')
+        preTime = self._eng.read('sys_data.ctrPar.cmdPreTime')
+
+        state = np.array([mean_gap, mean_cur, Kp, Kd, Ki, aPid, preTime])
+
+        return state
+    
     def saveFlatTN(self, tn:str = None):
          if tn is None:
             tn = self._eng.read('lattSaveFlat()')
