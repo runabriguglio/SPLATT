@@ -8,7 +8,7 @@ from splattsw.devices.webDAQ import WebDAQ as wdq
 #pyconf = '/mnt/libero/SPLATTData/Data/SysConfigurations/configuration.yaml'
 #aoptics.load_configuration_file(pyconf)
 
-from aoptics.devices.interferometer import PhaseCam4020
+from aoptics.devices.interferometer import PhaseCam
 from splattsw.devices.moxa_io import Moxa_ai0
 from splattsw.devices.deformable_mirror import SPLATTEngine
 
@@ -23,7 +23,7 @@ class Acquisition():
         # Define interferometer
         self.interf = None
         try:
-            self.interf=PhaseCam4020()
+            self.interf=PhaseCam()
         except:
             print('Interferometer not found')
 
