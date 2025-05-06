@@ -9,6 +9,8 @@ from requests import HTTPError, Session, RequestException
 import numpy as np
 from numpy import array
 
+import time
+
 
 from splattsw.devices.utility import *
 #from IPython.core.release import keywords
@@ -246,6 +248,13 @@ class WebDAQ(object):
             print('')
 
         return numpy_data
+    
+    def stop_schedule_when_job_ends(self, job_id:int = 0):
+        status = self.get_jobs_status()
+        while status[job_id] != 'completed':
+            status = self.get_jobs_status()
+            time.sleep(1)
+        self.stop_schedule()
     
     
     

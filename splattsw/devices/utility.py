@@ -110,14 +110,6 @@ def get_job_status_json(s, base_url, job_name):
     return job_status_json
 
 
-# def get_schedule_descriptor_json(s, base_url):
-#     schedule_descriptor_endpoint = base_url + '/schedule/descriptor'
-#     schedule_descriptor_response = s.get(schedule_descriptor_endpoint)
-#     schedule_descriptor_response.raise_for_status()
-#
-#     return schedule_descriptor_response
-
-
 def get_schedule_status_json(s, base_url):
     schedule_status_response = s.get(base_url + '/schedule/status')
     schedule_status_response.raise_for_status()

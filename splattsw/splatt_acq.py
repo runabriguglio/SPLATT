@@ -23,7 +23,7 @@ class Acquisition():
         # Define interferometer
         self.interf = None
         try:
-            self.interf=PhaseCam()
+            self.interf=PhaseCam('4020')
         except:
             print('Interferometer not found')
 
@@ -49,6 +49,8 @@ class Acquisition():
         except:
             print('Moxa device not found')
 
+
+
     def acq_sweep(self, fmin = 30, fmax = 110, duration = 11, ampPI = 2, nframes:int = 2250, chPI:int = 1, produce:bool = False):
 
         # Generate new tn
@@ -56,7 +58,7 @@ class Acquisition():
 
         # Setup sweep parameters
         self.wavegen.set_wave(ch=chPI,ampl=ampPI,offs=0,freq=fmin,wave_form='SIN')
-        time.sleep(4)
+        time.sleep(4) # wait for steady state
         self.wavegen.set_sweep(chPI,fmin,fmax,duration,amp=ampPI)
         #self.wavegen.set_burst(ch=2,freq=225,Ncycles=nframes)
 
@@ -67,15 +69,12 @@ class Acquisition():
         self.interf.capture(nframes, tn)
 
         # Wait for webDAQ acquisition to end
-        status = self.webdaq.get_jobs_status()
-        while status[0] != 'completed':
-            status = self.webdaq.get_jobs_status()
-            time.sleep(1)
+        self.webdaq.stop_schedule_when_job_ends(job_id = 0)
 
         # Post-processing
         sp.wdsync()
         wdfile=sp.last_wdfile()
-        # Add saving to fits while renaming with correct tn
+        sp.savefile(wdfile,tn) # saving to fits while renaming with correct tn
 
         if self.mx is not None:
             pres = self.mx.read_pressure()
@@ -84,7 +83,7 @@ class Acquisition():
         if produce:
             self.interf.produce(tn)
 
-        return tn, wdfile
+        return tn
 
 
 
@@ -105,20 +104,16 @@ class Acquisition():
             self.interf.capture(nframes, tn)
         
         # Wait for webDAQ acquisition to end
-        status = self.webdaq.get_jobs_status()
-        while status[0] != 'completed':
-            status = self.webdaq.get_jobs_status()
-            time.sleep(1)
+        self.webdaq.stop_schedule_when_job_ends(job_id = 0)
 
         # Acquisition end
         self.wavegen.wave_off(chPI)
-        self.webdaq.stop_schedule()
         
         # Post-processing
         time.sleep(1)
         sp.wdsync()
         wdfile=sp.last_wdfile()
-        # Add saving to fits while renaming with correct tn
+        sp.savefile(wdfile,tn) # saving to fits while renaming with correct tn
 
         if self.mx is not None:
             p_bar = self.mx.read_pressure()
