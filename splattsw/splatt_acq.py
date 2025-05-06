@@ -57,7 +57,8 @@ class Acquisition():
         # Setup sweep parameters
         self.wavegen.set_wave(ch=chPI,ampl=ampPI,offs=0,freq=fmin,wave_form='SIN')
         time.sleep(4)
-        self.wavegen.sweep(chPI,fmin,fmax,duration,amp=ampPI)
+        self.wavegen.set_sweep(chPI,fmin,fmax,duration,amp=ampPI)
+        #self.wavegen.set_burst(ch=2,freq=225,Ncycles=nframes)
 
         # Start acquisition and sweep
         self.webdaq.start_schedule()
@@ -83,7 +84,7 @@ class Acquisition():
         if produce:
             self.interf.produce(tn)
 
-        return tn
+        return tn, wdfile
 
 
 

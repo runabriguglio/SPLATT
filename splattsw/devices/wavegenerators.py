@@ -13,16 +13,6 @@ class WaveGenerator(SCPI):
         # self.name = device_name
         # self = scpi.scpi(self.name)
         self.delay = 0.1
-        #print('Setting default values: 30 Hz, 0.01 Vpp')
-        #for ch in range(2):
-        #    self.tx_txt(f'SOUR{ch+1}:FREQ:FIX 30')
-        #    time.sleep(self.delay)
-        #    self.tx_txt('SOUR{ch+1}:VOLT 1')
-        #    time.sleep(self.delay)
-        #    self.tx_txt('SOUR{ch+1}:VOLT 0.01')
-        #    time.sleep(self.delay)
-
-
 
 
     def splatt_trigger(self, freqPI, freq4d, ampPI=None):
@@ -36,8 +26,6 @@ class WaveGenerator(SCPI):
         self.phase_align()
 
     def splatt_trigger2(self, freqPI, freq4d, ampPI=None):
-        #if ampPI > 4:
-        #    raise Exception('Amplitude too large!!')
         if ampPI is None:
             ampPI = self.ampPiezo
         self.set_wave1(ampPI/self.amplifierGain, 0, freqPI, 'SIN')
@@ -68,29 +56,16 @@ class WaveGenerator(SCPI):
             'SQUARE'
         )
 
-    # def reset(self):
-    #     self.connect()
-    #     print("WARNING! Following commmands might be corrupted")
-    #     self.rst()
-    #     self.close()
-
-    def state_on(self, ch):
         self.wave_on(ch)
 
     def single_pulse(self, ch):
         pulseamp = 2
-        '''
-        time.sleep(0.2)
-        clear_wave(ch)
-        time.sleep(0.2)
-        wave_on(ch)
-        '''
         self.set_pulse(ch, pulseamp/self.amplifierGain, pulseamp/self.amplifierGain, 20, 0.1)
         time.sleep(0.2)
         self.clear_wave(ch)
         self.wave_on(ch)
 
-    def sweep(self, ch, fmin, fmax, duration=20, amp=1):
+    def set_sweep(self, ch, fmin, fmax, duration=20, amp=1):
         self.connect()
         if fmin<10 or fmax>150:
             raise ValueError(f"Are you sure you want to go from {fmin} Hz to {fmax} Hz ?!")
@@ -138,6 +113,26 @@ class WaveGenerator(SCPI):
         self.set_wave1(c0,0,f0,type0)
         self.set_wave2(c1,0,f1,type1)
 
+    def set_burst(self, ch, freq, Ncycles:int):
+        self.connect()
+        self.tx_txt(f":SOUR{ch}:FUNC SQU")
+        time.sleep(self.delay)
+        self.tx_txt(f":SOUR{ch}:VOLT 4")
+        time.sleep(self.delay)
+        self.tx_txt(f":SOUR{ch}:VOLT:OFFS 2")
+        time.sleep(self.delay)
+
+        self.tx_txt(f':SOUR{ch}:BURS:MODE TRIG')
+        time.sleep(self.delay)
+        self.tx_txt(f':SOUR{ch}:BURS:NCYC {Ncycles}')
+        time.sleep(self.delay)
+        self.tx_txt(f':SOUR{ch}:BURS:INT:PER {1/freq:1.6f}')
+        time.sleep(self.delay)
+        self.tx_txt(f':SOUR{ch}:BURS:TRIG:SOUR EXT')
+        time.sleep(self.delay)
+
+        self.tx_txt(f"OUTPUT{ch}:STATE ON")        
+        self.close()
 
     def blink(self):
         self.connect()
