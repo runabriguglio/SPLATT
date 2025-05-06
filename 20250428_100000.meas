@@ -1,7 +1,9 @@
 [DATASET]
-tnrip = '20250424_155319'
+tnrip = 20250424_155319
 tnset = ['20250424_162052','20250424_163213','20250424_163920','20250424_164635']
-idlabel = ['P=1b','P=0.8b','P=0.7b','P=0.55b']
+tnlabel = ['P=1b','P=0.8b','P=0.7b','P=0.55b']
+acclabel= ["RBfront","RBback","Stand","ElevArm"]
+
 
 [MEASUREMENT]
 type     = sweep #single
@@ -13,5 +15,5 @@ freqvec  = [] #empty if sweep
 
 [ANALYSIS]
 runnmeanpoints = 9
-
+acclim = [0,200]
 

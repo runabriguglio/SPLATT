@@ -91,3 +91,24 @@ xlim(40,110)
 
 
 gg = sp.openwdfile(accrip)
+
+
+
+
+#### debug sweep analysis
+
+tnconf= '20250428_100000.meas'
+
+tninfo,measinfo = sp.read_analysisconf(tnconf)
+
+
+#re-saving acc files
+import acceleration_analysis as ac
+
+tnl  = ['20250424_155319','20250424_162052','20250424_163213','20250424_163920','20250424_164635']
+ntn = len(tnl)
+accl = ['OBB-Vibration_2025-04-24T15-52-38-996.wdd','OBB-Vibration_2025-04-24T16-20-12-361.wdd','OBB-Vibration_2025-04-24T16-31-32-937.wdd','OBB-Vibration_2025-04-24T16-38-40-115.wdd','OBB-Vibration_2025-04-24T16-45-54-526.wdd']
+for i in range(ntn):
+    print(accl[i]+'  --> '+tnl[i])
+    ac.savefile(accl[i],tnl[i])
+
