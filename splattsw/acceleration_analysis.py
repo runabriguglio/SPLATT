@@ -19,7 +19,7 @@ def wdsync(tn=None):
 
 def savefile(wdfname, tn):
     data = openfile(wdfname)
-    pyfits.writeto(basepathwebdaq+tn+'.fits',data)
+    pyfits.writeto(basepathwebdaq+tn+'.fits', data)
 
 
 def openfile(name, data_len = None):
