@@ -125,20 +125,17 @@ class SPLATTEngine():
         print('Initialized SPLATT deformable mirror')
 
     def get_position_command(self): # relative to flatPos
-        posCmdBits = np.array(self._eng.read("aoRead('sabu16_position',1:19)"))
+        posCmdBits = self._read_splatt_vec("aoRead('sabu16_position',1:19)")
         posCmd = posCmdBits * self._bits2meters
-        posCmd = np.reshape(posCmd, self.nActs)
         posCmd -= self.flatPos
         return posCmd
 
     def get_position(self):
-        pos = np.array(self._eng.read("lattGetPos()"))
-        pos = np.reshape(pos, self.nActs)
+        pos = self._read_splatt_vec("lattGetPos()")
         return pos
 
     def get_force(self):
-        force = np.array(self._eng.read("lattGetForce()"))
-        force = np.reshape(force, self.nActs)
+        force = self._read_splatt_vec("lattGetForce()")
         return force
 
     def set_position(self, cmd): 
@@ -170,14 +167,17 @@ class SPLATTEngine():
     def get_state(self):
 
         mean_gap = np.mean(self.get_position())
-        mean_cur = np.mean(self.get_force())*self._N2bits
+        pos_cmd = self._read_splatt_vec("aoRead('sabu16_position',1:19)")
+        cur_cmd = self._read_splatt_vec("aoRead('sabi16_force',1:19)")
         Kp = self._eng.read('sys_data.ctrPar.Kp')
         Kd = self._eng.read('sys_data.ctrPar.Kd')
         Ki = self._eng.read('sys_data.ctrPar.Ki')
         aPid = self._eng.read('sys_data.ctrPar.aPid')
         preTime = self._eng.read('sys_data.ctrPar.cmdPreTime')
 
-        state = np.array([mean_gap, mean_cur, Kp, Kd, Ki, aPid, preTime])
+        gains = np.array([Kp, Kd, Ki, aPid, preTime])
+
+        state = mean_gap, pos_cmd, cur_cmd, gains
 
         return state
     
@@ -194,16 +194,12 @@ class SPLATTEngine():
          self.flatPos = self.read_flat_data()
 
     def read_flat_data(self):
-        flatPos = np.array(self._eng.read('sys_data.flatPos')) * self._bits2meters
-        flatPos = np.reshape(flatPos,self.nActs)
+        flatPosBits = self._read_splatt_vec('sys_data.flatPos')
+        flatPos = flatPosBits * self._bits2meters
         return flatPos
 
-    def _set_shell(self):
-
-        if self._shellset is False:
-            print('Setting the shell...')
-            self._eng.send('splattFastSet')
-            self._shellset = True
-        else:
-            print('Shell set variable is True, overwrite it if you wish to set again')
+    def _read_splatt_vec(self, read_str:str):
+        vec = np.array(self._eng.read(read_str))
+        vec = np.reshape(vec, self.nActs)
+        return vec
 
