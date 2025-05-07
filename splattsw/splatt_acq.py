@@ -4,11 +4,11 @@ from splattsw import acceleration_analysis as sp
 from splattsw.devices.wavegenerators import WaveGenerator as wg
 from splattsw.devices.webDAQ import WebDAQ as wdq
 
-#import aoptics
+#import aoptics -- superseeded by opticalib
 #pyconf = '/mnt/libero/SPLATTData/Data/SysConfigurations/configuration.yaml'
 #aoptics.load_configuration_file(pyconf)
 
-from aoptics.devices.interferometer import PhaseCam
+from opticalib.devices.interferometer import PhaseCam
 from splattsw.devices.moxa_io import Moxa_ai0
 from splattsw.devices.deformable_mirror import SPLATTEngine
 

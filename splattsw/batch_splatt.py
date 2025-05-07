@@ -1,6 +1,6 @@
-import aoptics
+import opticalib
 pyconf = '/mnt/libero/SPLATTData/Data/SysConfigurations/configuration.yaml'
-aoptics.load_configuration_file(pyconf)
+opticalib.load_configuration_file(pyconf)
 
 from splattsw import splatt_analysis as sp
 

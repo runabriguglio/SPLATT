@@ -1,5 +1,5 @@
 import os, numpy as np
-from aoptics import analyzer as th
+from opticalib import analyzer as th
 from matplotlib.pyplot import *
 import json, struct
 from astropy.io import fits as pyfits

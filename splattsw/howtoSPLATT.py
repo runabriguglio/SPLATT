@@ -21,22 +21,23 @@ dm = SPLATTDm()
 '''
 #general imports
 ##### launch      calpy -f /mnt/libero/SPLATTData/Data/SysConfig     #####
+#### calpy is the bash command ---- equivalent to pyott  --- to create the environment variable and does the imports
 
 #import aoptics
 #pyconf = '/mnt/libero/SPLATTData/Data/SysConfigurations/configuration.yaml'
 #aoptics.load_configuration_file(pyconf)
 
-from aoptics.devices.interferometer import PhaseCam4020
-from aoptics.devices.deformable_mirrors import SplattDm
+from opticalib.devices.interferometer import PhaseCam
+from opticalib.devices.deformable_mirrors import SplattDm
 from SPLATT.splattsw import splatt_analysis as sp
 
-interf = PhaseCam4020()
+interf = PhaseCam()
 dm = SplattDm()
 
 ### InfFunctions and Flattening###
-from aoptics.dmutils import iff_module as ifm
-from aoptics.dmutils import iff_processing as ifp
-from aoptics.dmutils.flattening import Flattening
+from opticalib.dmutils import iff_module as ifm
+from opticalib.dmutils import iff_processing as ifp
+from opticalib.dmutils.flattening import Flattening
 
 mlist = [0,1,2,3,4,5,6]
 mamp = 5e-6
