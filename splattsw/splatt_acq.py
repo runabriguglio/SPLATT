@@ -51,7 +51,9 @@ class Acquisition():
 
 
 
-    def acq_sweep(self, fmin = 30, fmax = 110, duration = 11, ampPI = 2, nframes:int = 2250, chPI:int = 1, produce:bool = False):
+    def acq_sweep(self, fmin = 30, fmax = 110, duration = 11, ampPI = 2, 
+                  nframes:int = 2250, chPI:int = 1, produce:bool = False,
+                  extTrigger:bool = False):
 
         # Generate new tn
         tn = self._generate_tn()
@@ -60,16 +62,25 @@ class Acquisition():
         self.wavegen.set_wave(ch=chPI,ampl=ampPI,offs=0,freq=fmin,wave_form='SIN')
         time.sleep(4) # wait for steady state
         self.wavegen.set_sweep(chPI,fmin,fmax,duration,amp=ampPI)
-        #self.wavegen.set_burst(ch=2,freq=225,Ncycles=nframes)
+
+        if extTrigger:
+            self.interf.setTriggerMode(True)
+            self.wavegen.set_burst(ch=2,freq=225,Ncycles=nframes)
 
         # Start acquisition and sweep
         self.webdaq.start_schedule()
         self.wavegen.trigger_sweep(chPI)
-        time.sleep(0.5)
-        self.interf.capture(nframes, tn)
+
+        if extTrigger is False:
+            time.sleep(0.5)
+            self.interf.capture(nframes, tn)
 
         # Wait for webDAQ acquisition to end
         self.webdaq.stop_schedule_when_job_ends(job_id = 0)
+
+        if extTrigger:
+            self.interf.setTriggerMode(False)
+            # Add function to retrieve the tn ...
 
         # Post-processing
         sp.wdsync()
