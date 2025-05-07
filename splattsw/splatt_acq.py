@@ -37,8 +37,8 @@ class Acquisition():
         # SPLATT dm
         self.dm = None
         try:
-            dm = SPLATTEngine()
-            self.dm = dm._eng
+            self.dm = SPLATTEngine()
+            self.eng = dm._eng
         except:
             print('SPLATT dm not found')
 
@@ -60,6 +60,7 @@ class Acquisition():
         self.wavegen.set_wave(ch=chPI,ampl=ampPI,offs=0,freq=fmin,wave_form='SIN')
         time.sleep(4) # wait for steady state
         self.wavegen.set_sweep(chPI,fmin,fmax,duration,amp=ampPI)
+        #self.interf.setTriggerMode(True)
         #self.wavegen.set_burst(ch=2,freq=225,Ncycles=nframes)
 
         # Start acquisition and sweep
@@ -70,6 +71,7 @@ class Acquisition():
 
         # Wait for webDAQ acquisition to end
         self.webdaq.stop_schedule_when_job_ends(job_id = 0)
+        #self.interf.setTriggerMode(False)
 
         # Post-processing
         sp.wdsync()
@@ -79,6 +81,9 @@ class Acquisition():
         if self.mx is not None:
             pres = self.mx.read_pressure()
             print(f'The vacuarium pressure is {pres:1.3f} [bar]')
+
+        if self.dm is not None:
+            self.dm.save_state('/mnt/libero/SPLATTData/TestConfig',tn)
 
         if produce:
             self.interf.produce(tn)
@@ -95,7 +100,7 @@ class Acquisition():
         # Start acquisition and sine wave
         self.wavegen.set_wave(ch=chPI, ampl=ampPI, offs=0, freq=freqPI, wave_form='SIN')
         if buffer:
-            self.dm.send(f'clear opts; opts.dec = 0; opts.sampleNR = 256; opts.save2mat = 0; opts.save2fits = 1; opts.tn = {tn}')
+            self.eng.send(f'clear opts; opts.dec = 0; opts.sampleNR = 256; opts.save2mat = 0; opts.save2fits = 1; opts.tn = {tn}')
             self.eng.oneway_send("splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
         t0 = time.time()
         time.sleep(4) # wait for transient
@@ -136,9 +141,9 @@ class Acquisition():
     @staticmethod
     def _generate_tn():
         tn = datetime.now()
-        tn.strftime('%Y%m%d_%H%M%S')
+        tnout = tn.strftime('%Y%m%d_%H%M%S')
 
-        return tn
+        return tnout
 
 
 

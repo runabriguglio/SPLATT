@@ -16,6 +16,9 @@ from m4.configuration import config_folder_names as fn
 from m4.devices.base_deformable_mirror import BaseDeformableMirror
 from m4.ground import logger_set_up as lsu, timestamp, read_data as rd
 
+import yaml
+import os
+
 _ts = timestamp.Timestamp()
 
 class SPLATTDm(BaseDeformableMirror):
@@ -115,16 +118,17 @@ class SPLATTEngine():
         self._bits2meters = float(self._eng.read('2^-sys_data.coeffs.Scale_F_Lin'))
         self._N2bits = float(self._eng.read('sys_data.coeffs.Force2DAC_V'))
         
-        self._shellset = True
         try:
             self.flatPos = self.read_flat_data()
         except:
-            self._shellset = False
+            self.flatPos = None
             print('Unable to read set position: remember to perform startup and set shell')
 
         print('Initialized SPLATT deformable mirror')
 
     def get_position_command(self): # relative to flatPos
+        if self.flatPos is None:
+            self.flatPos = self.read_flat_data()
         posCmdBits = self._read_splatt_vec("aoRead('sabu16_position',1:19)")
         posCmd = posCmdBits * self._bits2meters
         posCmd -= self.flatPos
@@ -164,20 +168,27 @@ class SPLATTEngine():
 
         return mean_pos, mean_cur, buf_tn
     
-    def get_state(self):
+    def save_state(self,fpath,tn):
 
-        mean_gap = np.mean(self.get_position())
-        pos_cmd = self._read_splatt_vec("aoRead('sabu16_position',1:19)")
-        cur_cmd = self._read_splatt_vec("aoRead('sabi16_force',1:19)")
+        pos = (self.get_position()).tolist()
+        cur = self._eng.read("aoRead('sabi32_pidCoilOut',1:19)")
+        mean_gap = np.mean(pos)
+        pos_cmd = self._eng.read("aoRead('sabu16_position',1:19)")
+        cur_cmd = self._eng.read("aoRead('sabi16_force',1:19)")
+        coilsEnabled = np.sum(self._read_splatt_vec("aoRead('sabu8_enableCoil',1:19)"))
+        self._eng.send('flags=lattGetFlags()')
+        nrDriver = self._eng.read('1+sum(flags.driver2On)/19+sum(flags.driver3On)/19+sum(flags.driver4On)/19')
+
         Kp = self._eng.read('sys_data.ctrPar.Kp')
         Kd = self._eng.read('sys_data.ctrPar.Kd')
         Ki = self._eng.read('sys_data.ctrPar.Ki')
         aPid = self._eng.read('sys_data.ctrPar.aPid')
         preTime = self._eng.read('sys_data.ctrPar.cmdPreTime')
 
-        gains = np.array([Kp, Kd, Ki, aPid, preTime])
+        state = {'Gap': mean_gap, 'Control': {'Kp': Kp, 'Kd': Kd, 'Ki': Ki, 'Derivative cutoff frequency': aPid/(2*np.pi), 'Preshaper time': preTime},'Commanded Position Bits': pos_cmd, 'Commanded Force Bits': cur_cmd, 'Measured Positions': pos, 'Measured Currents': cur, 'Enabled Coils': coilsEnabled, 'Drivers On': nrDriver }
 
-        state = mean_gap, pos_cmd, cur_cmd, gains
+        with open(os.path.join(fpath,tn+'.yml'), 'w') as yaml_file:
+            yaml.dump(state, yaml_file, sort_keys=False)
 
         return state
     
