@@ -36,6 +36,17 @@ class Moxa_ai0(Moxa):
         data = self.read()
         pres = data[6]
         return pres
+    
+    def save_pressure(self, fpath, tn):
+        pres = self.read_pressure()
+
+        dirpath = os.path.join(fpath,tn)
+        try:
+            os.mkdir(dirpath)
+        except FileExistsError:
+            pass
+
+        pyfits.writeto(os.path.join(dirpath,'pressure.fits'), pres)
 
 
 class Moxa_di0(Moxa):
