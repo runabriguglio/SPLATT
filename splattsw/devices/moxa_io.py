@@ -1,6 +1,7 @@
 from splattsw.devices.moxa_class import Moxa
 
 import os
+import numpy as np
 from astropy.io import fits as pyfits
 
 # Inherited classes: add your own moxa!
@@ -34,7 +35,7 @@ class Moxa_ai0(Moxa):
 
     def read_pressure(self):
         data = self.read()
-        pres = data[6]
+        pres = np.array(data[6])
         return pres
     
     def save_pressure(self, fpath, tn):
