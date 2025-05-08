@@ -4,7 +4,31 @@ import os
 import numpy as np
 from astropy.io import fits as pyfits
 
-# Inherited classes: add your own moxa!
+class Moxa_ai0(Moxa):
+
+    def __init__(self, ip = '193.206.155.47', nchannels:int = 8,
+                api_addr_ext = '/api/slot/0/io/ai',
+                valuestr = 'aiValueScaled', valueid = 'ai'):
+
+        super().__init__(ip, nchannels, api_addr_ext, valuestr, valueid)
+
+    def read_pressure(self):
+        data = self.read()
+        pres = data[6]
+        return pres
+    
+    def save_pressure(self, fpath, tn):
+        pres = self.read_pressure()
+
+        dirpath = os.path.join(fpath,tn)
+        try:
+            os.mkdir(dirpath)
+        except FileExistsError:
+            pass
+
+        pyfits.writeto(os.path.join(dirpath,'pressure.fits'), np.array([pres]))
+
+
 class Moxa_pt0(Moxa):
 
     def __init__(self, ip = '193.206.155.40', nchannels:int = 6,
@@ -22,32 +46,6 @@ class Moxa_pt1(Moxa):
                 valuestr = 'rtdValueScaled', valueid = 'rtd'):
 
         super().__init__(ip, nchannels, api_addr_ext, valuestr, valueid)
-
-
-
-class Moxa_ai0(Moxa):
-
-    def __init__(self, ip = '193.206.155.47', nchannels:int = 8,
-                api_addr_ext = '/api/slot/0/io/ai',
-                valuestr = 'aiValueScaled', valueid = 'ai'):
-
-        super().__init__(ip, nchannels, api_addr_ext, valuestr, valueid)
-
-    def read_pressure(self):
-        data = self.read()
-        pres = np.array(data[6])
-        return pres
-    
-    def save_pressure(self, fpath, tn):
-        pres = self.read_pressure()
-
-        dirpath = os.path.join(fpath,tn)
-        try:
-            os.mkdir(dirpath)
-        except FileExistsError:
-            pass
-
-        pyfits.writeto(os.path.join(dirpath,'pressure.fits'), pres)
 
 
 class Moxa_di0(Moxa):
