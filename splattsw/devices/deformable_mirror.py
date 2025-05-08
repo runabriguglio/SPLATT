@@ -150,8 +150,8 @@ class SPLATTEngine():
 
     def read_buffers(self, external: bool = False, n_samples:int = 128, decimation:int = 0):
 
-        if n_samples > 256:
-            raise ValueError('Maximum number of samples is 256!')
+        if np.logical_and(n_samples > 256, external == False):
+            raise ValueError('Maximum number of samples for internal buffers is 256!')
 
         self._eng.send(f"clear opts; opts.dec = {decimation}; opts.sampleNr = {n_samples}; opts.save2fits = 1; opts.save2mat = 0")
         print('Reading buffers, hold tight: this may take a while ...')
@@ -187,7 +187,13 @@ class SPLATTEngine():
 
         state = {'Gap': mean_gap, 'Control': {'Kp': Kp, 'Kd': Kd, 'Ki': Ki, 'Derivative cutoff frequency': aPid/(2*np.pi), 'Preshaper time': preTime},'Commanded Position Bits': pos_cmd, 'Commanded Force Bits': cur_cmd, 'Measured Positions': pos, 'Measured Currents': cur, 'Enabled Coils': coilsEnabled, 'Drivers On': nrDriver }
 
-        with open(os.path.join(fpath,tn+'.yml'), 'w') as yaml_file:
+        dirpath = os.path.join(fpath,tn)
+        try:
+            os.mkdir(dirpath)
+        except FileExistsError:
+            pass
+
+        with open(os.path.join(dirpath,'SysData.yml'), 'w') as yaml_file:
             yaml.dump(state, yaml_file, sort_keys=False)
 
         return state

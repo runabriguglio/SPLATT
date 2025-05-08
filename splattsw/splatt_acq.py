@@ -20,6 +20,8 @@ class Acquisition():
 
     def __init__(self):
 
+        self.config_path = '/mnt/libero/SPLATTData/TestConfig'
+
         # Define interferometer
         self.interf = None
         try:
@@ -38,7 +40,7 @@ class Acquisition():
         self.dm = None
         try:
             self.dm = SPLATTEngine()
-            self.eng = dm._eng
+            self.eng = self.dm._eng
         except:
             print('SPLATT dm not found')
 
@@ -52,13 +54,12 @@ class Acquisition():
 
 
     def acq_sweep(self, fmin = 30, fmax = 110, duration = 11, ampPI = 2, 
-                  nframes:int = 2250, chPI:int = 1, produce:bool = False,
-                  extTrigger:bool = False):
+                  nframes:int = 2250, chPI:int = 1, produce:bool = False):
+                  #extTrigger:bool = False):
 
         # Generate new tn
         tn = self._generate_tn()
 
-        # Setup sweep parameters
         self.wavegen.set_wave(ch=chPI,ampl=ampPI,offs=0,freq=fmin,wave_form='SIN')
         time.sleep(4) # wait for steady state
         self.wavegen.set_sweep(chPI,fmin,fmax,duration,amp=ampPI)
@@ -71,21 +72,16 @@ class Acquisition():
         time.sleep(0.5)
         self.interf.capture(nframes,tn)
 
-        # Wait for webDAQ acquisition to end
-        self.webdaq.stop_schedule_when_job_ends(job_id = 0)
+        self.webdaq.stop_schedule_when_job_ends(job_id = 0) # Wait for webDAQ acquisition 
         #self.interf.setTriggerMode(False)
 
-        # Post-processing
-        sp.wdsync()
-        wdfile=sp.last_wdfile()
-        sp.savefile(wdfile,tn) # saving to fits while renaming with correct tn
+        sp.sync_and_save_last_file(tn)
 
         if self.mx is not None:
-            pres = self.mx.read_pressure()
-            print(f'The vacuarium pressure is {pres:1.3f} [bar]')
+            self.mx.save_pressure(self.config_path,tn)
 
         if self.dm is not None:
-            self.dm.save_state('/mnt/libero/SPLATTData/TestConfig',tn)
+            self.dm.save_state(self.config_path,tn)
 
         if produce:
             self.interf.produce(tn)
@@ -118,13 +114,10 @@ class Acquisition():
         
         # Post-processing
         time.sleep(1)
-        sp.wdsync()
-        wdfile=sp.last_wdfile()
-        sp.savefile(wdfile,tn) # saving to fits while renaming with correct tn
+        sp.sync_and_save_last_file(tn)
 
         if self.mx is not None:
-            p_bar = self.mx.read_pressure()
-            print(f'The vacuarium pressure is {p_bar:1.3f} [bar]')
+            self.mx.save_pressure(self.config_path,tn)
 
         if np.logical_and( nframes > 0, produce):
             self.interf.produce(tn)

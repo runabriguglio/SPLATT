@@ -14,11 +14,17 @@ basepathwebdaq = '/mnt/jumbo/SPLATT/WebDaqData/'
 ftpwebdacq = '/home/ftpuser/ftp/files/' # new files, from 2024 Q4 onwards
 webdext = 'OBB'
 
-def wdsync(tn=None):
+def wdsync():
     os.system('rsync -av -q -i '+ftpwebdacq+' '+basepathwebdaq)
 
 def savefile(wdfname, tn):
     data = openfile(wdfname)
+    pyfits.writeto(basepathwebdaq+tn+'.fits', data)
+
+def sync_and_save_last_file(tn):
+    os.system('rsync -av -q -i '+ftpwebdacq+' '+basepathwebdaq)
+    wdf = last_wdfile()
+    data = openfile(wdf)
     pyfits.writeto(basepathwebdaq+tn+'.fits', data)
 
 
@@ -106,8 +112,8 @@ def acc_spectrum(v):
     return spe, f
 
 
-def last_wdfile(N:int=1,ext=None):
-    searchext = webdext+'*'  #'OBB*'
+def last_wdfile(N:int=1, ext=None):
+    searchext = webdext+'*' 
     if ext is not None:
         searchext = ext+'*'
     fl = sorted(glob.glob(basepathwebdaq+searchext))

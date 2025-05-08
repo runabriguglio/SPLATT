@@ -1,5 +1,8 @@
 from splattsw.devices.moxa_class import Moxa
 
+import os
+from astropy.io import fits as pyfits
+
 # Inherited classes: add your own moxa!
 class Moxa_pt0(Moxa):
 
@@ -33,7 +36,6 @@ class Moxa_ai0(Moxa):
         data = self.read()
         pres = data[6]
         return pres
-
 
 
 class Moxa_di0(Moxa):
