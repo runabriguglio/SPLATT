@@ -21,13 +21,6 @@ def savefile(wdfname, tn):
     data = openfile(wdfname)
     pyfits.writeto(basepathwebdaq+tn+'.fits', data)
 
-def sync_and_save_last_file(tn):
-    os.system('rsync -av -q -i '+ftpwebdacq+' '+basepathwebdaq)
-    wdf = last_wdfile()
-    data = openfile(wdf)
-    pyfits.writeto(basepathwebdaq+tn+'.fits', data)
-
-
 def openfile(name, data_len = None):
     file_path = os.path.join(basepathwebdaq, name)
     data = _openwdd(file_path, data_len)

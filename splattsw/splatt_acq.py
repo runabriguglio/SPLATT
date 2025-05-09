@@ -1,17 +1,13 @@
 
-#from splattsw import splatt_analysis as sp
 from splattsw import acceleration_analysis as sp
 from splattsw.devices.wavegenerators import WaveGenerator as wg
 from splattsw.devices.webDAQ import WebDAQ as wdq
-
-#import aoptics -- superseeded by opticalib
-#pyconf = '/mnt/libero/SPLATTData/Data/SysConfigurations/configuration.yaml'
-#aoptics.load_configuration_file(pyconf)
 
 from opticalib.devices.interferometer import PhaseCam
 from splattsw.devices.moxa_io import Moxa_ai0
 from splattsw.devices.deformable_mirror import SPLATTEngine
 
+from threading import Thread
 import time
 import numpy as np
 from datetime import datetime
@@ -55,16 +51,14 @@ class Acquisition():
 
     def acq_sweep(self, fmin = 30, fmax = 110, duration = 11, ampPI = 2, 
                   nframes:int = 2250, chPI:int = 1, produce:bool = False):
-                  #extTrigger:bool = False):
 
         # Generate new tn
         tn = self._generate_tn()
 
+        # Prepare sweep parameters
         self.wavegen.set_wave(ch=chPI,ampl=ampPI,offs=0,freq=fmin,wave_form='SIN')
         time.sleep(4) # wait for steady state
         self.wavegen.set_sweep(chPI,fmin,fmax,duration,amp=ampPI)
-        #self.interf.setTriggerMode(True)
-        #self.wavegen.set_burst(ch=2,freq=225,Ncycles=nframes)
 
         # Start acquisition and sweep
         self.webdaq.start_schedule()
@@ -72,10 +66,8 @@ class Acquisition():
         time.sleep(0.5)
         self.interf.capture(nframes,tn)
 
-        self.webdaq.stop_schedule_when_job_ends(job_id = 0) # Wait for webDAQ acquisition 
-        #self.interf.setTriggerMode(False)
-
-        sp.sync_and_save_last_file(tn)
+        self.webdaq.stop_schedule_when_job_ends(job_id = 0) # Wait for webDAQ acquisition
+        self.sync_and_save_last_wdfile(tn)
 
         if self.mx is not None:
             self.mx.save_pressure(self.config_path,tn)
@@ -87,7 +79,6 @@ class Acquisition():
             self.interf.produce(tn)
 
         return tn
-
 
 
     def acq_freq(self, freqPI,  ampPI=2, nframes:int = 2000, chPI:int = 1, produce:bool = False, buffer:bool = False):
@@ -113,8 +104,7 @@ class Acquisition():
         self.wavegen.wave_off(chPI)
         
         # Post-processing
-        time.sleep(1)
-        sp.sync_and_save_last_file(tn)
+        self.sync_and_save_last_wdfile(tn)
 
         if self.mx is not None:
             self.mx.save_pressure(self.config_path,tn)
@@ -131,6 +121,54 @@ class Acquisition():
                 time.sleep(45-dt)
         
         return tn
+    
+
+    def acq_sync_sweep(self, fmin = 30, fmax = 110, duration = 11, ampPI = 2, 
+                  nframes:int = 2250, produce:bool = False):
+
+        # Generate new tn
+        tn = self._generate_tn()
+
+        # Start piezo and wait for steady state
+        self.wavegen.set_wave(ch=1,ampl=ampPI,offs=0,freq=fmin,wave_form='SIN')
+        time.sleep(4) 
+        
+        # Prepare for sweep
+        self.wavegen.set_sweep(1,fmin,fmax,duration,amp=ampPI)
+        self.interf.setTriggerMode(True)
+        self.wavegen.set_burst(ch=2,freq=225,Ncycles=nframes)
+
+        # Use multithreading for synchronization
+        def trigger():
+            self.wavegen.trigger_sweep(1)
+        def capture():
+            self.interf.capture(nframes,tn)
+
+        wg_thread = Thread(target = trigger)
+        interf_thread = Thread(target = capture)
+
+        interf_thread.start() # run capture
+        wg_thread.start() # trigger acquisition
+
+        interf_thread.join() # wait for capture to end
+        wg_thread.join() # wait for trigger to end (should be immediate)
+
+        # Save and log data
+        self.webdaq.stop_schedule_when_job_ends(job_id = 0) 
+        self.interf.setTriggerMode(False)
+
+        self.sync_and_save_last_wdfile(tn)
+
+        if self.mx is not None:
+            self.mx.save_pressure(self.config_path,tn)
+
+        if self.dm is not None:
+            self.dm.save_state(self.config_path,tn)
+
+        if produce:
+            self.interf.produce(tn)
+
+        return tn
 
 
     @staticmethod
@@ -139,6 +177,12 @@ class Acquisition():
         tnout = tn.strftime('%Y%m%d_%H%M%S')
 
         return tnout
+    
+    @staticmethod
+    def sync_and_save_last_wdfile(tn):
+        sp.wdsync()
+        wdf = sp.last_wdfile()
+        sp.save_file(wdf, tn)
 
 
 

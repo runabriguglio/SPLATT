@@ -2,11 +2,11 @@ from __future__ import print_function
 import socket
 import sys
 import json
-import struct
+#import struct
 from struct import unpack, calcsize
 from time import sleep
-from requests import HTTPError, Session, RequestException
-import numpy as np
+from requests import HTTPError, Session #, RequestException
+#import numpy as np
 from numpy import array
 
 import time
@@ -15,26 +15,6 @@ import time
 from splattsw.devices.utility import *
 #from IPython.core.release import keywords
 
-
-# def openwdd(fname):
-#     hdr = {}
-#     with open(fname,"rb") as wdf:
-#         rawData = wdf.read(564)
-#         hdr['version'] = int.from_bytes(rawData[0:4], 'little')
-#         hdr['size'] = int.from_bytes(rawData[4:8], 'little')
-#         hdr['nchannels']= int.from_bytes(rawData[8:12], 'little')
-#         hdr['scan_rate']= int.from_bytes(rawData[12:20], 'little')
-#         hdr['start_time']= int.from_bytes(rawData[20:28], 'little')
-#         hdr['timezone']= rawData[28:44].decode("utf-8")
-#         json_hdr_size =  int.from_bytes(rawData[560:564], 'little')
-#         jsonRaw = wdf.read(json_hdr_size)
-#         hdr['json_hdr']=json.loads(jsonRaw)
-#         ndata = hdr['json_hdr']['jobDescriptor']['acquisition']['stopTrigger']['sampleCount']
-#         data_it = struct.iter_unpack('<d', wdf.read(ndata*hdr['nchannels']*8)) #4 because double precision 64 bit\n",
-#         tmp = np.asarray(list(data_it), dtype='double')
-#         data=tmp.reshape(int(tmp.size/4), 4)
-#         data = data.T
-#     return data
 
 class WebDAQ(object):
     
@@ -248,6 +228,7 @@ class WebDAQ(object):
             print('')
 
         return numpy_data
+    
     
     def stop_schedule_when_job_ends(self, job_id:int = 0):
         status = self.get_jobs_status()
