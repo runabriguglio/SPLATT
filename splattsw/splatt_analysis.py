@@ -69,21 +69,25 @@ def tiltvec(tn, unwrap=True):
     return tt1
 
 def zvec(tn, overwrite = False):
-    resultpath = resultfold+tn+'/'
-    if overwrite == True or os.path.exists(resultpath) == False:
-        os.mkdir(resultpath)
+    print('Processing dataset: '+tn)
+    print('Double check the StD computation')
+    resultpath = resultfold+tn
+    z2fit = [1,2,3,4,5,6]
+    nzern = len(z2fit)
+    if (overwrite == True) or os.path.exists(resultpath+'-ZernVec.fits') == False:
         flist=fileList(tn)
-        nfiles = nel(flist)
+        nfiles = len(flist)
         imgcube = th.createCube(flist)
-        zzvec = np.zeros(nzern, nfiles)
+        zzvec = np.zeros([nzern+1, nfiles])
         rrvec = np.zeros(nfiles)
         for i in range(nfiles):
-            cc, m = th.zern.zernikeFit(imgcube[i],nzern)
-            zzvec[:,i] = cc
-            zr = np.sum(cc**2)
-            rrvec[i] = np.sqrt(imgcube[i].std()**2 - zr)
-        pyfits.writeto(resultpath+'-ZernVec.fits',zzvec)
-        pyfits.writeto(resultpath+'-stdVec.fits', rrvec)
+            cc, m = th.zern.zernikeFit(imgcube[:,:,i],z2fit)
+            zzvec[0:nzern,i] = cc
+            zr = np.sum(cc[1:]**2)
+            rrvec[i] = np.sqrt(imgcube[:,:,i].std()**2 - zr)
+        zzvec[nzern,:]= signal_unwrap(zzvec[0,:])
+        pyfits.writeto(resultpath+'-ZernVec.fits',zzvec, overwrite=True)
+        pyfits.writeto(resultpath+'-stdVec.fits', rrvec, overwrite=True)
     else:
         h0 = pyfits.open(resultpath+'-ZernVec.fits')
         zzvec = h0[0].data
@@ -201,7 +205,7 @@ def sweep_analysis(tn, nrunnmean: int = 5):
         tnlabel: list (same len as tnset) of identifier to be associated with tnset tracknums. is to be used as labels for the plot
     '''
     tnrip   = tninfo['tnrip']
-    tnset   = tninfo['tnset']
+    tnset   = json.loads(tninfo['tnset'])
     tnlabel = tninfo['tnlabel']
     
     ### acceleration analysis
@@ -228,13 +232,13 @@ def sweep_analysis(tn, nrunnmean: int = 5):
     pass
     ## analysis of optical data ###
     ntn        = len(tnset)
-    freq4d     = th.osu.getFrameRate(tn)
+    freq4d     = th.osu.getFrameRate(tnrip)
     zv_rip, st_rip = zvec(tnrip)
     speczrip, f = th.spectrum(zv_rip, dt=1/freq4d) 
     specsrip, f = th.spectrum(st_rip, dt=1/freq4d)
-    frunn       = th.runningmean(f, nrunnmean)
-    speczrip    = th.runningmean(speczrip, nrunnmean)
-    specsrip    = th.runningmean(specsrip, nrunnmean)
+    frunn       = th.runningMean(f, nrunnmean)
+    speczrip    = th.runningMean(speczrip, nrunnmean)
+    specsrip    = th.runningMean(specsrip, nrunnmean)
     zv       = []
     sv       = []
     speczset = []
@@ -246,9 +250,9 @@ def sweep_analysis(tn, nrunnmean: int = 5):
         zv.append(zvi)
         sv.append(svi)
         specz, f = th.spectrum(zvi, dt=1/freq4d)
-        specz    = th.runningmean(specz, nrunnmean)
+        specz    = th.runningMean(specz, nrunnmean)
         specs, f = th.spectrum(svi, dt=1/freq4d)
-        specs    = th.runningmean(specs, nrunnmean)
+        specs    = th.runningMean(specs, nrunnmean)
         speczset.append(specz)
         specsset.append(specs)
         spenz.append(specz/speczrip)
@@ -269,41 +273,51 @@ def sweep_analysis(tn, nrunnmean: int = 5):
 
     ### Global Tilt
     #??? è corretto sommare in quadr. le ampiezze degli spettri???
-    tiltrip = np.sqrt(speczrip[1,:]**2+ speczrip[2,:]**2)
-    subplot(222)
-    plot(frunn, tiltrip,'.')
+    #no. anche perchè la somma in quadr è definitia positiva e questo falserebbe il contenuto in frequenze
+    #tiltrip = np.sqrt(speczrip[1,:]**2+ speczrip[2,:]**2)
+    subplot(122)
+    plot(frunn, speczrip[2,:],'.','.')
     for i in range(tnset):
         thespec = speczset[i]
-        thetilt = np.sqrt(thespec[1,:]**2+ thespec[2,:]**2)
-        plot(frunn, thespec,'.')
-    title(tn+' Opt. tilt amp spectrum')
+        #thetilt = np.sqrt(thespec[1,:]**2+ thespec[2,:]**2)
+        plot(frunn, thespec[2,:],'.')
+    title(tn+' X Opt. tilt amp spectrum')
     xlabel('Freq [Hz]');    ylabel('Tilt amp. [m]');    legend(['RIP',tnlabel])
     yscale('log')
 
-
-    ### Astigmatism
-    #??? è corretto sommare in quadr. le ampiezze degli spettri???
-    asttrip = np.sqrt(speczrip[4,:]**2+ speczrip[5,:]**2)
-    subplot(223)
-    plot(frunn, tiltrip,'.')
-    for i in range(tnset):
-        thespec = speczset[i]
-        theast = np.sqrt(thespec[4,:]**2+ thespec[5,:]**2)
-        plot(frunn, theast,'.')
-    title(tn+' Opt. Astigm amp spectrum')
-    xlabel('Freq [Hz]');    ylabel('Astigm amp. [m]');    legend(['RIP',tnlabel])
-    yscale('log')
-
-
+    ## PLOT2
     ### Global RMS
     #??? è corretto sommare in quadr. le ampiezze degli spettri???
-    subplot(224)
+    subplot(131)
     plot(frunn, specsrip,'.')
     for i in range(tnset):
         thespec = specsset[i]
         plot(frunn, thespec,'.')
     title(tn+' Res. SFE spectrum')
     xlabel('Freq [Hz]');    ylabel('SFE [m]');    legend(['RIP',tnlabel])
+    yscale('log')
+
+    ### Astigmatism
+    #??? è corretto sommare in quadr. le ampiezze degli spettri???
+    #asttrip = np.sqrt(speczrip[4,:]**2+ speczrip[5,:]**2)
+    subplot(132)
+    plot(frunn, speczrip[4,:],'.')
+    for i in range(tnset):
+        thespec = speczset[i]
+        #theast = np.sqrt(thespec[4,:]**2+ thespec[5,:]**2)
+        plot(frunn, thespec[4,:],'.')
+    title(tn+' X Opt. Astigm amp spectrum')
+    xlabel('Freq [Hz]');    ylabel('Astigm amp. [m]');    legend(['RIP',tnlabel])
+    yscale('log')
+
+    subplot(133)
+    plot(frunn, speczrip[5,:],'.')
+    for i in range(tnset):
+        thespec = speczset[i]
+        #theast = np.sqrt(thespec[4,:]**2+ thespec[5,:]**2)
+        plot(frunn, thespec[5,:],'.')
+    title(tn+' Y Opt. Astigm amp spectrum')
+    xlabel('Freq [Hz]');    ylabel('Astigm amp. [m]');    legend(['RIP',tnlabel])
     yscale('log')
 
     ##Normalized dataset
