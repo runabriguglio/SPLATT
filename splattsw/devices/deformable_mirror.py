@@ -182,6 +182,7 @@ class SPLATTEngine():
         Ki = self._eng.read('sys_data.ctrPar.Ki')
         aPid = self._eng.read('sys_data.ctrPar.aPid')
         preTime = self._eng.read('sys_data.ctrPar.cmdPreTime')
+        preEna = np.sum(self._eng.read("aoRead('sabi32_damperGain',1:19)")) # self._eng.read('sys_data.ctrPar.dampEna')
 
         state = configparser.ConfigParser()
         state.add_section("Gap")
@@ -196,6 +197,7 @@ class SPLATTEngine():
         state.set("Control", "Ki", f'{Ki}')
         state.set("Control", 'Derivative cutoff frequency', f'{aPid/(2*np.pi):1.0f} [Hz]')
         state.set("Control", 'Preshaper time', f'{preTime*1e+3:1.2f} [ms]')
+        state.set("Control",'Preshaper enabled',f'{preEna:1.0f} (19 if on all coils or 0 if disabled)')
         state.set("Control",'Flat TN', f'{flatTN}')
         state.set("Coils",'Enabled Coils',f'{coilsEnabled:1.0f}')
         state.set("Coils",'Drivers On', f'{nrDriver:1.0f}')
@@ -231,6 +233,13 @@ class SPLATTEngine():
         flatPosBits = self._read_splatt_vec('sys_data.flatPos')
         flatPos = flatPosBits * self._bits2meters
         return flatPos
+    
+    # def read(self, string):
+    #     out = self._eng.read(string)
+    #     return out
+    
+    # def send(self, string):
+    #     self._eng.send(string)
 
     def _read_splatt_vec(self, read_str:str):
         vec = np.array(self._eng.read(read_str))
