@@ -17,4 +17,5 @@ freqvec  = [] #empty if sweep
 [ANALYSIS]
 runnmeanpoints = 9
 acclim = [0,200]
+optlim = [30,110]
 

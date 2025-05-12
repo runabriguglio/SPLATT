@@ -206,9 +206,9 @@ def sweep_analysis(tn, nrunnmean: int = 5):
     specsrip
     spec
     '''
-    savefold = resultfold+tn+'/'
-    if os.path.exists(savefold) is False:
-        os.mkdir(savefold)
+    #savefold = resultfold+tn+'/'
+    #if os.path.exists(savefold) is False:
+    #    os.mkdir(savefold)
     tninfo,measinfo, analysisinfo = read_analysisconf(tn)
     '''
     content of theconf:
@@ -243,8 +243,8 @@ def sweep_analysis(tn, nrunnmean: int = 5):
     subplot(1,2,2);     title('Mechanical Oscillation spectrum')
     for i in mspec:
         plot(mfreq, i,'.')
-    xlabel('Freq [Hz]'); ylabel(' Amplitude [m]'); legend(acclegend); yscale('log');xlim(accxlims[0],accxlims[1])
-    savefig(savefold+tn+'-AccPlots.png')
+    xlabel('Freq [Hz]'); ylabel(' Amplitude [m]'); legend(acclegend); yscale('log');xlim(accxlims[0],accxlims[1]);grid()
+    savefig(resultfold+tn+'-AccPlots.png')
     ###    end of acc data    ############
     pass
     ## analysis of optical data ###
@@ -277,7 +277,7 @@ def sweep_analysis(tn, nrunnmean: int = 5):
 
     ## plot of single spectra
     ### Excited Tilt
-    figure(); suptitle(tn+' Optical SurfError')
+    figure(figsize=(10,5)); suptitle(tn+' Optical SurfError')
     subplots_adjust(bottom=0.1, left=0.1,right=0.95, top=0.9,wspace=0.3, hspace=0)
     subplot(121)
     plot(frunn, speczrip[tiltselect,:],'.')
@@ -286,26 +286,29 @@ def sweep_analysis(tn, nrunnmean: int = 5):
         plot(frunn, thespec[tiltselect,:],'.')
     title(tn+' Y Opt. tilt amp spectrum')
     xlabel('Freq [Hz]');    ylabel('Tilt amp. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
-    yscale('log')
+    yscale('log');grid()
+
 
     ### Global Tilt
     #??? è corretto sommare in quadr. le ampiezze degli spettri???
     #no. anche perchè la somma in quadr è definitia positiva e questo falserebbe il contenuto in frequenze
     #tiltrip = np.sqrt(speczrip[1,:]**2+ speczrip[2,:]**2)
     subplot(122)
-    plot(frunn, speczrip[2,:],'.','.')
+    plot(frunn, speczrip[2,:],'.')
     for i in range(ntn):
         thespec = speczset[i]
         #thetilt = np.sqrt(thespec[1,:]**2+ thespec[2,:]**2)
         plot(frunn, thespec[2,:],'.')
     title(tn+' X Opt. tilt amp spectrum')
     xlabel('Freq [Hz]');    ylabel('Tilt amp. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
-    yscale('log')
+    yscale('log');grid()
+    savefig(resultfold+tn+'-OptTilt.png')
+
 
     ## PLOT2
     ### Global RMS
     #??? è corretto sommare in quadr. le ampiezze degli spettri???
-    figure()
+    figure(figsize=(15,5))
     subplot(131)
     plot(frunn, specsrip,'.')
     for i in range(ntn):
@@ -313,7 +316,7 @@ def sweep_analysis(tn, nrunnmean: int = 5):
         plot(frunn, thespec,'.')
     title(tn+' Res. SFE spectrum')
     xlabel('Freq [Hz]');    ylabel('SFE [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
-    yscale('log')
+    yscale('log');grid()
 
     ### Astigmatism
     #??? è corretto sommare in quadr. le ampiezze degli spettri???
@@ -326,7 +329,7 @@ def sweep_analysis(tn, nrunnmean: int = 5):
         plot(frunn, thespec[4,:],'.')
     title(tn+' X Opt. Astigm amp spectrum')
     xlabel('Freq [Hz]');    ylabel('Astigm amp. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
-    yscale('log')
+    yscale('log');grid()
 
     subplot(133)
     plot(frunn, speczrip[5,:],'.')
@@ -336,19 +339,20 @@ def sweep_analysis(tn, nrunnmean: int = 5):
         plot(frunn, thespec[5,:],'.')
     title(tn+' Y Opt. Astigm amp spectrum')
     xlabel('Freq [Hz]');    ylabel('Astigm amp. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
-    yscale('log')
+    yscale('log');grid()
+    savefig(resultfold+tn+'-OptAst-SfE.png')
 
     ##Normalized dataset
     optlabel[0] = 'REF'
     ### Excited Tilt
-    figure();  suptitle(tn+' Optical spectra, norm.')
+    figure(figsize=(9,5));  suptitle(tn+' Optical spectra, norm.')
     subplot(121); title('Y Opt. tilt amp spectrum')
     plot(frunn, np.ones(len(frunn)),'x')
     for i in range(ntn):
         thespec = spenz[i]
         plot(frunn, thespec[tiltselect,:],'.')
     xlabel('Freq [Hz]');    ylabel('Tilt norm. amp. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
-    yscale('log')
+    yscale('log');grid()
 
 
     ### Normalized RMS
@@ -359,7 +363,9 @@ def sweep_analysis(tn, nrunnmean: int = 5):
         thespec = spens[i]
         plot(frunn, thespec,'.')
     xlabel('Freq [Hz]');    ylabel('SFE-norm. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
-    yscale('log')
+    yscale('log');grid()
+    savefig(resultfold+tn+'-OptNorm.png')
+
 
 
 def singlefreq_analysis(tn):
