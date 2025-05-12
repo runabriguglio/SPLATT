@@ -21,12 +21,13 @@ if __name__ == "__main__":
     wavegen.set_wave(ch=1,ampl=2,offs=0,freq=30,wave_form='SIN')
     time.sleep(1) # wait for steady state
     wavegen.set_sweep(1,30,100,10,amp=2)
+    time.sleep(1)
 
     def trigger():
         print('Now starting trigger ...')
         wavegen.trigger_sweep(1)
         print('Trigger sent!')
-        time.sleep(2)
+        time.sleep(13)
 
     def buffer(Nsamples, dec):
         print('Sending buffer ...')
@@ -34,17 +35,19 @@ if __name__ == "__main__":
         print('Buffer completed!')
         q_pos.put(mean_pos)
         q_cur.put(mean_cur)
-        q_tn.put(q_tn)
+        q_tn.put(tn)
         
     
     wg_thread = Thread(target=trigger)
-    buf_thread = Thread(target=buffer, args=(300,0))
+    buf_thread = Thread(target=buffer, args=(500,0))
 
     wg_thread.start()
     buf_thread.start()
 
     wg_thread.join()
     buf_thread.join()
+
+    wavegen.wave_off(1)
 
     tn = q_tn.get()
     print(tn)

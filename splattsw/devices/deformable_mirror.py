@@ -154,17 +154,15 @@ class SPLATTEngine():
             raise ValueError('Maximum number of samples for internal buffers is 256!')
 
         self._eng.send(f"clear opts; opts.dec = {decimation}; opts.sampleNr = {n_samples}; opts.save2fits = 1; opts.save2mat = 0")
-        print('Reading buffers, hold tight: this may take a while ...')
         if external:
             self._eng.send("[pos,cur,buf_tn]=splattAcqBufExt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
         else:
+            print('Reading buffers, hold tight: this may take a while ...')
             self._eng.send("[pos,cur,buf_tn]=splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
 
         buf_tn = self._eng.read('buf_tn')
-        mean_pos = np.array(self._eng.read('mean(pos,2)')) * self._bits2meters
-        mean_pos = np.reshape(mean_pos,self.nActs)
-        mean_cur = np.array(self._eng.read('mean(cur,2)'))
-        mean_cur = np.reshape(mean_cur, self.nActs)
+        mean_pos = self._read_splatt_vec('mean(pos,2)') * self._bits2meters
+        mean_cur = self._read_splatt_vec('mean(cur,2)')
 
         return mean_pos, mean_cur, buf_tn
     
