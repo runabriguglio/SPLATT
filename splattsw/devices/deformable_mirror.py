@@ -16,7 +16,7 @@ from m4.configuration import config_folder_names as fn
 from m4.devices.base_deformable_mirror import BaseDeformableMirror
 from m4.ground import logger_set_up as lsu, timestamp, read_data as rd
 
-import yaml
+import configparser
 import os
 
 _ts = timestamp.Timestamp()
@@ -168,13 +168,11 @@ class SPLATTEngine():
     
     def save_state(self,fpath,tn):
 
-        pos = (self.get_position()).tolist()
+        pos = self.get_position()
         cur = self._eng.read("aoRead('sabi32_pidCoilOut',1:19)")
-        mean_gap = np.mean(pos)
         pos_cmd = self._eng.read("aoRead('sabu16_position',1:19)")
         cur_cmd = self._eng.read("aoRead('sabi16_force',1:19)")
         coilsEnabled = np.sum(self._read_splatt_vec("aoRead('sabu8_enableCoil',1:19)"))
-        self._eng.send('flags=lattGetFlags()')
         nrDriver = self._eng.read('1+sum(flags.driver2On)/19+sum(flags.driver3On)/19+sum(flags.driver4On)/19')
 
         Kp = self._eng.read('sys_data.ctrPar.Kp')
@@ -183,7 +181,21 @@ class SPLATTEngine():
         aPid = self._eng.read('sys_data.ctrPar.aPid')
         preTime = self._eng.read('sys_data.ctrPar.cmdPreTime')
 
-        state = {'Gap': mean_gap, 'Control': {'Kp': Kp, 'Kd': Kd, 'Ki': Ki, 'Derivative cutoff frequency': aPid/(2*np.pi), 'Preshaper time': preTime},'Commanded Position Bits': pos_cmd, 'Commanded Force Bits': cur_cmd, 'Measured Positions': pos, 'Measured Currents': cur, 'Enabled Coils': coilsEnabled, 'Drivers On': nrDriver }
+        state = configparser.ConfigParser()
+        state.add_section("Gap")
+        state.add_section("Control")
+        state.add_section("Coils")
+
+        state.set("Gap", "Mean", np.mean(pos))
+        state.set("Gap", "Max", np.max(pos))
+        state.set("Gap", "Min", np.min(pos))
+        state.set("Control", "Kp", Kp)
+        state.set("Control", "Kd", Kd)        
+        state.set("Control", "Ki", Ki)
+        state.set("Control", 'Derivative cutoff frequency', aPid/(2*np.pi))
+        state.set("Control", 'Preshaper time', preTime)
+        state.set("Coils",'Enabled Coils', coilsEnabled)
+        state.set("Coils",'Drivers On', nrDriver)
 
         dirpath = os.path.join(fpath,tn)
         try:
@@ -191,8 +203,12 @@ class SPLATTEngine():
         except FileExistsError:
             pass
 
-        with open(os.path.join(dirpath,'SysData.yml'), 'w') as yaml_file:
-            yaml.dump(state, yaml_file, sort_keys=False)
+        pyfits.writeto(os.path.join(dirpath,'sabu16_position.fits'), np.array(pos_cmd))
+        pyfits.writeto(os.path.join(dirpath,'sabi16_force.fits'), np.array(cur_cmd))
+        pyfits.writeto(os.path.join(dirpath,'sabi32_pidCoilOut.fits'), np.array(cur))
+
+        with open(os.path.join(dirpath,'SysData.ini'), 'w') as state_file:
+            state.write(state_file)
 
         return state
     
