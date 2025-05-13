@@ -48,15 +48,8 @@ class WaveGenerator(SCPI):
         dc = self.pulseDurationTrigger*freq
         self.set_pulse(2, amp, offs, freq, dc)
 
-    def trigg4d(self, freq):
-        self.set_wave2(
-            self.ampTrigger4d/self.amplifierGain,
-            self.offsetTrigger4d/self.amplifierGain,
-            freq,
-            'SQUARE'
-        )
-
-        self.wave_on(ch)
+    def trigg4D(self, freq):
+        self.set_wave2(ampl=4,offs=2,freq=freq,wave_form='SQU')
 
     def single_pulse(self, ch):
         pulseamp = 2

@@ -196,9 +196,9 @@ class SPLATTEngine():
         state.set("Control", "Kp",f'{Kp}')
         state.set("Control", "Kd", f'{Kd}')        
         state.set("Control", "Ki", f'{Ki}')
-        state.set("Control", 'Derivative cut-off frequency', f'{aPid/(2*np.pi):1.0f} [Hz]')
-        if bPid != 0:
-            state.set("Control","Proportional cut-off frequency", f'{bPid/(2*np.pi:1.0f)} [Hz]')
+        state.set("Control", 'Kd cut-off frequency', f'{aPid/(2*np.pi):1.0f} [Hz]')
+        if bPid > 0:
+            state.set("Control", 'Kp cut-off frequency', f'{bPid/(2*np.pi):1.0f} [Hz]')
         state.set("Control", 'Preshaper time', f'{preTime*1e+3:1.2f} [ms]')
         state.set("Control",'Preshaper enabled',f'{preEna:1.0f} (19 if on all coils or 0 if disabled)')
         state.set("Control",'Flat TN', f'{flatTN}')

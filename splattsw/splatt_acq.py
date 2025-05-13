@@ -11,6 +11,8 @@ from threading import Thread
 import time
 import numpy as np
 from datetime import datetime
+from astropy.io import fits as pyfits
+import os
 
 class Acquisition():
 
@@ -26,8 +28,11 @@ class Acquisition():
             print('Interferometer not found')
 
         # Accelerometers
-        self.webdaq=wdq()
-        self.webdaq.connect()
+        try:
+            self.webdaq=wdq()
+            self.webdaq.connect()
+        except:
+            print('WebDAQ not found')
 
         # Signal generator
         self.wavegen = wg()
@@ -81,46 +86,73 @@ class Acquisition():
         return tn
 
 
-    def acq_freq(self, freqPI,  ampPI=2, nframes:int = 2000, chPI:int = 1, produce:bool = False, buffer_dec:int = None):
+    def acq_freq(self, freqPI, freq4D, ampPI=1, nframes:int = 1000, produce:bool = False, buffer_dec:int = None):
+
+        if ampPI > 1:
+            raise ValueError(f'Amplitude {ampPI} is greater than 1, this might be outside interferometer capture range when exciting around the 20 Hz frequency')
 
         # Generate new tn
         tn = self._generate_tn()
 
-        # Start acquisition and sine wave
-        self.wavegen.set_wave(ch=chPI, ampl=ampPI, offs=0, freq=freqPI, wave_form='SIN')
+        # Start acquisition and pulse trigger
+        self.wavegen.set_wave(ch=1, ampl=ampPI, offs=0, freq=freqPI, wave_form='SIN')
+        self.wavegen.trigg4D(freq4D)
+
+        # Start buffer acquisition
         if buffer_dec is not None:
             self.eng.send(f'clear opts; opts.dec = {buffer_dec}; opts.sampleNR = 256; opts.save2mat = 0; opts.save2fits = 1; opts.tn = {tn}')
-            self.eng.oneway_send("splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
-        t0 = time.time()
+            def start_buffer():
+                self.eng.send("splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
+            buffer_thread = Thread(target = start_buffer)
+            buffer_thread.start()
+        
+        # Wait for transient before starting WebDAQ
         time.sleep(4) # wait for transient
         self.webdaq.start_schedule()
+
+        # Capture frames
         if nframes > 0:
+            self.interf.setTriggerMode(True)
             self.interf.capture(nframes, tn)
         
         # Wait for webDAQ acquisition to end
         self.webdaq.stop_schedule_when_job_ends(job_id = 0)
 
         # Acquisition end
-        self.wavegen.wave_off(chPI)
+        self.wavegen.wave_off(1)
+        self.wavegen.wave_off(2)
         
         # Post-processing
         self.sync_and_save_last_wdfile(tn)
 
         if self.mx is not None:
             self.mx.save_pressure(self.config_path,tn)
-
-        if np.logical_and( nframes > 0, produce):
-            self.interf.produce(tn)
+        if nframes > 0:
+            self.interf.setTriggerMode(False)
+            if produce:
+                self.interf.produce(tn)
+            dirpath = os.path.join(self.config_path,tn)
+            try:
+                os.mkdir(dirpath)
+            except FileExistsError:
+                pass
+            pyfits.writeto(os.path.join(dirpath,'frequency4D.fits'),freq4D)
 
         if buffer_dec is not None:
-            # Wait for buffer to end before reading tn
-            t1 = time.time()
-            dt = t1-t0
-
-            if dt < 45:
-                time.sleep(45-dt)
+            # Wait for buffer to end
+            buffer_thread.join()
         
         return tn
+
+
+    def acq_frequencies(fvec, Ncycles:int = 50, nframes:int = 500):
+
+        for freqPI in fvec:
+            freq = freqPI*nframes/Ncycles
+            freq4D = int(freq*5)/5 # multiple of 0.2 [Hz]
+            print(f'Piezo freq: {fr:1.0f} [Hz], 4D freq: {freq4D:1.1f} [Hz]')
+            self.acq_freq(f, freq4D, nframes = nframes)
+
     
 
     def acq_sync_sweep(self, fmin = 30, fmax = 110, duration = 11, ampPI = 2, 
@@ -182,7 +214,7 @@ class Acquisition():
     def sync_and_save_last_wdfile(tn):
         sp.wdsync()
         wdf = sp.last_wdfile()
-        sp.save_file(wdf, tn)
+        sp.savefile(wdf, tn)
 
 
 
