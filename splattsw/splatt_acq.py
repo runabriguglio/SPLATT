@@ -81,15 +81,15 @@ class Acquisition():
         return tn
 
 
-    def acq_freq(self, freqPI,  ampPI=2, nframes:int = 2000, chPI:int = 1, produce:bool = False, buffer:bool = False):
+    def acq_freq(self, freqPI,  ampPI=2, nframes:int = 2000, chPI:int = 1, produce:bool = False, buffer_dec:int = None):
 
         # Generate new tn
         tn = self._generate_tn()
 
         # Start acquisition and sine wave
         self.wavegen.set_wave(ch=chPI, ampl=ampPI, offs=0, freq=freqPI, wave_form='SIN')
-        if buffer:
-            self.eng.send(f'clear opts; opts.dec = 0; opts.sampleNR = 256; opts.save2mat = 0; opts.save2fits = 1; opts.tn = {tn}')
+        if buffer_dec is not None:
+            self.eng.send(f'clear opts; opts.dec = {buffer_dec}; opts.sampleNR = 256; opts.save2mat = 0; opts.save2fits = 1; opts.tn = {tn}')
             self.eng.oneway_send("splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
         t0 = time.time()
         time.sleep(4) # wait for transient
@@ -112,7 +112,7 @@ class Acquisition():
         if np.logical_and( nframes > 0, produce):
             self.interf.produce(tn)
 
-        if buffer:
+        if buffer_dec is not None:
             # Wait for buffer to end before reading tn
             t1 = time.time()
             dt = t1-t0
