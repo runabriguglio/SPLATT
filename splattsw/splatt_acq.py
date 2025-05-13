@@ -145,15 +145,15 @@ class Acquisition():
         return tn
 
 
-    def acq_frequencies(fvec, Ncycles:int = 50, nframes:int = 500):
+    def acq_frequencies(self, fvec, Ncycles:int = 50, nframes:int = 500):
 
         for freqPI in fvec:
             freq = freqPI*nframes/Ncycles
-            freq4D = int(freq*5)/5 # multiple of 0.2 [Hz]
-            print(f'Piezo freq: {fr:1.0f} [Hz], 4D freq: {freq4D:1.1f} [Hz]')
-            self.acq_freq(f, freq4D, nframes = nframes)
+            max_freq4D = self.interf.getFrameRate()
+            freq4D = np.min(max_freq4D,int(freq*5)/5) # multiple of 0.2 [Hz]
+            print(f'Piezo freq: {freqPI:1.0f} [Hz], 4D freq: {freq4D:1.1f} [Hz]')
+            self.acq_freq(freqPI, freq4D, nframes = nframes)
 
-    
 
     def acq_sync_sweep(self, fmin = 30, fmax = 110, duration = 11, ampPI = 2, 
                   nframes:int = 2250, produce:bool = False):
