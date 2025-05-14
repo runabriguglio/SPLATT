@@ -100,7 +100,7 @@ class Acquisition():
 
         # Start buffer acquisition
         if buffer_dec is not None:
-            self.eng.send(f'clear opts; opts.dec = {buffer_dec}; opts.sampleNR = 256; opts.save2mat = 0; opts.save2fits = 1; opts.tn = {tn}')
+            self.eng.send(f"clear opts; opts.dec = {buffer_dec}; opts.sampleNR = 256; opts.save2mat = 0; opts.save2fits = 1; opts.tn = '{tn}'")
             def start_buffer():
                 self.eng.send("splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
             buffer_thread = Thread(target = start_buffer)
@@ -136,7 +136,7 @@ class Acquisition():
                 os.mkdir(dirpath)
             except FileExistsError:
                 pass
-            pyfits.writeto(os.path.join(dirpath,'frequency4D.fits'),freq4D)
+            pyfits.writeto(os.path.join(dirpath,'frequency4D.fits'),np.array([freq4D]))
 
         if buffer_dec is not None:
             # Wait for buffer to end
@@ -147,15 +147,20 @@ class Acquisition():
 
     def acq_frequencies(self, fvec, nframes:int = 500):
 
+        tn_list = []
         max_freq4D = self.interf.getFrameRate()
         fcy= int(max_freq4D/max(fvec))
         for freqPI in fvec:
             freq4D = freqPI*fcy  # same temporal sampling for each PI freq
-            #freq = freqPI*nframes/Ncycles
-            #max_freq4D = self.interf.getFrameRate()
-            #freq4D = np.min(max_freq4D,int(freq*5)/5) # multiple of 0.2 [Hz]
+            dec = np.max((0, int(fcy/256/550e-6/freqPI-1)))
             print(f'Piezo freq: {freqPI:1.0f} [Hz], 4D freq: {freq4D:1.1f} [Hz]')
-            self.acq_freq(freqPI, freq4D, nframes = nframes)
+            tn = self.acq_freq(freqPI, freq4D, nframes = nframes, buffer_dec = dec)
+            tn_list.append(tn)
+
+        tn_list = np.array(tn_list)
+        print(tn_list)
+
+        return tn_list
 
 
     def acq_sync_sweep(self, fmin = 30, fmax = 110, duration = 11, ampPI = 2, 
