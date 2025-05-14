@@ -100,7 +100,7 @@ class Acquisition():
 
         # Start buffer acquisition
         if buffer_dec is not None:
-            self.eng.send(f"clear opts; opts.dec = {buffer_dec}; opts.sampleNR = 256; opts.save2mat = 0; opts.save2fits = 1; opts.tn = '{tn}'")
+            self.eng.send(f"clear opts; opts.dec = {buffer_dec}; opts.sampleNr = 256; opts.save2mat = 0; opts.save2fits = 1; opts.tn = '{tn}'")
             def start_buffer():
                 self.eng.send("splattAcqBufInt({'sabi32_Distance','sabi32_pidCoilOut'},opts)")
             buffer_thread = Thread(target = start_buffer)
