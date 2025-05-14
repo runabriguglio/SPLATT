@@ -145,12 +145,15 @@ class Acquisition():
         return tn
 
 
-    def acq_frequencies(self, fvec, Ncycles:int = 50, nframes:int = 500):
+    def acq_frequencies(self, fvec, nframes:int = 500):
 
+        max_freq4D = self.interf.getFrameRate()
+        fcy= int(max_freq4D/max(fvec))
         for freqPI in fvec:
-            freq = freqPI*nframes/Ncycles
-            max_freq4D = self.interf.getFrameRate()
-            freq4D = np.min(max_freq4D,int(freq*5)/5) # multiple of 0.2 [Hz]
+            freq4D = freqPI*fcy  # same temporal sampling for each PI freq
+            #freq = freqPI*nframes/Ncycles
+            #max_freq4D = self.interf.getFrameRate()
+            #freq4D = np.min(max_freq4D,int(freq*5)/5) # multiple of 0.2 [Hz]
             print(f'Piezo freq: {freqPI:1.0f} [Hz], 4D freq: {freq4D:1.1f} [Hz]')
             self.acq_freq(freqPI, freq4D, nframes = nframes)
 
