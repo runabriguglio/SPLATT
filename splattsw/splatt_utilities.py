@@ -26,7 +26,7 @@ def buffsync():
     subprocess.run("rsync -av --include='*/' --include='*.fits' --exclude='*' --prune-empty-dirs labot@splatt:/home/labot/Desktop/Data/SPLATT/Buffer/ /mnt/jumbo/SPLATT/Buffer/", shell=True)
 
 
-def read_buffer_data(TN:str = None):
+def read_buffer(TN:str = None):
 
     ip = _get_local_ip()
     if '193.206.155.43' in ip: # M4WS
@@ -76,11 +76,12 @@ def read_buffer_data(TN:str = None):
     return data, time_vec
 
 
-def analyse_buffer(TN:str = None, modes = None):
+def analyse_buffer(TN:str = None):
 
-    data, tvec = read_buffer_data(TN)
-    dt = (tvec[-1]-tvec[0])/len(tvec)
+    data, tvec = read_buffer(TN)
     ZM = _get_splatt_zernike_matrix()
+    tvec = tvec.T
+    dt = (tvec[-1]-tvec[0])/len(tvec)
 
     for key in data.keys():
         val = data[key]
@@ -88,16 +89,17 @@ def analyse_buffer(TN:str = None, modes = None):
             val = val.T
         spe, fvec = get_spectrum(val, dt)
         data[key + '_spectrum'] = spe
-        zdata = np.pinv(ZM) * val
-        data[key + '_zernike'] = zdata
-        spe_z, _ = get_spectrum(zdata, dt)
+        zdata = ZM.T * val
+        dzdata = zdata - np.reshape(zdata[0,:],[np.shape(zdata)[0],1])
+        data[key + '_zernike'] = dzdata
+        spe_z, _ = get_spectrum(dzdata, dt)
         data[key + '_zernike_spectrum'] = spe_z
 
-        if modes is not None:
-            dmodes = np.pinv(modes) * val
-            data[key + '_modes'] = dmodes
-            spe_m, _ = get_spectrum(dmodes, dt)
-            data[key + '_modal_spectrum'] = spe_m
+    # Convert everything in a format friendlier to matplotlib.pyplot
+    for key in data.keys():
+        data[key] = data[key].T
+
+    tvec = np.repeat(tvec,19,axis=1)
 
     return data, tvec, fvec
 
@@ -165,7 +167,7 @@ def _read_sab_address(folder_path, file_name):
         addr = chr(int_addr[0])
         for i in range(len(int_addr)-1):
             addr += chr(int_addr[i+1])
-    except FileNotFoundError:
+    except: #FileNotFoundError:
         addr = None
 
     return addr
@@ -216,7 +218,8 @@ def _project_zernike(noll_number:int, coords):
         raise ValueError("Noll index must be equal to or greater than 1")
 
     # Image dimensions
-    X,Y = coords
+    X = coords[:,0]
+    Y = coords[:,1]
 
     # Determine circle radius on to which define the Zernike
     r = np.max(np.sqrt(X**2+Y**2))/2
@@ -225,7 +228,8 @@ def _project_zernike(noll_number:int, coords):
     phi = lambda i,j: np.arctan2((j-Y/2.)/r,(i-X/2.)/r)
     rho = lambda i,j: np.sqrt(((j-Y/2.)/r)**2+((i-X/2.)/r)**2)
             
-    mode = np.fromfunction(lambda i,j: _zernikel(noll_number, rho(i,j), phi(i,j)), [X,Y])
+    zmode = lambda i,j: _zernikel(noll_number, rho(i,j), phi(i,j))
+    mode = zmode(X,Y)
 
     # Normalization of the masked data: null mean and unit STD
     if noll_number > 1:
@@ -268,6 +272,7 @@ def _zernike(m, n, rho, phi):
     return _zernike_rad(0, n, rho)
 
 
+from math import factorial as fac
 def _zernike_rad(m, n, rho):
     """
     Calculate the radial component of Zernike polynomial (m, n)
