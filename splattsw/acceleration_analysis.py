@@ -67,7 +67,19 @@ def plot_data(data, ch_ids = None, freq = freqwebdaq, title_str = None):
     plt.grid('on')
     plt.axis('tight')
     
+def integrate_peak_freq(spe, f_vec, bound = None, bins = 2):
 
+    _, peak_freq, peak_id = find_peak_freq(spe, f_vec, bound)
+
+    N = len(peak_id)
+    if N > 1:
+        displ = np.zeros(N)
+        for i in range(N):
+            displ = acc_integrate(spe[i], peak_freq[i], peak_id[i], delta_peak = bins)
+    else:
+        displ = acc_integrate(spe, peak_freq, peak_id, delta_peak = bins)
+
+    return displ, peak_freq
 
 
 def find_peak_freq(spe, freq_vec, bound = None):
@@ -102,7 +114,9 @@ def find_peak_freq(spe, freq_vec, bound = None):
 
 def acc_integrate(spe, peak_freq, peak_id, delta_peak = 3):
     #acc is the acceleration value in g
-    spe_peak = spe[(peak_id-delta_peak):(peak_id+delta_peak+1)]
+    min_id = np.max((int(0),peak_id-delta_peak))
+    max_id = np.min(len(spe),peak_id+delta_peak+1)
+    spe_peak = spe[min_id:max_id]
     acc = np.sum(spe_peak)
     acc = acc * 9.807#converts to m/s2
     amp = acc/(4*np.pi**2*peak_freq**2)
