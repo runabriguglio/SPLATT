@@ -87,6 +87,12 @@ def analyse_buffer(TN:str = None):
 
     for key in data_dict.keys():
         val = data_dict[key].copy()
+
+        # Convert from meters to bits
+        if np.logical_or(key == 'pos',key == 'pos_cmd'):
+            val = val * 2**-26
+        
+        # Ensure correct dimesions for matrix multiplication
         if np.shape(val)[1] < np.shape(val)[0]:
             val = val.T
         spe, fvec = get_spectrum(val, dt)
@@ -172,7 +178,19 @@ def _read_sab_address(folder_path, file_name):
     except: #FileNotFoundError:
         addr = None
 
-    return addr
+    name = addr
+
+    #  I tried match-case but it seems to give issues
+    if addr == 'sabi32_Distance':
+        name = 'pos'
+    elif addr == 'sabi32_pidCoilOut':
+        name = 'cur'
+    elif addr == 'sabu16_position':
+        name = 'pos_cmd'
+    elif addr == 'sabi16_force':
+        name = 'cur_cmd'
+
+    return name
 
 
 def _get_local_ip():
