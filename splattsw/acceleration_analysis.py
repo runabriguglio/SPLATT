@@ -21,9 +21,24 @@ def savefile(wdfname, tn):
     data = openfile(wdfname)
     pyfits.writeto(basepathwebdaq+tn+'.fits', data)
 
-def openfile(name, data_len = None):
-    file_path = os.path.join(basepathwebdaq, name)
-    data = _openwdd(file_path, data_len)
+
+def openfile(filename, data_len = None):
+
+    filext = filename.split('.')[-1]
+
+    if filext == 'wdd':
+        file_path = os.path.join(basepathwebdaq, filename)
+        data = _openwdd(file_path, data_len)
+
+    elif filext == 'fits':
+        file_path = os.path.join(basepathwebdaq, filename)
+        with pyfits.open(file_path) as hdul:
+            data = hdul[0].data
+    else:
+        file_path = os.path.join(basepathwebdaq, filename + '.fits')
+        with pyfits.open(file_path) as hdul:
+            data = hdul[0].data
+
     return data
 
 def plot_data(data, ch_ids = None, freq = freqwebdaq, title_str = None):
@@ -70,6 +85,7 @@ def find_peak_freq(spe, freq_vec, bound = None):
         spe = spe.T
         nChan = size_spe[0]
 
+    peak_id = np.zeros(nChan)
     peak_val = np.zeros(nChan)
     peak_freq = np.zeros(nChan)
 
@@ -81,7 +97,7 @@ def find_peak_freq(spe, freq_vec, bound = None):
         idf1 = idf[0]
         peak_freq[j] = freq_vec[idf1[peak_id]]
 
-    return peak_val, peak_freq
+    return peak_val, peak_freq, peak_id
 
 
 def acc_integrate(spe, peak_freq, peak_id, delta_peak = 3):

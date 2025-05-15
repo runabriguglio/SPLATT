@@ -13,7 +13,7 @@ basepathwebdaq   = '/mnt/jumbo/SPLATT/WebDaqData/' #'/home/labot/ftp/'
 freqwebdaq       = 1651.6129 #Hz; minimum sampling f
 foldanalysisconf = '/home/labot/git/SPLATT/'
 resultfold       = '/mnt/libero/SPLATTData/Results/'
-
+testconfigpath   = '/mnt/libero/SPLATTData/TestConfig/'
 #configureRC()
 
 def plot_ttspectra(spe,f, tn=None):
@@ -188,6 +188,10 @@ def acc_integrate(acc, freq):
     amp = acc/(4*np.pi**2*freq**2)
     return amp
 
+def read_4dfreq(tn):
+    fname = testconfigpath+tn+'/frequency4D.fits'
+    freq = (pyfits.open(fname))[0].data
+    return freq[0]
 
 def read_analysisconf(tn):
     import configparser
