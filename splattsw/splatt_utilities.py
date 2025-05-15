@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from astropy.io import fits as pyfits
 
-from acceleration_analysis import get_spectrum
+from splattsw,acceleration_analysis import get_spectrum
 
 import os
 import glob
@@ -116,13 +116,13 @@ def splatt_plot(values, min_val=None, max_val=None):
     coordAct = np.loadtxt('../SPLATT_Data/act_coords.txt')
     nActs = len(coordAct)
 
-    # Perform matrix rotation to align with reference
-    phi = 60./180*np.pi
-    c=np.cos(phi)
-    s=np.sin(phi)
-    MatRot=[[c,-s],[s,c]]
-    coordAct = MatRot@coordAct.T
-    coordAct = coordAct.T
+    # # Perform matrix rotation to align with reference
+    # phi = 60./180*np.pi
+    # c=np.cos(phi)
+    # s=np.sin(phi)
+    # MatRot=[[c,-s],[s,c]]
+    # coordAct = MatRot@coordAct.T
+    # coordAct = coordAct.T
 
     # Set scatter plot variables
     Margin = 0.03

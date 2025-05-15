@@ -150,4 +150,7 @@ dmypy.json
 # Jupyter notebooks
 .ipynb
 
+# Depracated files
+old_scripts/
+
 
