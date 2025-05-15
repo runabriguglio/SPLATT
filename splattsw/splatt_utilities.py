@@ -78,19 +78,21 @@ def read_buffer(TN:str = None):
 
 def analyse_buffer(TN:str = None):
 
-    data, tvec = read_buffer(TN)
+    data_dict, tvec = read_buffer(TN)
     ZM = _get_splatt_zernike_matrix()
     tvec = tvec.T
-    dt = (tvec[-1]-tvec[0])/len(tvec)
+    dt = tvec[1]-tvec[0]
 
-    for key in data.keys():
-        val = data[key]
+    data = data_dict.copy()
+
+    for key in data_dict.keys():
+        val = data_dict[key].copy()
         if np.shape(val)[1] < np.shape(val)[0]:
             val = val.T
         spe, fvec = get_spectrum(val, dt)
         data[key + '_spectrum'] = spe
-        zdata = ZM.T * val
-        dzdata = zdata - np.reshape(zdata[0,:],[np.shape(zdata)[0],1])
+        zdata = ZM.T @ val
+        dzdata = zdata - np.reshape(zdata[:,0],[np.shape(zdata)[0],1])
         data[key + '_zernike'] = dzdata
         spe_z, _ = get_spectrum(dzdata, dt)
         data[key + '_zernike_spectrum'] = spe_z
@@ -234,6 +236,8 @@ def _project_zernike(noll_number:int, coords):
     # Normalization of the masked data: null mean and unit STD
     if noll_number > 1:
         norm_mode = (mode - np.mean(mode))/np.std(mode)
+    else:
+        norm_mode = mode
 
     return norm_mode
     
