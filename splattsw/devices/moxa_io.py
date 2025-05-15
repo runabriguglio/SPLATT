@@ -4,6 +4,15 @@ import os
 import numpy as np
 from astropy.io import fits as pyfits
 
+def save_meas(meas_value, fpath, tn):
+    dirpath = os.path.join(fpath,tn)
+    try:
+        os.mkdir(dirpath)
+    except FileExistsError:
+        pass
+    pyfits.writeto(os.path.join(dirpath,str(meas_value)+'.fits'), np.array([meas_value]))
+
+
 class Moxa_ai0(Moxa):
 
     def __init__(self, ip = '193.206.155.47', nchannels:int = 8,
@@ -17,16 +26,7 @@ class Moxa_ai0(Moxa):
         pres = data[6]
         return pres
     
-    def save_pressure(self, fpath, tn):
-        pres = self.read_pressure()
 
-        dirpath = os.path.join(fpath,tn)
-        try:
-            os.mkdir(dirpath)
-        except FileExistsError:
-            pass
-
-        pyfits.writeto(os.path.join(dirpath,'pressure.fits'), np.array([pres]))
 
 
 class Moxa_pt0(Moxa):

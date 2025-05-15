@@ -166,12 +166,11 @@ class SPLATTEngine():
 
         return mean_pos, mean_cur, buf_tn
     
-    def save_state(self,fpath,tn):
-
+    def read_state(self):
         pos = self.get_position()
         cur = self._eng.read("aoRead('sabi32_pidCoilOut',1:19)")
-        pos_cmd = self._eng.read("aoRead('sabu16_position',1:19)")
-        cur_cmd = self._eng.read("aoRead('sabi16_force',1:19)")
+        #pos_cmd = self._eng.read("aoRead('sabu16_position',1:19)")
+        #cur_cmd = self._eng.read("aoRead('sabi16_force',1:19)")
         coilsEnabled = np.sum(self._read_splatt_vec("aoRead('sabu8_enableCoil',1:19)"))
         self._eng.send('flags = lattGetFlags()')
         nrDriver = self._eng.read('1+sum(flags.driver2On)/19+sum(flags.driver3On)/19+sum(flags.driver4On)/19')
@@ -204,19 +203,8 @@ class SPLATTEngine():
         state.set("Control",'Flat TN', f'{flatTN}')
         state.set("Coils",'Enabled Coils',f'{coilsEnabled:1.0f}')
         state.set("Coils",'Drivers On', f'{nrDriver:1.0f}')
-
-        dirpath = os.path.join(fpath,tn)
-        try:
-            os.mkdir(dirpath)
-        except FileExistsError:
-            pass
-
-        pyfits.writeto(os.path.join(dirpath,'sabu16_position.fits'), np.array(pos_cmd))
-        pyfits.writeto(os.path.join(dirpath,'sabi16_force.fits'), np.array(cur_cmd))
-        pyfits.writeto(os.path.join(dirpath,'sabi32_pidCoilOut.fits'), np.array(cur))
-        
-        with open(os.path.join(dirpath,'SysData.ini'), 'w') as state_file:
-            state.write(state_file)
+        state.set("Coils",'Max current', f'{np.max(cur):1.0f} [counts] on coil {int(np.argmax(cur)+1)}')
+        state.set("Coils",'Min current', f'{np.min(cur):1.0f} [counts] on coil {int(np.argmin(cur)+1)}')
 
         return state
     
