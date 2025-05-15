@@ -2,9 +2,23 @@ import matplotlib.pyplot as plt
 import numpy as np
 from astropy.io import fits as pyfits
 
+from acceleration_analysis import get_spectrum
+
 import os
 import glob
 import subprocess
+
+def read_fits(file_path:str, file_name:str):
+    
+    try:
+        which = os.path.join(file_path,file_name)
+        with pyfits.open(which) as hdu:
+            hdu.verify('fix')
+            read_data =np.array(hdu[0].data)
+    except FileNotFoundError:
+        read_data = None
+
+    return read_data
 
 
 def buffsync():
@@ -62,7 +76,33 @@ def read_buffer_data(TN:str = None):
     return data, time_vec
 
 
-def splatt_plot(values,min_val=None, max_val=None):
+def analyse_buffer(TN:str = None, modes = None):
+
+    data, tvec = read_buffer_data(TN)
+    dt = (tvec[-1]-tvec[0])/len(tvec)
+    ZM = _get_splatt_zernike_matrix()
+
+    for key in data.keys():
+        val = data[key]
+        if np.shape(val)[1] < np.shape(val)[0]:
+            val = val.T
+        spe, fvec = get_spectrum(val, dt)
+        data[key + '_spectrum'] = spe
+        zdata = np.pinv(ZM) * val
+        data[key + '_zernike'] = zdata
+        spe_z, _ = get_spectrum(zdata, dt)
+        data[key + '_zernike_spectrum'] = spe_z
+
+        if modes is not None:
+            dmodes = np.pinv(modes) * val
+            data[key + '_modes'] = dmodes
+            spe_m, _ = get_spectrum(dmodes, dt)
+            data[key + '_modal_spectrum'] = spe_m
+
+    return data, tvec, fvec
+
+
+def splatt_plot(values, min_val=None, max_val=None):
     coordAct = np.loadtxt('../SPLATT_Data/act_coords.txt')
     nActs = len(coordAct)
 
@@ -131,19 +171,6 @@ def _read_sab_address(folder_path, file_name):
     return addr
 
 
-def read_fits(file_path:str, file_name:str):
-    
-    try:
-        which = os.path.join(file_path,file_name)
-        with pyfits.open(which) as hdu:
-            hdu.verify('fix')
-            read_data =np.array(hdu[0].data)
-    except FileNotFoundError:
-        read_data = None
-
-    return read_data
-
-
 def _get_local_ip():
 
     res = subprocess.run(['hostname','-I'], stdout=subprocess.PIPE,
@@ -151,6 +178,144 @@ def _get_local_ip():
     ip = res.stdout.strip().split(' ')
 
     return ip
+
+
+def _get_splatt_zernike_matrix():
+
+    coordAct = np.loadtxt('../SPLATT_Data/act_coords.txt')
+    nActs = len(coordAct)
+
+    ZM = np.zeros([nActs, nActs])
+
+    for i in range(nActs):
+        ZM[:,i] = _project_zernike(i+1, coordAct)
+
+    return ZM
+
+
+def _project_zernike(noll_number:int, coords):
+    """
+    Project the Zernike polynomials identified by the Noll number in input
+    on the given coordinates.
+    The polynomials are computed on the largest circle in the coordinates
+
+    Parameters
+    ----------
+    noll_number : int
+        Noll index of the desired Zernike polynomial.
+    coords : [Npoints,2]
+        Coordinates of the desired projection.
+
+    Returns
+    -------
+    zern_data : [Npoints]
+        Flattened array of the Zernike shape on the coordinates
+
+    """
+    if noll_number < 1:
+        raise ValueError("Noll index must be equal to or greater than 1")
+
+    # Image dimensions
+    X,Y = coords
+
+    # Determine circle radius on to which define the Zernike
+    r = np.max(np.sqrt(X**2+Y**2))/2
+
+    # Conversion to polar coordinates on circle of radius r 
+    phi = lambda i,j: np.arctan2((j-Y/2.)/r,(i-X/2.)/r)
+    rho = lambda i,j: np.sqrt(((j-Y/2.)/r)**2+((i-X/2.)/r)**2)
+            
+    mode = np.fromfunction(lambda i,j: _zernikel(noll_number, rho(i,j), phi(i,j)), [X,Y])
+
+    # Normalization of the masked data: null mean and unit STD
+    if noll_number > 1:
+        norm_mode = (mode - np.mean(mode))/np.std(mode)
+
+    return norm_mode
+    
+
+########### from M4SW ############
+
+def _zernikel(j, rho, phi):
+    """
+    Calculate Zernike polynomial with Noll coordinate j given a grid of radial
+    coordinates rho and azimuthal coordinates phi.
+
+    >>> zernikel(0, 0.12345, 0.231)
+    1.0
+    >>> zernikel(1, 0.12345, 0.231)
+    0.028264010304937772
+    >>> zernikel(6, 0.12345, 0.231)
+    0.0012019069816780774
+    """
+    m, n = _j2mn_noll(j)
+    
+    return _zernike(m, n, rho, phi)
+
+
+def _zernike(m, n, rho, phi):
+    """
+    Calculate Zernike polynomial (m, n) given a grid of radial
+    coordinates rho and azimuthal coordinates phi.
+
+    >>> zernike(3,5, 0.12345, 1.0)
+    0.0073082282475042991
+    >>> zernike(1, 3, 0.333, 5.0)
+    -0.15749545445076085
+    """
+    if (m > 0): return _zernike_rad(m, n, rho) * np.cos(m * phi)
+    if (m < 0): return _zernike_rad(-m, n, rho) * np.sin(-m * phi)
+    return _zernike_rad(0, n, rho)
+
+
+def _zernike_rad(m, n, rho):
+    """
+    Calculate the radial component of Zernike polynomial (m, n)
+    given a grid of radial coordinates rho.
+
+    >>> zernike_rad(3, 3, 0.333)
+    0.036926037000000009
+    >>> zernike_rad(1, 3, 0.333)
+    -0.55522188900000002
+    >>> zernike_rad(3, 5, 0.12345)
+    -0.007382104685237683
+    """
+
+    if (n < 0 or m < 0 or abs(m) > n):
+        raise ValueError
+
+    if ((n-m) % 2):
+        return rho*0.0
+
+    pre_fac = lambda k: (-1.0)**k * fac(n-k) / ( fac(k) * fac( int((n+m)/2.0 - k) ) * fac( int((n-m)/2.0 - k) ) )
+
+    return sum(pre_fac(k) * rho**(n-2.0*k) for k in range((n-m)//2+1))
+
+
+def _j2mn_noll(j):
+    """
+    Find the [n,m] list giving the radial order n and azimuthal order
+    of the Zernike polynomial of Noll index j.
+
+    Parameters:
+        j (int): The Noll index for Zernike polynomials
+
+    Returns:
+        list: n, m values
+    """
+    n = int((-1.+np.sqrt(8*(j-1)+1))/2.)
+    p = (j-(n*(n+1))/2.)
+    k = n%2
+    m = int((p+k)/2.)*2 - k
+
+    if m!=0:
+        if j%2==0:
+            s=1
+        else:
+            s=-1
+        m *= s
+
+    return [m, n]
 
 
 
