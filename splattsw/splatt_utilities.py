@@ -1,8 +1,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from astropy.io import fits as pyfits
+from astropy.io.fits.verify import VerifyWarning
+import warnings
+warnings.simplefilter('ignore', category=VerifyWarning)
 
-from splattsw,acceleration_analysis import get_spectrum
+from splattsw.acceleration_analysis import get_spectrum
 
 import os
 import glob
@@ -113,7 +116,7 @@ def analyse_buffer(TN:str = None):
 
 
 def splatt_plot(values, min_val=None, max_val=None):
-    coordAct = np.loadtxt('../SPLATT_Data/act_coords.txt')
+    coordAct = np.loadtxt('/home/labot/git/SPLATT/SPLATT_Data/act_coords.txt')
     nActs = len(coordAct)
 
     # # Perform matrix rotation to align with reference
@@ -155,7 +158,7 @@ def mirror_mesh(values):
     Y = int(2*npix)
     circ_mask = np.fromfunction(lambda i,j: np.sqrt((i-npix)**2+(j-npix)**2) > npix, [X,Y])
 
-    IFF = np.loadtxt('../SPLATT_Data/iffs.txt')
+    IFF = np.loadtxt('/home/labot/git/SPLATT/SPLATT_Data/iffs.txt')
 
     flat_img = np.zeros(np.size(circ_mask))
     flat_img[~circ_mask.flatten()] = IFF @ values
@@ -204,7 +207,7 @@ def _get_local_ip():
 
 def _get_splatt_zernike_matrix():
 
-    coordAct = np.loadtxt('../SPLATT_Data/act_coords.txt')
+    coordAct = np.loadtxt('/home/labot/git/SPLATT/SPLATT_Data/act_coords.txt')
     nActs = len(coordAct)
 
     ZM = np.zeros([nActs, nActs])

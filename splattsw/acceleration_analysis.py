@@ -7,6 +7,8 @@ import json
 import struct
 from astropy.io import fits as pyfits
 
+from scipy.signal import lfilter
+
 # WebDAQ variables
 freqwebdaq = 1651.6129 #Hz; minimum sampling frequency
 basepathwebdaq = '/mnt/jumbo/SPLATT/WebDaqData/'
@@ -155,18 +157,22 @@ def last_wdfile(N:int=1, ext=None):
     return file_list
 
 
-def get_spectrum(signal, dt=1):
+def get_spectrum(signal, dt=1, phase = False):
     spe = np.fft.rfft(signal, norm="ortho", axis=-1)
     nn = np.sqrt(spe.shape[-1])
-    spe = (np.abs(spe)) / nn
+    spe_mod = (np.abs(spe)) / nn
     freq = np.fft.rfftfreq(signal.shape[-1], d=dt)
 
     if len(np.shape(spe))>1:
-        spe[:,0] = 0
+        spe_mod[:,0] = 0
     else:
-        spe[0] = 0
+        spe_mod[0] = 0
 
-    return spe, freq
+    if phase is True:
+        spe_phi = np.angle(spe)
+        return spe_mod, freq, spe_phi
+    else:
+        return spe_mod, freq
 
 
 def damp_sinusoid_coeffs(signal):
