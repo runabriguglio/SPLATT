@@ -3,7 +3,7 @@ import seaborn as sns
 import numpy as np
 
 fvec = np.array([3,5,7,10,15,20,25,30])
-pvec = np.array([560,560,560,560,400,400,254,254,102,102,-2,-2,-2,250,550])*-1e-3
+pvec = np.array([550,550,550,550,400,400,250,250,102,102,-2,-2,-2,250,550])*-1e-3
 Kpvec = np.array([500,400,300,200,500,200,500,200,500,200,500,200,0,0,0])
 
 L = len(fvec)
@@ -54,25 +54,28 @@ tn_list = [
 import acceleration_analysis as sp
 import splatt_utilities as buf
 
-max_displ = np.zeros(N*L,4)
-max_spe = np.zeros(N*L,4)
-phi_max_spe = np.zeros(N*L,4)
+max_displ = np.zeros([N*L,4])
+max_spe = np.zeros([N*L,4])
+phi_max_spe = np.zeros([N*L,4])
 
 freq_WebDAQ =  1651.6129 #Hz; minimum sampling frequency
 g0 = 9.807
 
-def analyse_tn(tn, ex_freq):
+def analyse_tn(tn, ex_freq, bins: int = 2):
     max_spe = np.zeros(4)
     phi_max_spe = np.zeros(4)
     max_displ = np.zeros(4)
 
-    data, _ = sp.openfile(tn)
+    data = sp.openfile(tn)
     spe, fvec, phis = sp.get_spectrum(data, 1/freq_WebDAQ, phase = True)
 
     om = 2*np.pi*ex_freq
 
     f_id = np.argmin(np.abs(fvec-ex_freq))
-    max_spe = spe[:,f_id]*g0/om**2
+    print(spe[:,f_id])
+    min_id = int( np.max((0,f_id-bins)))
+    max_id = int (np.min((f_id+bins+1,len(fvec))))
+    max_spe = np.sum(spe[:,min_id:max_id],axis=1)*g0/om**2
     ph = phis[:,f_id]
     ph += np.pi*(ph<0)
     phi_max_spe = ph*180/np.pi
@@ -81,7 +84,7 @@ def analyse_tn(tn, ex_freq):
 
     zspe = bufdata['pos_zernike_spectrum']
     f_id = np.argmin(np.abs(fvec-ex_freq))
-    max_displ = zspe[f_id,:3]
+    max_displ[:3] = zspe[f_id,:3]
 
     max_id = np.argmax(zspe[f_id,3:])
     max_displ[-1] = zspe[f_id,max_id]
@@ -91,13 +94,17 @@ def analyse_tn(tn, ex_freq):
 if __name__ == "__main__":
     # Cycle on all tns
     for ii in range(N*L):
-        max_spe[ii,:], phi_max_spe[ii,:], max_displ[ii,:] = analyse_tn(tn_list[int((ii-(ii%L))/L)][ii%L], fvec[ii])
+        spe, phis, displ = analyse_tn(tn_list[int((ii-(ii%L))/L)][ii%L], fvec[ii])
+        max_spe[ii] = spe
+        phi_max_spe[ii] = phis
+        max_displ[ii] = displ
 
     # Fill dataframe
+    ph3 = phi_max_spe[:,3]
     dictframe = {'Pressure [bar]': pvec, 'Kp gain': Kpvec, 'Frequency [Hz]': fvec,
                 'OBB front displacement [m]': max_spe[:,0], 'OBB rear displacement [m]': max_spe[:,1], 'Stand displacement [m]': max_spe[:,2], 'Stand arm displacement [m]': max_spe[:,3],
-                'OBB front phase [deg]': phi_max_spe[:,0], 'OBB rear phase [deg]': phi_max_spe[:,1], 'Stand phase [deg]': phi_max_spe[:,2], 'Stand arm phase [deg]': phi_max_spe[:,3],
-                'Piston amplitude [m]': max_displ[0], 'Tip amplitude [m]': max_displ[1], 'Tilt amplitude [m]': max_displ[2], 'Other modes amplitude [m]': max_displ[3]}
+                'OBB front phase wrt stand arm [deg]': phi_max_spe[:,0]-ph3, 'OBB rear phase wrt stand arm [deg]': phi_max_spe[:,1]-ph3, 'Stand phase wrt stand arm [deg]': phi_max_spe[:,2]-ph3, 'Stand arm phase [deg]': ph3,
+                'Piston amplitude [m]': max_displ[:,0], 'Tip amplitude [m]': max_displ[:,1], 'Tilt amplitude [m]': max_displ[:,2], 'Other modes amplitude [m]': max_displ[:,3]}
 
     dframe = pd.DataFrame(dictframe)
 
