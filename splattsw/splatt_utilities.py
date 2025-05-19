@@ -1,9 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from astropy.io import fits as pyfits
-from astropy.io.fits.verify import VerifyWarning
-import warnings
-warnings.simplefilter('ignore', category=VerifyWarning)
+
 
 from splattsw.acceleration_analysis import get_spectrum
 
@@ -54,6 +52,7 @@ def read_buffer(TN:str = None):
         raise FileNotFoundError('The TN does not seem to contain any decimation.fits file')
 
     dataR1 = read_fits(where,'dataR1.fits')
+    print(np.shape(dataR1))
 
     data_len = np.shape(dataR1)[-1]
     dt = 1./freq*(dec+1.)
