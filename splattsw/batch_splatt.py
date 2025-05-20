@@ -112,3 +112,35 @@ for i in range(ntn):
     print(accl[i]+'  --> '+tnl[i])
     ac.savefile(accl[i],tnl[i])
 
+
+freq = [3,5,7,10,15,20,25,30]
+tnlist = ['20250514_111143', '20250514_111216', '20250514_111249', '20250514_111322','20250514_111355', '20250514_111428', '20250514_111501', '20250514_111532']
+ntn = len(tnlist)
+modesid = [1,2,4,5];nmodes = len(modesid)
+pvec = np.zeros([ntn, nmodes])
+
+for i in range(ntn):
+    pp = singlefreq(tnlist[i], freq[i], peakw=1)
+    pvec[i,:]= pp
+
+
+    zv, sv = sp.zvec(tnlist[i])
+    freq4d = sp.read_4dfreq(tnlist[i])
+    spe, f = th.spectrum(zv,dt=1/freq4d)
+    for m in range(nmodes):
+        peakt, pf = sp.find_peak(spe[modesid[m],:],f,bound = [freq[i]-1,freq[i]+1])
+        pvec[i,m]= peakt
+        print(pf)
+
+
+def singlefreq(tn, freq, peakw=1):
+    zv, sv = sp.zvec(tn)
+    freq4d = sp.read_4dfreq(tn)
+    spe, f = th.spectrum(zv,dt=1/freq4d)
+    pvec = []
+    for m in range(nmodes):
+        peakt, pf = sp.find_peak(spe[modesid[m],:],f,bound = [freq-peakw,freq+peakw])
+        pvec.append(peakt)
+        print(pf)
+    return pvec
+

@@ -98,6 +98,20 @@ def zvec(tn, overwrite = False):
     return zzvec, rrvec
 
 
+def find_peak(v, freq=None, bound=None):
+    #requires a monodimensional array
+    idf = range(len(v))
+    if freq is not None and bound is not None:
+        idf =     np.where(np.logical_and(freq>= bound[0], freq<=bound[1]))
+    peak = max(v[idf])
+    peakid = np.argmax(v[idf])
+    peakfreq = 0
+    if freq is not None:
+        idf1 = idf[0]
+        peakfreq = freq[idf1[peakid]]
+
+    return peak, peakfreq
+
 
 
 def timevec(tn):
@@ -373,6 +387,7 @@ def sweep_analysis(tn, nrunnmean: int = 5):
 
 
 def singlefreq_analysis(tn):
+    
     pass
 
 
