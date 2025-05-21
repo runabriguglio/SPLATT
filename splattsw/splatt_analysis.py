@@ -30,20 +30,20 @@ def plot_ttspectra(spe,f, tn=None):
 
 def tt_spectrum(tn, tt = None):
     flist=fileList(tn)
-    freq4d = th.osu.getFrameRate(tn)
+    freq4d = read_4dfreq(tn) #th.osu.getFrameRate(tn)
     if tt is None:
         print('Computing Z vec')
-        tt = tiltvec(tn)
+        tt, sv = zvec(tn)
     spe, f = th.spectrum(tt, dt=1/freq4d)
     return spe ,f
 
-def acc_spectrum(wdname):
-    q = openwdfile(wdname)
+def acc_spectrum(tn):
+    q = openaccfile(tn)
     spe, f = th.spectrum(q, dt=1/freqwebdaq)
     return spe, f
 
-def mech_spectrum(accvec):
-    spe, f = th.spectrum(accvec, dt=1/freqwebdaq)
+def mech_spectrum(tn):
+    spe, f = acc_spectrum(tn)
     npacc = np.shape(spe)
     spei = np.zeros(npacc)
     for i in range(npacc[0]):
@@ -189,6 +189,7 @@ def openwdfile(thename):
 
 def openaccfile(tn):
     accfile = basepathwebdaq+ tn+'.fits'
+    print('Opening file:'+accfile)
     h0 = pyfits.open(accfile)
     accelerations = h0[0].data
     h0.close()
@@ -203,13 +204,14 @@ def acc_integrate(acc, freq):
     return amp
 
 def read_4dfreq(tn):
-    fname = os.path.join(testconfigpath,tn,'/frequency4D.fits')
+    fname = os.path.join(testconfigpath,tn,'frequency4D.fits')
     if os.path.exists(fname) == 1:
+        print('Reading 4D Freq from log file')
         freq = (pyfits.open(fname))[0].data
         freq = freq[0]
     else:
         freq = th.osu.getFrameRate(tn)
-
+    print('4D Freq:'+str(freq))
     return freq
 
 def read_analysisconf(tn):
@@ -222,6 +224,15 @@ def read_analysisconf(tn):
     
     
     return dataset, meas, analysis
+
+def compare_tn(tn0, tn1, meastype = 'sweep', freq=None, nbins=9):
+    frunn0, specz0, specs0 = dataprocess(tn0,meastype, freq, nbins)
+    frunn1, specz1, specs1 = dataprocess(tn1,meastype, freq, nbins)
+    plot(frunn0,specz0[1,:],'.')
+    plot(frunn1,specz1[1,:],'.')
+    yscale('log'); xlim(20,120);grid()
+    legend([tn0, tn1])
+
 
 
 def dataprocess(tn, meastype = 'sweep', freq=None, nbins=1):
