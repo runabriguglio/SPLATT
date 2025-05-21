@@ -1,13 +1,13 @@
 #This dataset compares the LATT behaviour with different loop Kp gains
 [DATASET]
-tnrip = 20250507_115038
+tnrip = "20250507_115038"
 tnset = ["20250507_130041","20250507_145413","20250507_145705","20250507_144420"]
 tnlabel = ["Kp=500","Kp=400","Kp=300","Kp=200"]
 acclabel= ["RBfront","RBback","Stand","ElevArm"]
 
 
 [MEASUREMENT]
-type     = sweep #single
+type     = sweep
 accdata  = True
 lattdata = True
 freq0    = 30

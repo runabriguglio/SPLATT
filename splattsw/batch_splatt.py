@@ -133,6 +133,30 @@ for i in range(ntn):
         print(pf)
 
 
+def dataprocess(tn, meastype = 'sweep', freq=None, nbins=1):
+    if meastype == 'single' and freq == None:
+        print('Single freq measurement, frequency is requested')
+        return 
+    zv, sv = sp.zvec(tn)
+    freq4d = sp.read_4dfreq(tn)#implementare la lettura del file da TestConfig
+    spe, f = th.spectrum(zv,dt=1/freq4d)
+    spes,f = th.spectrum(sv, dt=1/freq4d)
+    if meastype == 'sweep':
+        frunn    = runningMean(f, nbins, dim=0)
+        specz    = runningMean(spe, nbins)
+        specs    = runningMean(spes, nbins,dim=0)
+        return frunn, specz, specs
+
+    if meastype == 'single':
+        peaks, pf = sp.find_peak(spes,f,bound = [freq-nbins,freq+nbins])
+        pvec = []
+        for m in range(len(zv)):
+            peakz, pf = sp.find_peak(spe[m,:],f,bound = [freq-nbins,freq+nbins])
+            pvec.append(peakz)
+            print(pf)
+        return freq, pvec, peaks
+
+
 def singlefreq(tn, freq, peakw=1):
     zv, sv = sp.zvec(tn)
     freq4d = sp.read_4dfreq(tn)

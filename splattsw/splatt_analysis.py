@@ -203,9 +203,14 @@ def acc_integrate(acc, freq):
     return amp
 
 def read_4dfreq(tn):
-    fname = testconfigpath+tn+'/frequency4D.fits'
-    freq = (pyfits.open(fname))[0].data
-    return freq[0]
+    fname = os.path.join(testconfigpath,tn,'/frequency4D.fits')
+    if os.path.exists(fname) == 1:
+        freq = (pyfits.open(fname))[0].data
+        freq = freq[0]
+    else:
+        freq = th.osu.getFrameRate(tn)
+
+    return freq
 
 def read_analysisconf(tn):
     import configparser
@@ -218,7 +223,32 @@ def read_analysisconf(tn):
     
     return dataset, meas, analysis
 
-def sweep_analysis(tn, nrunnmean: int = 5):
+
+def dataprocess(tn, meastype = 'sweep', freq=None, nbins=1):
+    if meastype == 'single' and freq == None:
+        print('Single freq measurement, frequency is requested')
+        return
+    zv, sv = zvec(tn)
+    freq4d = read_4dfreq(tn)#implementare la lettura del file da TestConfig
+    spe, f = th.spectrum(zv,dt=1/freq4d)
+    spes,f = th.spectrum(sv, dt=1/freq4d)
+    if meastype == 'sweep':
+        frunn    = runningMean(f, nbins, dim=0)
+        specz    = runningMean(spe, nbins)
+        specs    = runningMean(spes, nbins,dim=0)
+        return frunn, specz, specs
+
+    if meastype == 'single':
+        peaks, pf = find_peak(spes,f,bound = [freq-nbins,freq+nbins])
+        pvec = []
+        for m in range(len(zv)):
+            peakz, pf = find_peak(spe[m,:],f,bound = [freq-nbins,freq+nbins])
+            pvec.append(peakz)
+            print(pf)
+        return freq, pvec, peaks
+
+
+def global_analysis(tn):
     '''
     speczrip: 
     specsrip
@@ -234,53 +264,111 @@ def sweep_analysis(tn, nrunnmean: int = 5):
         tnset: list of tracknums. each tracknum includes optical data, accelerometer data, buffer and test config
         tnlabel: list (same len as tnset) of identifier to be associated with tnset tracknums. is to be used as labels for the plot
     '''
-    tnrip   = tninfo['tnrip']
+    meastype = measinfo['type']
+    if meastype == 'single':
+        ptsym = '-o'
+        ptrsym= '-x'
+    if meastype == 'sweep':
+        ptsym = '.'
+        ptrsym= 'x'
+
+    tnrip   = json.loads(tninfo['tnrip'])
+    #if meastype == "single":
+    #    tnrip = tnrip[0]
     tnset   = json.loads(tninfo['tnset'])
     tnlabel = json.loads(tninfo['tnlabel'])
     optlabel = []
     optlabel.append( 'RIP')
     optlabel.extend(tnlabel)
+    optxlims = json.loads(analysisinfo['optlim'])
     
     ### acceleration analysis
-    accv       = openaccfile(tnrip)
-    acctimevec = np.arange(len(accv[0]))/freqwebdaq
+    if measinfo['accdata'] == True:
+        accv       = openaccfile(tnrip)
+        acctimevec = np.arange(len(accv[0]))/freqwebdaq
 
-    mspec, mfreq = mech_spectrum(accv)
+        mspec, mfreq = mech_spectrum(accv)
 
     #utils
-    accxlims = json.loads(analysisinfo['acclim'])
-    acclegend = json.loads(tninfo['acclabel'])
-    optxlims = json.loads(analysisinfo['optlim'])
+        accxlims = json.loads(analysisinfo['acclim'])
+        acclegend = json.loads(tninfo['acclabel'])
 
-    figure(figsize=(12,6));          suptitle(tn+' Accelerometer data')
-    subplot(1,2,1);    title('Acceler. time series')
-    for i in accv:
-        plot(acctimevec, i,'.')
-    xlabel('Time [s]');    ylabel('Acceleration [g]');    legend(acclegend)
+        figure(figsize=(12,6));          suptitle(tn+' Accelerometer data')
+        subplot(1,2,1);    title('Acceler. time series')
+        for i in accv:
+            plot(acctimevec, i,'.')
+        xlabel('Time [s]');    ylabel('Acceleration [g]');    legend(acclegend)
 
-    subplot(1,2,2);     title('Mechanical Oscillation spectrum')
-    for i in mspec:
-        plot(mfreq, i,'.')
-    xlabel('Freq [Hz]'); ylabel(' Amplitude [m]'); legend(acclegend); yscale('log');xlim(accxlims[0],accxlims[1]);grid()
-    savefig(resultfold+tn+'-AccPlots.png')
+        subplot(1,2,2);     title('Mechanical Oscillation spectrum')
+        for i in mspec:
+            plot(mfreq, i,'.')
+        xlabel('Freq [Hz]'); ylabel(' Amplitude [m]'); legend(acclegend); yscale('log');xlim(accxlims[0],accxlims[1]);grid()
+        savefig(resultfold+tn+'-AccPlots.png')
     ###    end of acc data    ############
-    pass
+    
     ## analysis of optical data ###
     ntn        = len(tnset)
-    freq4d     = th.osu.getFrameRate(tnrip)
-    zv_rip, st_rip = zvec(tnrip)
-    speczrip, f = th.spectrum(zv_rip, dt=1/freq4d) 
-    specsrip, f = th.spectrum(st_rip, dt=1/freq4d)
-    frunn       = runningMean(f, nrunnmean, dim=0)
-    speczrip    = runningMean(speczrip, nrunnmean)
-    specsrip    = runningMean(specsrip, nrunnmean,dim=0)
+
     zv       = []
     sv       = []
     speczset = []
     specsset = []
     spenz    = []
     spens    = []
-    for i in tnset:
+
+    #analysis of RIP data
+    if meastype == 'single':
+        frunn = json.loads(measinfo['freqvector'])
+        peakbins = json.loads(analysisinfo['peakpoints'])
+
+        speczrip = []
+        specsrip = []
+        for i in range(len(tnrip)):
+            fpeak,pvec, peaks = dataprocess(tnrip[i],meastype=meastype,freq=frunn[i],nbins=peakbins)
+            speczrip.append(pvec)
+            specsrip.append(peaks)
+        speczrip = np.array(speczrip).T
+        specsrip = np.array(specsrip).T
+
+        for i in tnset:
+            specz = []
+            specs = []
+            for m in range(len(i)):
+                fpeak,pvec, peaks = dataprocess(i[m],meastype=meastype,freq=frunn[m],nbins=peakbins)
+                specz.append(pvec)
+                specs.append(peaks)
+            specz = np.array(specz).T
+            specs = np.array(specs).T
+
+            speczset.append(specz)
+            specsset.append(specs)
+            spenz.append(specz/speczrip)
+            spens.append(specs/specsrip)
+
+
+    if meastype == 'sweep':
+        nbins = json.loads(analysisinfo['runnmeanpoints'])
+        print(nbins)
+        frunn, speczrip, specsrip = dataprocess(tnrip,meastype=meastype,freq=None,nbins=nbins)
+
+        for i in tnset:
+            frunn, specz, specs = dataprocess(i,meastype=meastype,freq=None,nbins=nbins)
+            speczset.append(specz)
+            specsset.append(specs)
+            spenz.append(specz/speczrip)
+            spens.append(specs/specsrip)
+
+
+        #original code
+        '''
+        zv_rip, st_rip = zvec(tnrip)
+        freq4d     = th.osu.getFrameRate(tnrip)
+        speczrip, f = th.spectrum(zv_rip, dt=1/freq4d) 
+        specsrip, f = th.spectrum(st_rip, dt=1/freq4d)
+        frunn       = runningMean(f, nrunnmean, dim=0)
+        speczrip    = runningMean(speczrip, nrunnmean)
+        specsrip    = runningMean(specsrip, nrunnmean,dim=0)
+
         zvi, svi = zvec(i)
         zv.append(zvi)
         sv.append(svi)
@@ -292,16 +380,28 @@ def sweep_analysis(tn, nrunnmean: int = 5):
         specsset.append(specs)
         spenz.append(specz/speczrip)
         spens.append(specs/specsrip)
+        '''
 
+
+
+    #resulting variables after this stage:
+    #frunn: vector of frequencies
+    # RIP: 
+    #    speczrip (Zern spectrum)
+    #    specsrip (stddev spectrum)
+    # SET:
+    #    speczset (Zern spectrum)
+    #    specsset (stddev spectrum)
+    
     ## plot of single spectra
     ### Excited Tilt
     figure(figsize=(10,5)); suptitle(tn+' Optical SurfError')
     subplots_adjust(bottom=0.1, left=0.1,right=0.95, top=0.9,wspace=0.3, hspace=0)
     subplot(121)
-    plot(frunn, speczrip[tiltselect,:],'.')
+    plot(frunn, speczrip[tiltselect,:],ptsym)
     for i in range(ntn):
         thespec = speczset[i]
-        plot(frunn, thespec[tiltselect,:],'.')
+        plot(frunn, thespec[tiltselect,:],ptsym)
     title(tn+' Y Opt. tilt amp spectrum')
     xlabel('Freq [Hz]');    ylabel('Tilt amp. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
     yscale('log');grid()
@@ -312,11 +412,11 @@ def sweep_analysis(tn, nrunnmean: int = 5):
     #no. anche perchè la somma in quadr è definitia positiva e questo falserebbe il contenuto in frequenze
     #tiltrip = np.sqrt(speczrip[1,:]**2+ speczrip[2,:]**2)
     subplot(122)
-    plot(frunn, speczrip[2,:],'.')
+    plot(frunn, speczrip[2,:],ptsym)
     for i in range(ntn):
         thespec = speczset[i]
         #thetilt = np.sqrt(thespec[1,:]**2+ thespec[2,:]**2)
-        plot(frunn, thespec[2,:],'.')
+        plot(frunn, thespec[2,:],ptsym)
     title(tn+' X Opt. tilt amp spectrum')
     xlabel('Freq [Hz]');    ylabel('Tilt amp. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
     yscale('log');grid()
@@ -328,10 +428,10 @@ def sweep_analysis(tn, nrunnmean: int = 5):
     #??? è corretto sommare in quadr. le ampiezze degli spettri???
     figure(figsize=(15,5))
     subplot(131)
-    plot(frunn, specsrip,'.')
+    plot(frunn, specsrip,ptsym)
     for i in range(ntn):
         thespec = specsset[i]
-        plot(frunn, thespec,'.')
+        plot(frunn, thespec,ptsym)
     title(tn+' Res. SFE spectrum')
     xlabel('Freq [Hz]');    ylabel('SFE [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
     yscale('log');grid()
@@ -340,21 +440,21 @@ def sweep_analysis(tn, nrunnmean: int = 5):
     #??? è corretto sommare in quadr. le ampiezze degli spettri???
     #asttrip = np.sqrt(speczrip[4,:]**2+ speczrip[5,:]**2)
     subplot(132)
-    plot(frunn, speczrip[4,:],'.')
+    plot(frunn, speczrip[4,:],ptsym)
     for i in range(ntn):
         thespec = speczset[i]
         #theast = np.sqrt(thespec[4,:]**2+ thespec[5,:]**2)
-        plot(frunn, thespec[4,:],'.')
+        plot(frunn, thespec[4,:],ptsym)
     title(tn+' X Opt. Astigm amp spectrum')
     xlabel('Freq [Hz]');    ylabel('Astigm amp. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
     yscale('log');grid()
 
     subplot(133)
-    plot(frunn, speczrip[5,:],'.')
+    plot(frunn, speczrip[5,:],ptsym)
     for i in range(ntn):
         thespec = speczset[i]
         #theast = np.sqrt(thespec[4,:]**2+ thespec[5,:]**2)
-        plot(frunn, thespec[5,:],'.')
+        plot(frunn, thespec[5,:],ptsym)
     title(tn+' Y Opt. Astigm amp spectrum')
     xlabel('Freq [Hz]');    ylabel('Astigm amp. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
     yscale('log');grid()
@@ -365,10 +465,10 @@ def sweep_analysis(tn, nrunnmean: int = 5):
     ### Excited Tilt
     figure(figsize=(9,5));  suptitle(tn+' Optical spectra, norm.')
     subplot(121); title('Y Opt. tilt amp spectrum')
-    plot(frunn, np.ones(len(frunn)),'x')
+    plot(frunn, np.ones(len(frunn)),ptrsym)
     for i in range(ntn):
         thespec = spenz[i]
-        plot(frunn, thespec[tiltselect,:],'.')
+        plot(frunn, thespec[tiltselect,:],ptsym)
     xlabel('Freq [Hz]');    ylabel('Tilt norm. amp. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
     yscale('log');grid()
 
@@ -376,19 +476,15 @@ def sweep_analysis(tn, nrunnmean: int = 5):
     ### Normalized RMS
     #??? è corretto sommare in quadr. le ampiezze degli spettri???
     subplot(122);  title('Res. SFE spectrum')
-    plot(frunn, np.ones(len(frunn)),'x')
+    plot(frunn, np.ones(len(frunn)),ptrsym)
     for i in range(ntn):
         thespec = spens[i]
-        plot(frunn, thespec,'.')
+        plot(frunn, thespec,ptsym)
     xlabel('Freq [Hz]');    ylabel('SFE-norm. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
     yscale('log');grid()
     savefig(resultfold+tn+'-OptNorm.png')
 
 
-
-def singlefreq_analysis(tn):
-    
-    pass
 
 
 def configureRC():
