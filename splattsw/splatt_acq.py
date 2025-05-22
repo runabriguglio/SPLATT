@@ -72,6 +72,9 @@ class Acquisition():
         time.sleep(0.5)
         self.interf.capture(nframes,tn)
 
+        # Switch sweep mode off
+        self.wavegen.sweep_mode_off(chPI)
+
         self.webdaq.stop_schedule_when_job_ends(job_id = 0) # Wait for webDAQ acquisition
         self.sync_and_save_last_wdfile(tn)
         self.log_test_configuration(tn)
@@ -186,6 +189,7 @@ class Acquisition():
 
         # Save and log data
         self.webdaq.stop_schedule_when_job_ends(job_id = 0) 
+        self.wavegen.sweep_mode_off(1)
         self.interf.setTriggerMode(False)
 
         self.sync_and_save_last_wdfile(tn)
