@@ -88,8 +88,8 @@ class Acquisition():
     def acq_freq(self, freqPI, freq4D, ampPI=1, nframes:int = 1000, produce:bool = False, 
                 buffer_dec:int = None, dm_state = None):
 
-        if ampPI > 1:
-            raise ValueError(f'Amplitude {ampPI} is greater than 1, this might be outside interferometer capture range when exciting around the 20 Hz frequency')
+#        if ampPI > 1:
+#            raise ValueError(f'Amplitude {ampPI} is greater than 1, this might be outside interferometer capture range when exciting around the 20 Hz frequency')
 
         # Generate new tn
         tn = self._generate_tn()
