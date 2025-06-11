@@ -88,8 +88,8 @@ class Acquisition():
     def acq_freq(self, freqPI, freq4D, ampPI=1, nframes:int = 1000, produce:bool = False, 
                 buffer_dec:int = None, dm_state = None):
 
-        if ampPI > 1:
-            raise ValueError(f'Amplitude {ampPI} is greater than 1, this might be outside interferometer capture range when exciting around the 20 Hz frequency')
+#        if ampPI > 1:
+#            raise ValueError(f'Amplitude {ampPI} is greater than 1, this might be outside interferometer capture range when exciting around the 20 Hz frequency')
 
         # Generate new tn
         tn = self._generate_tn()
@@ -224,12 +224,12 @@ class Acquisition():
             state = dm_state
 
         if pressure is not None:
-            state.add_section("Pressure")
-            state.set("Pressure",f'{pressure:1.3f} [bar]')
+            state.add_section("Moxa")
+            state.set("Moxa",'Pressure', f'{pressure:1.3f}')
 
         if freq4D is not None:
-            state.add_section("4D frame rate")
-            state.set("4D frame rate",f'{freq4D:1.1f} [Hz]')
+            state.add_section("4D")
+            state.set("4D",'FrameRate',f'{freq4D:1.1f}')
         
         with open(os.path.join(dirpath,'SysData.ini'), 'w') as state_file:
             state.write(state_file)

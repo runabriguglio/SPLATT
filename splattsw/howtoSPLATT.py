@@ -31,7 +31,7 @@ from opticalib.devices.interferometer import PhaseCam
 from opticalib.devices.deformable_mirrors import SplattDm
 from SPLATT.splattsw import splatt_analysis as sp
 
-interf = PhaseCam()
+interf = PhaseCam('4020')
 dm = SplattDm()
 
 ### InfFunctions and Flattening###

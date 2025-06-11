@@ -292,6 +292,7 @@ def global_analysis(tn):
     optlabel.append( 'RIP')
     optlabel.extend(tnlabel)
     optxlims = json.loads(analysisinfo['optlim'])
+    figtitle = tninfo['testname']
     
     ### acceleration analysis
     if measinfo['accdata'] == True:
@@ -406,15 +407,15 @@ def global_analysis(tn):
     
     ## plot of single spectra
     ### Excited Tilt
-    figure(figsize=(10,5)); suptitle(tn+' Optical SurfError')
-    subplots_adjust(bottom=0.1, left=0.1,right=0.95, top=0.9,wspace=0.3, hspace=0)
+    figure(figsize=(10,5)); suptitle(figtitle+'\nOptical SurfaceError')
+    subplots_adjust(bottom=0.15, left=0.1,right=0.95, top=0.85,wspace=0.3, hspace=0)
     subplot(121)
     plot(frunn, speczrip[tiltselect,:],ptsym)
     for i in range(ntn):
         thespec = speczset[i]
         plot(frunn, thespec[tiltselect,:],ptsym)
-    title(tn+' Y Opt. tilt amp spectrum')
-    xlabel('Freq [Hz]');    ylabel('Tilt amp. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
+    title('Y Opt. tilt amp spectrum')
+    xlabel('Freq [Hz]\nDataset: '+tn);    ylabel('Tilt amp. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
     yscale('log');grid()
 
 
@@ -428,8 +429,8 @@ def global_analysis(tn):
         thespec = speczset[i]
         #thetilt = np.sqrt(thespec[1,:]**2+ thespec[2,:]**2)
         plot(frunn, thespec[2,:],ptsym)
-    title(tn+' X Opt. tilt amp spectrum')
-    xlabel('Freq [Hz]');    ylabel('Tilt amp. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
+    title('X Opt. tilt amp spectrum')
+    xlabel('Freq [Hz]\nDataset: '+tn);    ylabel('Tilt amp. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
     yscale('log');grid()
     savefig(resultfold+tn+'-OptTilt.png')
 
@@ -437,14 +438,15 @@ def global_analysis(tn):
     ## PLOT2
     ### Global RMS
     #??? è corretto sommare in quadr. le ampiezze degli spettri???
-    figure(figsize=(15,5))
+    figure(figsize=(15,5));suptitle(figtitle+'\nOptical Surface Error')
+    subplots_adjust(bottom=0.15, left=0.1,right=0.95, top=0.85,wspace=0.3, hspace=0)
     subplot(131)
     plot(frunn, specsrip,ptsym)
     for i in range(ntn):
         thespec = specsset[i]
         plot(frunn, thespec,ptsym)
-    title(tn+' Res. SFE spectrum')
-    xlabel('Freq [Hz]');    ylabel('SFE [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
+    title('Res. SFE spectrum')
+    xlabel('Freq [Hz]\nDataset: '+tn);    ylabel('SFE [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
     yscale('log');grid()
 
     ### Astigmatism
@@ -456,8 +458,8 @@ def global_analysis(tn):
         thespec = speczset[i]
         #theast = np.sqrt(thespec[4,:]**2+ thespec[5,:]**2)
         plot(frunn, thespec[4,:],ptsym)
-    title(tn+' X Opt. Astigm amp spectrum')
-    xlabel('Freq [Hz]');    ylabel('Astigm amp. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
+    title('X Opt. Astigm amp spectrum')
+    xlabel('Freq [Hz]\nDataset: '+tn);    ylabel('Astigm amp. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
     yscale('log');grid()
 
     subplot(133)
@@ -466,21 +468,22 @@ def global_analysis(tn):
         thespec = speczset[i]
         #theast = np.sqrt(thespec[4,:]**2+ thespec[5,:]**2)
         plot(frunn, thespec[5,:],ptsym)
-    title(tn+' Y Opt. Astigm amp spectrum')
-    xlabel('Freq [Hz]');    ylabel('Astigm amp. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
+    title('Y Opt. Astigm amp spectrum')
+    xlabel('Freq [Hz]\nDataset: '+tn);    ylabel('Astigm amp. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
     yscale('log');grid()
     savefig(resultfold+tn+'-OptAst-SfE.png')
 
     ##Normalized dataset
     optlabel[0] = 'REF'
     ### Excited Tilt
-    figure(figsize=(9,5));  suptitle(tn+' Optical spectra, norm.')
+    figure(figsize=(9,5));  suptitle(figtitle+'\nOptical spectra, normalized to RIP');    subplots_adjust(bottom=0.15, left=0.1,right=0.95, top=0.85,wspace=0.3, hspace=0)
+
     subplot(121); title('Y Opt. tilt amp spectrum')
     plot(frunn, np.ones(len(frunn)),ptrsym)
     for i in range(ntn):
         thespec = spenz[i]
         plot(frunn, thespec[tiltselect,:],ptsym)
-    xlabel('Freq [Hz]');    ylabel('Tilt norm. amp. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
+    xlabel('Freq [Hz]\nDataset: '+tn);    ylabel('Tilt norm. amp. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
     yscale('log');grid()
 
 
@@ -491,7 +494,7 @@ def global_analysis(tn):
     for i in range(ntn):
         thespec = spens[i]
         plot(frunn, thespec,ptsym)
-    xlabel('Freq [Hz]');    ylabel('SFE-norm. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
+    xlabel('Freq [Hz]\nDataset: '+tn);    ylabel('SFE-norm. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
     yscale('log');grid()
     savefig(resultfold+tn+'-OptNorm.png')
 
