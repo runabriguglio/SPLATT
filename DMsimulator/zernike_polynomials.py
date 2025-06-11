@@ -64,7 +64,7 @@ def generate_zernike_matrix(noll_ids, img_mask, scale_length:float = None):
 
     """
     
-    n_pix = np.sum(1-img_mask)
+    n_pix = int(np.sum(1-img_mask))
     n_zern = len(noll_ids)
     ZernMat = np.zeros([n_pix,n_zern])
     
@@ -119,7 +119,8 @@ def _project_zernike_on_mask(noll_number:int, mask, scale_length:float = None):
     # plt.figure();plt.imshow(masked_mode,origin='lower');plt.title('Zernike ' + str(noll_number))
     # masked_data = masked_mode.data[~masked_mode.mask]
     
-    masked_data = mode[~mask]
+    #masked_data = mode[1-mask]
+    masked_data = mode.flatten()[mask.flatten()<1]
 
     # Normalization of the masked data: null mean and unit STD
     if noll_number > 1:
