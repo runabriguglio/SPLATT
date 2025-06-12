@@ -74,7 +74,7 @@ def generate_zernike_matrix(noll_ids, img_mask, scale_length:float = None):
     return ZernMat
 
 
-def _project_zernike_on_mask(noll_number:int, mask, scale_length:float = None):
+def _project_zernike_on_mask(noll_number:int, mask, scale_length:float = None, mask_center = None):
     """
     Project the Zernike polynomials identified by the Noll number in input
     on a given mask.
@@ -109,9 +109,16 @@ def _project_zernike_on_mask(noll_number:int, mask, scale_length:float = None):
     else:
         r = np.max([X,Y])/2
 
+    if mask_center is None:
+        yc = Y/2.
+        xc = X/2.
+    else:
+        xc = mask_center[0]
+        yc = mask_center[1]
+
     # Conversion to polar coordinates on circle of radius r 
-    phi = lambda i,j: np.arctan2((j-Y/2.)/r,(i-X/2.)/r)
-    rho = lambda i,j: np.sqrt(((j-Y/2.)/r)**2+((i-X/2.)/r)**2)
+    phi = lambda i,j: np.arctan2((j-yc)/r,(i-xc)/r)
+    rho = lambda i,j: np.sqrt(((j-yc)/r)**2+((i-xc)/r)**2)
             
     mode = np.fromfunction(lambda i,j: _zernikel(noll_number, rho(i,j), phi(i,j)), [X,Y])
 
@@ -119,7 +126,7 @@ def _project_zernike_on_mask(noll_number:int, mask, scale_length:float = None):
     # plt.figure();plt.imshow(masked_mode,origin='lower');plt.title('Zernike ' + str(noll_number))
     # masked_data = masked_mode.data[~masked_mode.mask]
     
-    #masked_data = mode[1-mask]
+    #masked_data = mode[~mask]
     masked_data = mode.flatten()[mask.flatten()<1]
 
     # Normalization of the masked data: null mean and unit STD
