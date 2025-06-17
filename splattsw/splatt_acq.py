@@ -55,8 +55,8 @@ class Acquisition():
 
 
 
-    def acq_sweep(self, fmin = 30, fmax = 110, duration = 11, ampPI = 2, 
-                  nframes:int = 2250, chPI:int = 1, produce:bool = False):
+    def acq_sweep(self, fmin = 22, fmax = 115, duration = 21, ampPI = 2, 
+                  nframes:int = 6400, chPI:int = 1, produce:bool = False):
 
         # Generate new tn
         tn = self._generate_tn()
@@ -146,7 +146,7 @@ class Acquisition():
         fcy= int(max_freq4D/max(fvec))
         for freqPI in fvec:
             freq4D = freqPI*fcy  # same temporal sampling for each PI freq
-            dec = np.max((0, int(fcy/256/550e-6/freqPI-1)))
+            dec = np.max((0, in640cy/256/550e-6/freqPI-1)))
             print(f'Piezo freq: {freqPI:1.0f} [Hz], 4D freq: {freq4D:1.1f} [Hz]')
             tn = self.acq_freq(freqPI, freq4D, nframes = nframes, buffer_dec = dec, dm_state = dm_state)
             tn_list.append(tn)
