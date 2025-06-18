@@ -76,7 +76,7 @@ class DeformableMirror():
 
     def get_position(self):
         """
-        Readsa and plots the current actuators' 
+        Reads and plots the current actuators' 
         position at the actuators' coordinates 
 
         Returns
