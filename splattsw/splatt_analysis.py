@@ -5,7 +5,9 @@ import json, struct
 from astropy.io import fits as pyfits
 from matplotlib.pyplot import *
 
-
+#this part shall be moved to acc_analysis
+pmat = np.array([[1,1],[1,-1]])
+p1mat = np.linalg.inv(pmat)
 
 z2fit            = [1,2,3]
 tiltselect       = 1 #confirmed with PhaseCam4020 ex refurb 4030 and 4DFocus
@@ -38,12 +40,25 @@ def tt_spectrum(tn, tt = None):
     return spe ,f
 
 def acc_spectrum(tn):
-    q = openaccfile(tn)
+    thetype = type(tn)
+    if thetype == str:
+        q = openaccfile(tn)
+    else:
+        q = tn.copy()
     spe, f = th.spectrum(q, dt=1/freqwebdaq)
     return spe, f
 
-def mech_spectrum(tn):
-    spe, f = acc_spectrum(tn)
+def acc2pt(q):
+    qq = q.copy()
+    qp = p1mat @ q[0:2,:]
+    qq[0:2,:] = qp
+    return qq
+
+def mech_spectrum(tn,transform = True):
+    q = openaccfile(tn)
+    if transform is True:
+       q = acc2pt(q) 
+    spe, f = acc_spectrum(q)
     npacc = np.shape(spe)
     spei = np.zeros(npacc)
     for i in range(npacc[0]):
@@ -52,6 +67,34 @@ def mech_spectrum(tn):
         spei[i,:] =s
     spei = np.array(spei)
     return spei, f
+
+def plot_mechspectrum(tn, f0=None):
+    figure()
+    acclabelT=["Pist","TiltY","Stand","ElevArm"]
+    spm, fm = mech_spectrum(tn,transform = True)
+    for i in spm:
+        plot(fm, i,'.')
+    yscale('log')
+    xlim(0,120);grid('on');xlabel('Freq [Hz]');ylabel('Displac. amplitude spectrum [m Peak]');title('Accelerom. data: '+tn)
+    legend(acclabelT)
+    dp=[]
+    ds = []
+    mybound = [2,120]
+    if f0 is not None:
+        mybound =[f0-1,f0+1]
+        for i in spm:
+            pm, fmm = find_peak(i,freq=fm, bound=mybound,integrate=False)
+            print('Found peak at Freq:'+str(fmm)+' Hz')
+            dp.append(pm)
+        dp=np.array(dp)
+        for i in range(4):
+            ds.append(acclabelT[i]+': '+f'{dp[i]*1e9:.0f}'+'nm')
+
+        legend(ds)
+    return dp
+
+
+
 
 def tiltvec(tn, unwrap=True):
     flist=fileList(tn)
@@ -98,12 +141,21 @@ def zvec(tn, overwrite = False):
     return zzvec, rrvec
 
 
-def find_peak(v, freq=None, bound=None):
+def find_peak(v, freq=None, bound=None, integrate=False):
     #requires a monodimensional array
     idf = range(len(v))
     if freq is not None and bound is not None:
         idf =     np.where(np.logical_and(freq>= bound[0], freq<=bound[1]))
+        #idf = idf[0]
+        #print(len(idf[0]))
     peak = max(v[idf])
+    #peakfreq = np.argmax(v[idf])
+    #print(peakfreq)
+    #print(idf[peakfreq])
+    #print('Found peak at Freq: ')
+    #print(freq[idf[peakfreq]])
+    if integrate == True:
+        peak = np.sum(v[idf])
     peakid = np.argmax(v[idf])
     peakfreq = 0
     if freq is not None:
@@ -188,6 +240,7 @@ def openwdfile(thename):
 
 
 def openaccfile(tn):
+    print(tn)
     accfile = basepathwebdaq+ tn+'.fits'
     print('Opening file:'+accfile)
     h0 = pyfits.open(accfile)
@@ -295,23 +348,31 @@ def global_analysis(tn):
     figtitle = tninfo['testname']
     
     ### acceleration analysis
-    if measinfo['accdata'] == True:
+    if measinfo['accdata'] == 'yes':
+        print('Processing accel. data')
+        dotransform = False
+        if analysisinfo['proj_acc'] == 'yes':
+            print('Projecting acc signals')
+            dotransform = True
+        print(tnrip)
         accv       = openaccfile(tnrip)
         acctimevec = np.arange(len(accv[0]))/freqwebdaq
 
-        mspec, mfreq = mech_spectrum(accv)
+        mspec, mfreq = mech_spectrum(tnrip, transform = dotransform)
 
     #utils
         accxlims = json.loads(analysisinfo['acclim'])
         acclegend = json.loads(tninfo['acclabel'])
-
-        figure(figsize=(12,6));          suptitle(tn+' Accelerometer data')
+        
+        figure(10,figsize=(12,6));          suptitle(tn+' Accelerometer data')
         subplot(1,2,1);    title('Acceler. time series')
         for i in accv:
             plot(acctimevec, i,'.')
         xlabel('Time [s]');    ylabel('Acceleration [g]');    legend(acclegend)
 
         subplot(1,2,2);     title('Mechanical Oscillation spectrum')
+        if analysisinfo['proj_acc'] == 'yes':
+            acclegend = json.loads(tninfo['acclabel_proj'])
         for i in mspec:
             plot(mfreq, i,'.')
         xlabel('Freq [Hz]'); ylabel(' Amplitude [m]'); legend(acclegend); yscale('log');xlim(accxlims[0],accxlims[1]);grid()
@@ -497,6 +558,8 @@ def global_analysis(tn):
     xlabel('Freq [Hz]\nDataset: '+tn);    ylabel('SFE-norm. [m]');    legend(optlabel); xlim(optxlims[0],optxlims[1])
     yscale('log');grid()
     savefig(resultfold+tn+'-OptNorm.png')
+
+    return tninfo,measinfo, analysisinfo
 
 
 

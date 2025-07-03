@@ -168,3 +168,67 @@ def singlefreq(tn, freq, peakw=1):
         print(pf)
     return pvec
 
+acclabel= ["RBfront","RBback","Stand","ElevArm"]
+acclabelT=["Pist","TiltY","Stand","ElevArm"]
+pmat = np.array([[1,1],[1,-1]])
+p1mat = inv(pmat)
+#testing the proj mat
+#q = np.array([[1,1,1,1,1,1],[1,-1,1,-1,1,-1]])
+#q2 = p1mat @ q
+#print(q,q2)    #OK!
+q=sp.openaccfile(tnrip)
+qp = p1mat @ q[0:2,:]
+q[0:2,:]
+q2 = q1 @ p1mat
+
+tn = '20250514_111143';f0=3
+
+
+
+
+tnrip = '20250617_163747'
+tnset = '20250617_161221'
+tnrip = '20250617_163648'
+tnset = '20250617_161330'
+f0 = 59
+tnrip = '20250617_163836'
+tnset = '20250617_162835'
+tnrip = '20250617_163929'
+tnset = '20250617_162928'
+f0 = 79
+nb = 2
+
+spm, fm = sp.mech_spectrum(tnrip,transform = True)
+for i in spm:
+    plot(fm, i*1e9,'.')
+yscale('log');xlim(f0-20,f0+20);ylim(0.1,10000);grid('on');xlabel('Freq [Hz]');ylabel('Displac. amplitude spectrum [m Peak]');title(tnrip)
+dp=[]
+ds = []
+for i in spm:
+    pm, fmm = sp.find_peak(i,freq=fm, bound=[f0-nb,f0+nb],integrate=False)
+    dp.append(pm)
+dp=np.array(dp)
+for i in range(4):
+    ds.append(acclabelT[i]+': '+f'{dp[i]*1e9:.0f}'+'nm')
+legend(ds)
+
+f,ptr,_ = sp.dataprocess(tnrip,'single', freq=f0,nbins=nb);ptr=ptr[1]
+f,pts,_ = sp.dataprocess(tnset,'single', freq=f0,nbins=nb);pts=pts[1]
+
+print(pts/ptr)
+
+spe0, f= sp.tt_spectrum(tnrip)
+p0, f00 = sp.find_peak(spe0[1],freq=f, bound=[f0-nb,f0+nb],integrate=False)
+
+spe1, f= sp.tt_spectrum(tnset)
+p1, f11 = sp.find_peak(spe1[1],freq=f, bound=[f0-nb,f0+nb], integrate=False)
+print(p1/p0)
+plot(f, spe0[1],'o');plot(f, spe1[1],'x');yscale('log');xlim(f0-20,f0+20)
+xlabel('Freq [Hz]');ylabel('Y Tilt amplitude spectrum [m RMS]');grid('on')
+legend([tnrip+': '+f'{p0*1e9:.1f}'+'nm',tnset+': '+f'{p1*1e9:.1f}'+'nm']); title('Set/Rip: '+f'{p1/p0:.3f}')
+
+
+f0 = [3,5,7,10,15,20,25,30]
+
+tn = ['20250514_111143', '20250514_111216', '20250514_111249', '20250514_111322','20250514_111355', '20250514_111428', '20250514_111501', '20250514_111532']
+
