@@ -5,6 +5,8 @@ import json, struct
 from astropy.io import fits as pyfits
 from matplotlib.pyplot import *
 
+import configparser
+
 #this part shall be moved to acc_analysis
 pmat = np.array([[1,1],[1,-1]])
 p1mat = np.linalg.inv(pmat)
@@ -257,18 +259,23 @@ def acc_integrate(acc, freq):
     return amp
 
 def read_4dfreq(tn):
-    fname = os.path.join(testconfigpath,tn,'frequency4D.fits')
-    if os.path.exists(fname) == 1:
+    fitsfile = os.path.join(testconfigpath,tn,'frequency4D.fits')
+    inifile = os.path.join(testconfigpath,tn,'SysData.ini')
+    if os.path.exists(fitsfile) == 1:
         print('Reading 4D Freq from log file')
-        freq = (pyfits.open(fname))[0].data
+        freq = (pyfits.open(fitsfile))[0].data
         freq = freq[0]
+    elif os.path.exists(inifile) == 1:
+        print('Reading 4D Freq from ini file')
+        config=configparser.ConfigParser()
+        config.read(inifile)
+        freq = config.get('4D','framerate')
     else:
         freq = th.osu.getFrameRate(tn)
-    print('4D Freq:'+str(freq))
+    print('4D Freq: '+str(freq))
     return freq
 
 def read_analysisconf(tn):
-    import configparser
     config=configparser.ConfigParser()
     config.read(foldanalysisconf+tn+'.meas')
     dataset = config['DATASET']

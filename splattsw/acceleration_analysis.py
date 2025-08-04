@@ -94,6 +94,7 @@ def find_peak_freq(spe, freq_vec, bound = None):
 
     size_spe = np.shape(spe)
     nChan = size_spe[0]
+    print(nChan)
 
     if freq_len is not size_spe[1]:
         spe = spe.T
@@ -104,7 +105,7 @@ def find_peak_freq(spe, freq_vec, bound = None):
     peak_freq = np.zeros(nChan)
 
     for j in range(nChan):
-        v = spe[j]
+        v = spe[j,:]
         peak = np.max(v[idf])
         peak_val[j] = peak*np.sqrt(2) # re-normalize amplitude
         peak_id = np.argmax(v[idf])
