@@ -269,10 +269,11 @@ def read_4dfreq(tn):
         print('Reading 4D Freq from ini file')
         config=configparser.ConfigParser()
         config.read(inifile)
-        freq = config.get('4D','framerate')
+        interf_data = config['4D']
+        freq = float(interf_data['framerate'])
     else:
         freq = th.osu.getFrameRate(tn)
-    print('4D Freq: '+str(freq))
+    print(f'4D Freq: {freq}')
     return freq
 
 def read_analysisconf(tn):
@@ -301,7 +302,8 @@ def dataprocess(tn, meastype = 'sweep', freq=None, nbins=1):
         return
     zv, sv = zvec(tn)
     freq4d = read_4dfreq(tn)#implementare la lettura del file da TestConfig
-    spe, f = th.spectrum(zv,dt=1/freq4d)
+
+    spe, f = th.spectrum(zv, dt=1/freq4d)
     spes,f = th.spectrum(sv, dt=1/freq4d)
     if meastype == 'sweep':
         frunn    = runningMean(f, nbins, dim=0)

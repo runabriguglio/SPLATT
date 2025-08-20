@@ -35,6 +35,7 @@ class SPLATTDm(BaseDeformableMirror):
          self.cmdHistory     = None
          self.baseDataPath   = fn.OPD_IMAGES_ROOT_FOLDER
          self.refAct         = 16
+         # self.eng            = self._dm._eng
 
      def get_shape(self):
         shape = self._dm.get_position()
@@ -50,7 +51,7 @@ class SPLATTDm(BaseDeformableMirror):
      def uploadCmdHistory(self, cmdhist):
          self.cmdHistory = cmdhist
 
-     def runCmdHistory(self, interf=None, delay=0.2, save:str=None, differential:bool=True):
+     def runCmdHistory(self, interf=None, delay:float=0.4, save:str=None, differential:bool=True, read_buffers:bool = False):
          if self.cmdHistory is None:
              raise ValueError("No Command History to run!")
          else:
@@ -58,6 +59,8 @@ class SPLATTDm(BaseDeformableMirror):
              print(f"{tn} - {self.cmdHistory.shape[-1]} images to go.")
              datafold = os.path.join(self.baseDataPath, tn)
              s = self._dm.get_position_command()  #self._dm.flatPos # self.get_shape()
+             if read_buffers is True:
+                delay = 0.0
              if not os.path.exists(datafold) and interf is not None:
                  os.mkdir(datafold)
              for i,cmd in enumerate(self.cmdHistory.T):
@@ -65,7 +68,13 @@ class SPLATTDm(BaseDeformableMirror):
                  if differential:
                      cmd = cmd+s
                  self.set_shape(cmd)
-                 if interf is not None:
+                 if read_buffers is True:
+                    pos, cur, buf_tn = self._dm.read_buffers(external=True, n_samples=300)
+                    path = os.path.join(datafold, f"buffer_{i:05d}.fits")
+                    hdr = pyfits.Header()
+                    hdr['BUF_TN'] = buf_tn
+                    pyfits.writeto(path, [pos,cur], hdr)
+                if interf is not None:
                      time.sleep(delay)
                      img = interf.acquire_map()
                      path = os.path.join(datafold, f"image_{i:05d}.fits")
@@ -94,13 +103,8 @@ class SPLATTDm(BaseDeformableMirror):
      def nActuators(self):
          return self.nActs
 
-     def _checkCmdIntegrity(self, cmd):
-         pos = cmd + self._dm.flatPos
-         if np.max(pos) > 1.2e-3:
-            raise ValueError(f'End position is too high at {np.max(pos)*1e+3:1.2f} [mm]')            
-            
-         if np.min(pos) < 450e-6:
-            raise ValueError(f'End position is too low at {np.min(pos)*1e+3:1.2f} [mm]')
+     def integratePosition(self, Nits:int = 3):
+        self._dm._eng.send(f'splattIntegrateMeasPos({Nits})')
 
 
 class SPLATTEngine():
@@ -113,6 +117,7 @@ class SPLATTEngine():
         self.nActs = int(self._eng.read('sys_data.mirrNAct'))
         self.actCoords = np.array(self._eng.read('mirrorData.coordAct'))
         self.mirrorModes = np.array(self._eng.read('sys_data.ff_v'))
+        self.ffMatrix = np.array(self._eng.read('sys_data.ff_matrix'))
         self.ffMatrix = np.array(self._eng.read('sys_data.ff_matrix'))
 
         self._bits2meters = float(self._eng.read('2^-sys_data.coeffs.Scale_F_Lin'))
@@ -143,7 +148,8 @@ class SPLATTEngine():
         return force
 
     def set_position(self, cmd): 
-        if self._shellset is False: print('Shell must be set before giving commands!')
+        if self._shellset is False: 
+            raise SystemError('Shell must be set before giving commands!')
         cmd = cmd.tolist()
         self._eng.send(f"splattMirrorCommand({cmd}')")
 
@@ -169,12 +175,12 @@ class SPLATTEngine():
     def read_state(self):
         pos = self.get_position()
         cur = self._eng.read("aoRead('sabi32_pidCoilOut',1:19)")
-        #pos_cmd = self._eng.read("aoRead('sabu16_position',1:19)")
-        #cur_cmd = self._eng.read("aoRead('sabi16_force',1:19)")
         coilsEnabled = np.sum(self._read_splatt_vec("aoRead('sabu8_enableCoil',1:19)"))
         self._eng.send('flags = lattGetFlags()')
         nrDriver = self._eng.read('1+sum(flags.driver2On)/19+sum(flags.driver3On)/19+sum(flags.driver4On)/19')
-        
+       if nrDriver < 4:
+            print(f'Warning! {(nrDriver-1)*19:1.1f} coils are not enabled')
+
         flatTN = self._eng.read('sys_data.flatTN')
         Kp = self._eng.read('sys_data.ctrPar.Kp')
         Kd = self._eng.read('sys_data.ctrPar.Kd')

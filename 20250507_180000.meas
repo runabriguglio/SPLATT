@@ -1,15 +1,17 @@
 #This dataset compares the LATT behaviour with different loop Kp gains
 [DATASET]
+testname = Test at P=570mbar, variable Kp gain
 tnrip = "20250507_115038"
 tnset = ["20250507_130041","20250507_145413","20250507_145705","20250507_144420"]
 tnlabel = ["Kp=500","Kp=400","Kp=300","Kp=200"]
 acclabel= ["RBfront","RBback","Stand","ElevArm"]
+acclabel_proj=["Pist","TiltY","Stand","ElevArm"]
 
 
 [MEASUREMENT]
 type     = sweep
-accdata  = True
-lattdata = True
+accdata  = yes
+lattdata = no
 freq0    = 30
 freq1    = 110
 freqvec  = [] #empty if sweep
@@ -18,4 +20,5 @@ freqvec  = [] #empty if sweep
 runnmeanpoints = 9
 acclim = [0,200]
 optlim = [30,110]
+proj_acc = yes
 

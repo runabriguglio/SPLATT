@@ -39,15 +39,19 @@ from opticalib.dmutils import iff_module as ifm
 from opticalib.dmutils import iff_processing as ifp
 from opticalib.dmutils.flattening import Flattening
 
-mlist = [0,1,2,3,4,5,6]
-mamp = 5e-6
+
+#mlist = [0,1,2,3,4,5,6]
+mamp = 2e-6
+mlist = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18]
+#mamp = [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1.5,1.5,1.5]*1e-6
+
 nmodes2flat = len(mlist)
 nmodes2discard = 3
 tn = ifm.iffDataAcquisition(dm, interf,mlist,amplitude=mamp)
 
 rebinfact = 4
 #adm.set_shape(np.zeros(19))
-ifp.process(tn,  save_and_rebin_cube=(True,rebinfact))
+ifp.process(tn,  save=True, rebin=rebinfact)
 
 fl = Flattening(tn)
 fl.filterIntCube([1,2,3])
