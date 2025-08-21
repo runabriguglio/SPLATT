@@ -11,15 +11,15 @@ This module contains the class that defines the SPLATT deformable mirror device.
 import os
 import time
 import numpy as np
+import matplotlib.pyplot as plt
 from astropy.io import fits as pyfits
+
 from m4.configuration import config_folder_names as fn
 from m4.devices.base_deformable_mirror import BaseDeformableMirror
 from m4.ground import logger_set_up as lsu, timestamp, read_data as rd
 
 import configparser
-import os
 
-_ts = timestamp.Timestamp()
 
 class SPLATTDm(BaseDeformableMirror):
      """
@@ -35,6 +35,7 @@ class SPLATTDm(BaseDeformableMirror):
          self.cmdHistory     = None
          self.baseDataPath   = fn.OPD_IMAGES_ROOT_FOLDER
          self.refAct         = 16
+         self._ts = timestamp.Timestamp()
          # self.eng            = self._dm._eng
 
      def get_shape(self):
@@ -51,11 +52,11 @@ class SPLATTDm(BaseDeformableMirror):
      def uploadCmdHistory(self, cmdhist):
          self.cmdHistory = cmdhist
 
-     def runCmdHistory(self, interf=None, delay:float=0.4, save:str=None, differential:bool=True, read_buffers:bool = False):
+     def runCmdHistory(self, interf=None, delay:float=0.3, save:str=None, differential:bool=True, read_buffers:bool = False):
          if self.cmdHistory is None:
              raise ValueError("No Command History to run!")
          else:
-             tn = _ts.now() if save is None else save
+             tn = self._ts.now() if save is None else save
              print(f"{tn} - {self.cmdHistory.shape[-1]} images to go.")
              datafold = os.path.join(self.baseDataPath, tn)
              s = self._dm.get_position_command()  #self._dm.flatPos # self.get_shape()
@@ -86,6 +87,9 @@ class SPLATTDm(BaseDeformableMirror):
         forces = self._dm.get_force()
         return forces
 
+    def plot_command(self, cmd):
+        self._dm.plot_splatt_vec(cmd)
+    
      def sendBufferCommand(self, cmd, differential:bool=False, cmdPreTime:float = 10e-3, freq:float = None, delay = 1.0): 
         # cmd is a command relative to self._dm.flatPos
          if differential:
@@ -152,6 +156,32 @@ class SPLATTEngine():
             raise SystemError('Shell must be set before giving commands!')
         cmd = cmd.tolist()
         self._eng.send(f"splattMirrorCommand({cmd}')")
+
+
+    def plot_splatt_vec(self, values, min_val:float=None, max_val:float=None):
+
+        if min_val is None:
+            min_val = min(values)
+
+        if max_val is None:
+            max_val = max(values)
+
+        margin = 0.03
+        markerSize = 800
+        x = self.actCoords[:,0]
+        y = self.actCoords[:,1]
+        indices = np.arange(self.nActs)+1
+
+        plt.figure()
+        plt.scatter(x, y, c=values, vmin=min_val, vmax=max_val,  s=markerSize, edgecolor='k')
+        plt.colorbar()
+        plt.xlim([min(x)-margin,max(x)+margin])
+        plt.ylim([min(y)-margin,max(y)+margin])
+
+        for i in range(nActs):
+            plt.text(x[i]*2/3, y[i]+margin*2/3, str(indices[i]))
+        plt.text(x[15],y[15]*1.3,'G')
+
 
 
     def read_buffers(self, external: bool = False, n_samples:int = 128, decimation:int = 0):
