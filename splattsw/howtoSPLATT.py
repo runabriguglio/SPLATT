@@ -57,7 +57,7 @@ fl = Flattening(tn)
 fl.filterIntCube([1,2,3])
 fl.applyFlatCommand(dm, interf, mlist, nframes=1,modes2discard=nmodes2discard)
 
-nimgs = 4
+nimgs = 1
 img = interf.acquire_map(nimgs, rebin=rebinfact)
 #fl.applyFlatCommand(adm, interf, 820, modes2discard=modes2remove[x])
 fl.loadImage2Shape(img)
