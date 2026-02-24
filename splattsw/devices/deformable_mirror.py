@@ -75,7 +75,7 @@ class SPLATTDm(BaseDeformableMirror):
                     hdr = pyfits.Header()
                     hdr['BUF_TN'] = buf_tn
                     pyfits.writeto(path, [pos,cur], hdr)
-                if interf is not None:
+                 if interf is not None:
                      time.sleep(delay)
                      img = interf.acquire_map()
                      path = os.path.join(datafold, f"image_{i:05d}.fits")
@@ -87,7 +87,7 @@ class SPLATTDm(BaseDeformableMirror):
         forces = self._dm.get_force()
         return forces
 
-    def plot_command(self, cmd):
+     def plot_command(self, cmd):
         self._dm.plot_splatt_vec(cmd)
     
      def sendBufferCommand(self, cmd, differential:bool=False, cmdPreTime:float = 10e-3, freq:float = None, delay = 1.0): 
@@ -208,7 +208,7 @@ class SPLATTEngine():
         coilsEnabled = np.sum(self._read_splatt_vec("aoRead('sabu8_enableCoil',1:19)"))
         self._eng.send('flags = lattGetFlags()')
         nrDriver = self._eng.read('1+sum(flags.driver2On)/19+sum(flags.driver3On)/19+sum(flags.driver4On)/19')
-       if nrDriver < 4:
+        if nrDriver < 4:
             print(f'Warning! {(nrDriver-1)*19:1.1f} coils are not enabled')
 
         flatTN = self._eng.read('sys_data.flatTN')
