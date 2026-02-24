@@ -146,7 +146,7 @@ class Acquisition():
         fcy= int(max_freq4D/max(fvec))
         for freqPI in fvec:
             freq4D = freqPI*fcy  # same temporal sampling for each PI freq
-            dec = np.max((0, in640cy/256/550e-6/freqPI-1)))
+            dec = np.max((0, in640cy/256/550e-6/freqPI-1))
             print(f'Piezo freq: {freqPI:1.0f} [Hz], 4D freq: {freq4D:1.1f} [Hz]')
             tn = self.acq_freq(freqPI, freq4D, nframes = nframes, buffer_dec = dec, dm_state = dm_state)
             tn_list.append(tn)
