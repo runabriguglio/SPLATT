@@ -24,10 +24,10 @@ class WaveGenerator(SCPI):
     def trigg4D(self, freq):
         self.set_wave2(ampl=4,offs=2,freq=freq,wave_form='SQU')
 
-    def set_sweep(self, ch, fmin, fmax, duration=20, amp=1):
+    def set_sweep(self, ch, fmin, fmax, duration=20, amp=1, return_time:float=2):
         self.connect()
-        if fmin<10 or fmax>150:
-            raise ValueError(f"Are you sure you want to go from {fmin} Hz to {fmax} Hz ?!")
+        #if fmin<10 or fmax>150:
+            #raise ValueError(f"Are you sure you want to go from {fmin} Hz to {fmax} Hz ?!")
 
         self.tx_txt(f":SOUR{ch}:FUNC SIN")
         time.sleep(self.delay)
@@ -39,7 +39,7 @@ class WaveGenerator(SCPI):
         time.sleep(self.delay)
         self.tx_txt(f":SOUR{ch}:SWE:TIME {duration}")
         time.sleep(self.delay)
-        self.tx_txt(f":SOUR{ch}:SWE:RTIM 2")
+        self.tx_txt(f":SOUR{ch}:SWE:RTIM {return_time}")
         time.sleep(self.delay)
         self.tx_txt(f':SOUR{ch}:SWE:TRIG:SOUR MAN')
         time.sleep(self.delay)
