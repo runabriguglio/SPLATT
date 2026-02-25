@@ -4,8 +4,6 @@ splattsw.egg-info/SOURCES.txt
 SPLATT.code-workspace
 sandbox
 splattsw/_images/
-*.meas
-!scratchPiezo.ipynb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -150,6 +148,7 @@ dmypy.json
 
 # Jupyter notebooks
 .ipynb
+!scratchPiezo.ipynb
 
 # Depracated files
 old_scripts/
