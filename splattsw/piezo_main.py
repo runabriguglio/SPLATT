@@ -98,19 +98,19 @@ def normalize_frame(frame):
     mean_val = np.mean(arr)
     return arr / mean_val
 
-def adjust_circle(cam, freq:float, gain:float=0.5, Nframes:int=2, debug:bool=False):
 
+def circularize_ellipse(cam, freq:float, Nits:int=1, dV:float=0.1, dphi:float=1, gain:float=0.5, Nframes:int=2, debug:bool=False):
 
     # Set input waves to correct frequency and align phase
     amp1 = wg.get_ampl(ch=1)
     amp2 = wg.get_ampl(ch=2)
-    phi1 = wg.get_phase(ch=1)
     phi2 = wg.get_phase(ch=2)
     wg.set_wave(ch=1,ampl=amp1,offs=0,freq=freq,wave_form='SIN')
     wg.set_wave(ch=2,ampl=amp2,offs=0,freq=freq,wave_form='SIN')    
     wg.phase_align()
 
     # Acquire reference frame
+    print('Acquiring reference frame ...')
     start_frame = normalize_frame(cam.acquire_frames(Nframes))
     cx,cy,radius = best_circle_fit(start_frame)
 
@@ -139,47 +139,34 @@ def adjust_circle(cam, freq:float, gain:float=0.5, Nframes:int=2, debug:bool=Fal
     if debug:
         show_frame(ref_frame, title='Circular reference frame')
 
-    IM = np.zeros([4,arr_crop.size])
-    dV = 0.06
-    dphi = 1
+    IM = np.zeros([arr_crop.size,3])
 
     # Change wave 1 amplitude
+    print('Computing interation matrix: ch1 amplitude ...')
     wg.set_wave(ch=1,ampl=amp1+dV,offs=0,freq=freq,wave_form='SIN')
     push_frame = normalize_frame(cam.acquire_frames(Nframes))[ymin:ymax, xmin:xmax]
     wg.set_wave(ch=1,ampl=amp1-dV,offs=0,freq=freq,wave_form='SIN')
     pull_frame = normalize_frame(cam.acquire_frames(Nframes))[ymin:ymax, xmin:xmax]
     wg.set_wave(ch=1,ampl=amp1,offs=0,freq=freq,wave_form='SIN')
     dframe = push_frame - pull_frame
-    IM[0,:] = dframe.flatten()/(2*dV)
+    IM[:,0] = dframe.flatten()/(2*dV)
     if debug:
         show_frame(dframe/(2*dV), title='Wave 1 Amplitude Change')
 
     # Change wave 2 amplitude    
+    print('Computing interation matrix: ch2 amplitude ...')
     wg.set_wave(ch=2,ampl=amp2+dV,offs=0,freq=freq,wave_form='SIN')
     push_frame = normalize_frame(cam.acquire_frames(Nframes))[ymin:ymax, xmin:xmax]
     wg.set_wave(ch=2,ampl=amp2-dV,offs=0,freq=freq,wave_form='SIN')
     pull_frame = normalize_frame(cam.acquire_frames(Nframes))[ymin:ymax, xmin:xmax]
     wg.set_wave(ch=2,ampl=amp2,offs=0,freq=freq,wave_form='SIN')
     dframe = push_frame - pull_frame
-    IM[1,:] = dframe.flatten()/(2*dV)
+    IM[:,1] = dframe.flatten()/(2*dV)
     if debug:
         show_frame(dframe/(2*dV), title='Wave 2 Amplitude Change')
 
-    # Change wave 1 phase
-    wg.set_phase(ch=1,phase=phi1+dphi)
-    wg.phase_align()
-    push_frame = normalize_frame(cam.acquire_frames(Nframes))[ymin:ymax, xmin:xmax]
-    wg.set_phase(ch=1,phase=phi1-dphi)
-    wg.phase_align()
-    pull_frame = normalize_frame(cam.acquire_frames(Nframes))[ymin:ymax, xmin:xmax]
-    wg.set_phase(ch=1,phase=phi1)
-    wg.phase_align()
-    dframe = push_frame - pull_frame
-    IM[2,:] = dframe.flatten()/(2*dphi)
-    if debug:
-        show_frame(dframe/(2*dphi), title='Wave 1 Phase Change')
-
     # Change wave 2 phase
+    print('Computing interation matrix: ch2 phase ...')
     wg.set_phase(ch=2,phase=phi2+dphi)
     wg.phase_align()
     push_frame = normalize_frame(cam.acquire_frames(Nframes))[ymin:ymax, xmin:xmax]
@@ -189,31 +176,42 @@ def adjust_circle(cam, freq:float, gain:float=0.5, Nframes:int=2, debug:bool=Fal
     wg.set_phase(ch=2,phase=phi2)
     wg.phase_align()
     dframe = push_frame - pull_frame
-    IM[3,:] = dframe.flatten()/(2*dphi)
+    IM[:,2] = dframe.flatten()/(2*dphi)
     if debug:
         show_frame(dframe/(2*dphi), title='Wave 2 Phase Change')
 
-    Rec = np.linalg.pinv(IM.T)
-    error = arr_crop.flatten() - ref_frame.flatten()
-    dcmd = - Rec @ error
-    new_circle = arr_crop.flatten() + IM.T @ dcmd
-    print(dcmd)
-    if debug:
-        show_frame(new_circle.reshape(arr_crop.shape), title='Predicted circle after correction')
+    Rec = np.linalg.pinv(IM)
+    end_crop = arr_crop.copy()
+    start_err_rms = np.sqrt(np.mean((arr_crop.flatten() - ref_frame.flatten())**2))
+    print(f'Reconstructing (start error RMS: {start_err_rms:.4g})...')
+    for i in range(Nits):
+        arr_crop = end_crop.copy()
+        error = ref_frame.flatten() - arr_crop.flatten()
+        if debug:
+            show_frame(error.reshape(arr_crop.shape), title='Detected difference from circle')
+        dcmd = Rec @ error
+        dcmd *= gain
+        new_circle = arr_crop.flatten() + IM @ dcmd
+        if debug:
+            show_frame(new_circle.reshape(arr_crop.shape), title='Predicted circle after correction')
 
-    # Set best measured command
-    wg.set_wave(ch=1,ampl=amp1 + dcmd[0]*gain,offs=0,freq=freq,wave_form='SIN')
-    wg.set_wave(ch=2,ampl=amp2 + dcmd[1]*gain,offs=0,freq=freq,wave_form='SIN')
-    wg.set_phase(ch=1,phase=phi1 + dcmd[2]*gain)
-    wg.set_phase(ch=2,phase=phi2 + dcmd[3]*gain)
-    wg.phase_align()
+        amp1 += dcmd[0]
+        amp2 += dcmd[1]
+        phi2 += dcmd[2]
+        wg.set_wave(ch=1,ampl=amp1,offs=0,freq=freq,wave_form='SIN')
+        wg.set_wave(ch=2,ampl=amp2,offs=0,freq=freq,wave_form='SIN')
+        wg.set_phase(ch=2,phase=phi2)
+        wg.phase_align()
 
-    end_frame = normalize_frame(cam.acquire_frames(Nframes))
-    end_crop = end_frame[ymin:ymax, xmin:xmax]
+        end_frame = normalize_frame(cam.acquire_frames(Nframes))
+        end_crop = end_frame[ymin:ymax, xmin:xmax]
+
+        if debug:
+            show_frame(new_circle.reshape(arr_crop.shape)-end_crop, title='Predicted - obtained circle after correction')
+        end_err_rms = np.sqrt(np.mean((end_crop.flatten() - ref_frame.flatten())**2))
+        print(f'\tIteration {i:1.0f}: error RMS = {end_err_rms:.4g}, ch1+={dcmd[0]:1.2f}V, ch2+={dcmd[1]:1.2f}V, {dcmd[2]:1.2f}°')
+
     if debug:
-        start_err = np.linalg.norm(arr_crop.flatten() - ref_frame.flatten())
-        end_err = np.linalg.norm(end_crop.flatten() - ref_frame.flatten())
-        print(f'Start error norm: {start_err:.6g}, End error norm: {end_err:.6g}')
         show_frame(end_crop, title='Final frame after correction')
         show_frame(end_crop - arr_crop, title='Difference between final and reference frame')
 
