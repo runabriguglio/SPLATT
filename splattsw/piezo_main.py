@@ -92,24 +92,26 @@ def best_circle_fit(image, thr:float=0.5):
     radius = np.sqrt(cx * cx + cy * cy + c0)
     return cx, cy, radius
 
-def get_interaction_matrix(cam, freq:float, amp1:float, amp2:float=None, phi1:float=None, phi2:float=None, Nframes:int=2, debug:bool=False):
 
-    if amp2 is None:
-        amp2 = amp1
-    if phi1 is None:
-        phi1 = 0
-    if phi2 is None:
-        phi2 = 90
+def normalize_frame(frame):
+    arr = np.asarray(frame, dtype=np.float64)
+    mean_val = np.mean(arr)
+    return arr / mean_val
 
-    # Set input waves
+def adjust_circle(cam, freq:float, gain:float=0.5, Nframes:int=2, debug:bool=False):
+
+
+    # Set input waves to correct frequency and align phase
+    amp1 = wg.get_ampl(ch=1)
+    amp2 = wg.get_ampl(ch=2)
+    phi1 = wg.get_phase(ch=1)
+    phi2 = wg.get_phase(ch=2)
     wg.set_wave(ch=1,ampl=amp1,offs=0,freq=freq,wave_form='SIN')
-    wg.set_wave(ch=2,ampl=amp2,offs=0,freq=freq,wave_form='SIN')
-    wg.set_phase(ch=1,phase=phi1)
-    wg.set_phase(ch=2,phase=phi2)
+    wg.set_wave(ch=2,ampl=amp2,offs=0,freq=freq,wave_form='SIN')    
     wg.phase_align()
 
     # Acquire reference frame
-    start_frame = cam.acquire_frames(Nframes)
+    start_frame = normalize_frame(cam.acquire_frames(Nframes))
     cx,cy,radius = best_circle_fit(start_frame)
 
     ymin = max(int(np.floor(cy - 1.4*radius)), 0)
@@ -143,9 +145,9 @@ def get_interaction_matrix(cam, freq:float, amp1:float, amp2:float=None, phi1:fl
 
     # Change wave 1 amplitude
     wg.set_wave(ch=1,ampl=amp1+dV,offs=0,freq=freq,wave_form='SIN')
-    push_frame = cam.acquire_frames(Nframes)[ymin:ymax, xmin:xmax]
+    push_frame = normalize_frame(cam.acquire_frames(Nframes))[ymin:ymax, xmin:xmax]
     wg.set_wave(ch=1,ampl=amp1-dV,offs=0,freq=freq,wave_form='SIN')
-    pull_frame = cam.acquire_frames(Nframes)[ymin:ymax, xmin:xmax]
+    pull_frame = normalize_frame(cam.acquire_frames(Nframes))[ymin:ymax, xmin:xmax]
     wg.set_wave(ch=1,ampl=amp1,offs=0,freq=freq,wave_form='SIN')
     dframe = push_frame - pull_frame
     IM[0,:] = dframe.flatten()/(2*dV)
@@ -154,9 +156,9 @@ def get_interaction_matrix(cam, freq:float, amp1:float, amp2:float=None, phi1:fl
 
     # Change wave 2 amplitude    
     wg.set_wave(ch=2,ampl=amp2+dV,offs=0,freq=freq,wave_form='SIN')
-    push_frame = cam.acquire_frames(Nframes)[ymin:ymax, xmin:xmax]
+    push_frame = normalize_frame(cam.acquire_frames(Nframes))[ymin:ymax, xmin:xmax]
     wg.set_wave(ch=2,ampl=amp2-dV,offs=0,freq=freq,wave_form='SIN')
-    pull_frame = cam.acquire_frames(Nframes)[ymin:ymax, xmin:xmax]
+    pull_frame = normalize_frame(cam.acquire_frames(Nframes))[ymin:ymax, xmin:xmax]
     wg.set_wave(ch=2,ampl=amp2,offs=0,freq=freq,wave_form='SIN')
     dframe = push_frame - pull_frame
     IM[1,:] = dframe.flatten()/(2*dV)
@@ -166,10 +168,10 @@ def get_interaction_matrix(cam, freq:float, amp1:float, amp2:float=None, phi1:fl
     # Change wave 1 phase
     wg.set_phase(ch=1,phase=phi1+dphi)
     wg.phase_align()
-    push_frame = cam.acquire_frames(Nframes)[ymin:ymax, xmin:xmax]
+    push_frame = normalize_frame(cam.acquire_frames(Nframes))[ymin:ymax, xmin:xmax]
     wg.set_phase(ch=1,phase=phi1-dphi)
     wg.phase_align()
-    pull_frame = cam.acquire_frames(Nframes)[ymin:ymax, xmin:xmax]
+    pull_frame = normalize_frame(cam.acquire_frames(Nframes))[ymin:ymax, xmin:xmax]
     wg.set_phase(ch=1,phase=phi1)
     wg.phase_align()
     dframe = push_frame - pull_frame
@@ -180,10 +182,10 @@ def get_interaction_matrix(cam, freq:float, amp1:float, amp2:float=None, phi1:fl
     # Change wave 2 phase
     wg.set_phase(ch=2,phase=phi2+dphi)
     wg.phase_align()
-    push_frame = cam.acquire_frames(Nframes)[ymin:ymax, xmin:xmax]
+    push_frame = normalize_frame(cam.acquire_frames(Nframes))[ymin:ymax, xmin:xmax]
     wg.set_phase(ch=2,phase=phi2-dphi)
     wg.phase_align()
-    pull_frame = cam.acquire_frames(Nframes)[ymin:ymax, xmin:xmax]
+    pull_frame = normalize_frame(cam.acquire_frames(Nframes))[ymin:ymax, xmin:xmax]
     wg.set_phase(ch=2,phase=phi2)
     wg.phase_align()
     dframe = push_frame - pull_frame
@@ -200,13 +202,13 @@ def get_interaction_matrix(cam, freq:float, amp1:float, amp2:float=None, phi1:fl
         show_frame(new_circle.reshape(arr_crop.shape), title='Predicted circle after correction')
 
     # Set best measured command
-    wg.set_wave(ch=1,ampl=amp1 + dcmd[0],offs=0,freq=freq,wave_form='SIN')
-    wg.set_wave(ch=2,ampl=amp2 + dcmd[1],offs=0,freq=freq,wave_form='SIN')
-    wg.set_phase(ch=1,phase=phi1 + dcmd[2])
-    wg.set_phase(ch=2,phase=phi2 + dcmd[3])
+    wg.set_wave(ch=1,ampl=amp1 + dcmd[0]*gain,offs=0,freq=freq,wave_form='SIN')
+    wg.set_wave(ch=2,ampl=amp2 + dcmd[1]*gain,offs=0,freq=freq,wave_form='SIN')
+    wg.set_phase(ch=1,phase=phi1 + dcmd[2]*gain)
+    wg.set_phase(ch=2,phase=phi2 + dcmd[3]*gain)
     wg.phase_align()
 
-    end_frame = cam.acquire_frames(Nframes)
+    end_frame = normalize_frame(cam.acquire_frames(Nframes))
     end_crop = end_frame[ymin:ymax, xmin:xmax]
     if debug:
         start_err = np.linalg.norm(arr_crop.flatten() - ref_frame.flatten())
@@ -215,56 +217,4 @@ def get_interaction_matrix(cam, freq:float, amp1:float, amp2:float=None, phi1:fl
         show_frame(end_crop, title='Final frame after correction')
         show_frame(end_crop - arr_crop, title='Difference between final and reference frame')
 
-    return IM, dcmd, start_frame, end_frame
-
-
-# def reconstruct_circle(cam, IM, freq:float, amp1:float, amp2:float, phi1:float, phi2:float, Nframes:int=2, debug:bool=False):
-
-#     # Acquire reference frame
-#     start_frame = cam.acquire_frames(Nframes)
-#     cx,cy,radius = best_circle_fit(start_frame)
-
-#     ymin = max(int(np.floor(cy - 1.4*radius)), 0)
-#     ymax = min(int(np.ceil(cy + 1.4*radius)), start_frame.shape[0])
-#     xmin = max(int(np.floor(cx - 1.4*radius)), 0)
-#     xmax = min(int(np.ceil(cx + 1.4*radius)), start_frame.shape[1])
-#     arr_crop = start_frame[ymin:ymax, xmin:xmax]
-#     if debug:
-#         show_frame(arr_crop,title='Cropped frame')
-
-#     cx_local = cx - xmin
-#     cy_local = cy - ymin
-#     yy, xx = np.indices(arr_crop.shape)
-#     rr = np.sqrt((xx - cx_local) ** 2 + (yy - cy_local) ** 2)
-#     r_idx = np.rint(rr).astype(np.int64)
-#     radial_sum = np.bincount(r_idx.ravel(), weights=arr_crop.ravel())
-#     radial_count = np.bincount(r_idx.ravel())
-#     radial_profile = np.divide(
-#         radial_sum,
-#         radial_count,
-#         out=np.zeros_like(radial_sum),
-#         where=radial_count > 0,
-#     )
-#     ref_frame = radial_profile[r_idx]
-#     if debug:
-#         show_frame(ref_frame, title='Circular reference frame')
-
-#     Rec = np.linalg.pinv(IM.T)
-#     error = arr_crop.flatten() - ref_frame.flatten()
-#     dcmd = - Rec @ error
-#     new_circle = arr_crop.flatten() + IM.T @ dcmd
-#     if debug:
-#         show_frame(new_circle.reshape(arr_crop.shape), title='New circle after correction')
-
-#     # Set correct waves
-#     wg.set_wave(ch=1,ampl=amp1+ dcmd[0],offs=0,freq=freq,wave_form='SIN')
-#     wg.set_wave(ch=2,ampl=amp2+ dcmd[1],offs=0,freq=freq,wave_form='SIN')
-#     wg.set_phase(ch=1,phase=phi1+ dcmd[2])
-#     wg.set_phase(ch=2,phase=phi2+ dcmd[3])
-#     wg.phase_align()
-
-#     end_frame = cam.acquire_frames(Nframes)[ymin:ymax, xmin:xmax]
-#     if debug:
-#         show_frame(end_frame, title='Final frame after correction')
-#         show_frame(end_frame - arr_crop, title='Difference between final and reference frame')
-    
+    return start_frame, end_frame, dcmd
