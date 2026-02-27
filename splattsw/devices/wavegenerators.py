@@ -125,13 +125,30 @@ class WaveGenerator(SCPI):
         time.sleep(0.1)
 
     def set_phase(self, ch, phase):
-        self.phase_align()
+        #self.phase_align()
         self.connect()
         sch = str(ch)
         ss = str(phase)
         scomm = 'SOUR'+sch+':PHAS '+ss
+        time.sleep(self.delay)
         self.tx_txt(scomm)
+        time.sleep(self.delay)
         self.close()
+
+    def get_phase(self, ch):
+        self.connect()
+        time.sleep(self.delay)
+        phi=self.tx_txt('SOUR'+str(ch)+':PHAS?')
+        self.close()
+        return phi
+
+    def get_ampl(self, ch):
+        self.connect()
+        time.sleep(self.delay)
+        ampl=self.tx_txt('SOUR'+str(ch)+':VOLT?')
+        self.close()
+        return ampl
+
 
     def set_pulse(self, ch, amp, offs, freq, dc):
         self.connect()
