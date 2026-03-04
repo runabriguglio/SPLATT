@@ -200,7 +200,7 @@ def circularize_ellipse(cam, freq:float, Nits:int=1, dV:float=0.2, dphi:float=2.
     Rec = np.linalg.pinv(IM)
     end_crop = arr_crop.copy()
     start_err_rms = np.sqrt(np.mean((arr_crop.flatten() - ref_frame.flatten())**2))
-    print(f'Reconstructing (start error RMS: {start_err_rms:.4g})...')
+    print(f'Reconstructing (start error RMS: {start_err_rms:.4g})...\n')
     for i in range(Nits):
         arr_crop = end_crop.copy()
         error = ref_frame.flatten() - arr_crop.flatten()

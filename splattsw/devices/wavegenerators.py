@@ -12,7 +12,7 @@ class WaveGenerator(SCPI):
         super().__init__(IP,port,TIMEOUT)
         # self.name = device_name
         # self = scpi.scpi(self.name)
-        self.delay = 0.1
+        self.delay = 0.5
 
     def sweep_mode_off(self, ch):
         self.connect()
@@ -28,7 +28,9 @@ class WaveGenerator(SCPI):
         self.connect()
         #if fmin<10 or fmax>150:
             #raise ValueError(f"Are you sure you want to go from {fmin} Hz to {fmax} Hz ?!")
-
+        time.sleep(self.delay)
+        self.tx_txt(f'OUTPUT{ch}:STATE OFF')
+        time.sleep(self.delay)
         self.tx_txt(f":SOUR{ch}:FUNC SIN")
         time.sleep(self.delay)
         self.tx_txt(f":SOUR{ch}:VOLT {amp}")
