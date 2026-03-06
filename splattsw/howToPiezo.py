@@ -63,13 +63,16 @@ def load_data(tn,show:bool=True):
         show_frame(data)
     return data
 
-def stability_measurement(cam,N:int=20,Nframes:int=1,pause:float=50):
+def stability_measurement(cam,N:int=20,Nframes:int=1,pause:float=45):
     tn_list=[]
     for j in range(N):
-        fr=cam.acquire_frames(Nframes)
-        tn=save_data(fr)
-        tn_list.append(tn)
-        time.sleep(pause)
+        try:
+            fr=cam.acquire_frames(Nframes)
+            tn=save_data(fr)
+            tn_list.append(tn)
+            time.sleep(pause)
+        except:
+            cam = connect_to_camera()
     return tn_list
 
 def connect_to_camera():
