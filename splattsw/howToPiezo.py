@@ -114,7 +114,7 @@ def normalize_frame(frame):
 
 def circularize_ellipse(cam, freq:float, Nits:int=1, dV:float=0.2, dphi:float=2.0, 
                         gain:float=1.0, Nframes:int=2, debug:bool=False,
-                        amp1=1.0, amp2=1.0, phi2=90):
+                        amp1=1.0, amp2=1.0, phi2=90, thr:float=0.8):
 
     # Set input waves to correct frequency and align phase
     wg.set_wave(ch=1,ampl=amp1,offs=0,freq=freq,wave_form='SIN')
@@ -128,7 +128,7 @@ def circularize_ellipse(cam, freq:float, Nits:int=1, dV:float=0.2, dphi:float=2.
     # Acquire reference frame
     print('Acquiring reference frame ...')
     start_frame = cam.acquire_frames(Nframes)
-    cx,cy,radius = best_circle_fit(start_frame)
+    cx,cy,radius = best_circle_fit(start_frame,thr=thr)
 
     ymin = max(int(np.floor(cy - 1.4*radius)), 0)
     ymax = min(int(np.ceil(cy + 1.4*radius)), start_frame.shape[0])
