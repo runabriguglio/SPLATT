@@ -148,7 +148,7 @@ dmypy.json
 
 # Jupyter notebooks
 .ipynb
-!scratchPiezo*
+!scratch*
 
 # Depracated files
 old_scripts/
