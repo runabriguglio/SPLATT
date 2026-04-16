@@ -272,7 +272,10 @@ def read_4dfreq(tn):
         interf_data = config['4D']
         freq = float(interf_data['framerate'])
     else:
-        freq = th.osu.getFrameRate(tn)
+        try:
+            freq = th.osu.getFrameRate(tn)
+        except:
+            freq = 320
     print(f'4D Freq: {freq}')
     return freq
 
