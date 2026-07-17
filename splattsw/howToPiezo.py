@@ -114,7 +114,8 @@ def normalize_frame(frame):
 
 def circularize_ellipse(cam, freq:float, Nits:int=1, dV:float=0.2, dphi:float=2.0, 
                         gain:float=1.0, Nframes:int=2, debug:bool=False,
-                        amp1=1.0, amp2=1.0, phi2=90, thr:float=0.8):
+                        amp1=1.0, amp2=1.0, phi2=90, thr:float=0.8,
+                        roi_width:float=None, return_history:bool=False):
 
     # Set input waves to correct frequency and align phase
     wg.set_wave(ch=1,ampl=amp1,offs=0,freq=freq,wave_form='SIN')
@@ -143,20 +144,29 @@ def circularize_ellipse(cam, freq:float, Nits:int=1, dV:float=0.2, dphi:float=2.
     cy_local = cy - ymin
     yy, xx = np.indices(arr_crop.shape)
     rr = np.sqrt((xx - cx_local) ** 2 + (yy - cy_local) ** 2)
+
+    if roi_width is None:
+        roi_mask = np.ones(arr_crop.shape, dtype=bool)
+    else:
+        roi_mask = np.abs(rr - radius) <= (roi_width / 2.0)
+
     r_idx = np.rint(rr).astype(np.int64)
-    radial_sum = np.bincount(r_idx.ravel(), weights=arr_crop.ravel())
-    radial_count = np.bincount(r_idx.ravel())
+    r_idx_roi = r_idx[roi_mask]
+    values_roi = arr_crop[roi_mask]
+    radial_sum = np.bincount(r_idx_roi.ravel(), weights=values_roi.ravel())
+    radial_count = np.bincount(r_idx_roi.ravel())
     radial_profile = np.divide(
         radial_sum,
         radial_count,
         out=np.zeros_like(radial_sum),
         where=radial_count > 0,
     )
-    ref_frame = radial_profile[r_idx]
+    ref_frame = np.zeros_like(arr_crop, dtype=np.float64)
+    ref_frame[roi_mask] = radial_profile[r_idx_roi]
     if debug:
         show_frame(ref_frame, title='Circular reference frame')
 
-    IM = np.zeros([arr_crop.size,3])
+    IM = np.zeros([np.count_nonzero(roi_mask),3], dtype=np.float64)
 
     # Change wave 1 amplitude
     print('Computing interation matrix: ch1 amplitude ...')
@@ -166,8 +176,8 @@ def circularize_ellipse(cam, freq:float, Nits:int=1, dV:float=0.2, dphi:float=2.
     pull_frame = normalize_frame(cam.acquire_frames(Nframes)[ymin:ymax, xmin:xmax])
     wg.set_wave(ch=1,ampl=amp1,offs=0,freq=freq,wave_form='SIN')
     dframe = push_frame - pull_frame
-    dframe -= np.mean(dframe)
-    IM[:,0] = dframe.flatten()/(2*dV)
+    dframe -= np.mean(dframe[roi_mask])
+    IM[:,0] = dframe[roi_mask].flatten()/(2*dV)
     if debug:
         show_frame(dframe/(2*dV), title='Wave 1 Amplitude Change')
 
@@ -179,8 +189,8 @@ def circularize_ellipse(cam, freq:float, Nits:int=1, dV:float=0.2, dphi:float=2.
     pull_frame = normalize_frame(cam.acquire_frames(Nframes)[ymin:ymax, xmin:xmax])
     wg.set_wave(ch=2,ampl=amp2,offs=0,freq=freq,wave_form='SIN')
     dframe = push_frame - pull_frame
-    dframe -= np.mean(dframe)
-    IM[:,1] = dframe.flatten()/(2*dV)
+    dframe -= np.mean(dframe[roi_mask])
+    IM[:,1] = dframe[roi_mask].flatten()/(2*dV)
     if debug:
         show_frame(dframe/(2*dV), title='Wave 2 Amplitude Change')
 
@@ -195,29 +205,40 @@ def circularize_ellipse(cam, freq:float, Nits:int=1, dV:float=0.2, dphi:float=2.
     wg.set_phase(ch=2,phase=phi2)
     wg.phase_align()
     dframe = push_frame - pull_frame
-    dframe -= np.mean(dframe)
-    IM[:,2] = dframe.flatten()/(2*dphi)
+    dframe -= np.mean(dframe[roi_mask])
+    IM[:,2] = dframe[roi_mask].flatten()/(2*dphi)
     if debug:
         show_frame(dframe/(2*dphi), title='Wave 2 Phase Change')
 
     Rec = np.linalg.pinv(IM)
     end_crop = arr_crop.copy()
-    start_err_rms = np.sqrt(np.mean((arr_crop.flatten() - ref_frame.flatten())**2))
+    start_err = arr_crop[roi_mask].flatten() - ref_frame[roi_mask].flatten()
+    start_err_rms = np.sqrt(np.mean(start_err**2))
     print(f'Reconstructing (start error RMS: {start_err_rms:.4g})...\n')
+
+    amp1_hist = [amp1]
+    amp2_hist = [amp2]
+    phi2_hist = [phi2]
+    dphi_hist = []
+    metric_hist = [start_err_rms]
+
     for i in range(Nits):
         arr_crop = end_crop.copy()
-        error = ref_frame.flatten() - arr_crop.flatten()
-        # error -= np.mean(error)
+        error = ref_frame[roi_mask].flatten() - arr_crop[roi_mask].flatten()
         if debug:
-            show_frame(error.reshape(arr_crop.shape), title='Detected difference from circle')
+            error_map = np.zeros_like(arr_crop, dtype=np.float64)
+            error_map[roi_mask] = error
+            show_frame(error_map, title='Detected difference from circle')
         dcmd = Rec @ error
         dcmd[:2] = np.clip(dcmd[:2], -dV, dV)
         dcmd[2] = np.clip(dcmd[2], -dphi, dphi)
         dcmd[:2] /= 2 # split correction between two channels
         dcmd *= gain
-        new_circle = arr_crop.flatten() + IM @ dcmd
+        new_circle = arr_crop[roi_mask].flatten() + IM @ dcmd
         if debug:
-            show_frame(new_circle.reshape(arr_crop.shape), title='Predicted circle after correction')
+            pred_map = np.zeros_like(arr_crop, dtype=np.float64)
+            pred_map[roi_mask] = new_circle
+            show_frame(pred_map, title='Predicted circle after correction')
 
         amp1 += dcmd[0]
         amp2 += dcmd[1]
@@ -231,14 +252,34 @@ def circularize_ellipse(cam, freq:float, Nits:int=1, dV:float=0.2, dphi:float=2.
         end_crop = normalize_frame(end_frame[ymin:ymax, xmin:xmax])
 
         if debug:
-            show_frame(new_circle.reshape(arr_crop.shape)-end_crop, title='Predicted - obtained circle after correction')
-        end_err_rms = np.sqrt(np.mean((end_crop.flatten() - ref_frame.flatten())**2))
+            show_frame(pred_map - end_crop, title='Predicted - obtained circle after correction')
+        end_err = end_crop[roi_mask].flatten() - ref_frame[roi_mask].flatten()
+        end_err_rms = np.sqrt(np.mean(end_err**2))
         print(f'\tIteration {i+1:1.0f}: error RMS = {end_err_rms:.4g}, ch1+={dcmd[0]*1e+3:1.0f}mV, ch2+={dcmd[1]*1e+3:1.0f}mV, {dcmd[2]:1.3f}°')
         print(f'\t\tParameters: ch1={amp1*1e+3:1.0f}mV, ch2={amp2*1e+3:1.0f}mV, phi2={phi2:1.3f}°\n')
+
+        amp1_hist.append(amp1)
+        amp2_hist.append(amp2)
+        phi2_hist.append(phi2)
+        dphi_hist.append(dcmd[2])
+        metric_hist.append(end_err_rms)
 
     if debug:
         show_frame(end_crop, title='Final frame after correction')
         show_frame(end_crop - arr_crop, title='Difference between final and reference frame')
-    
 
+    if return_history:
+        return {
+            'start_frame': start_frame,
+            'end_frame': end_frame,
+            'amp1': amp1,
+            'amp2': amp2,
+            'phi2': phi2,
+            'metric_history': np.asarray(metric_hist, dtype=np.float64),
+            'amp1_history': np.asarray(amp1_hist, dtype=np.float64),
+            'amp2_history': np.asarray(amp2_hist, dtype=np.float64),
+            'phi2_history': np.asarray(phi2_hist, dtype=np.float64),
+            'dphi_history': np.asarray(dphi_hist, dtype=np.float64),
+        }
+    
     return start_frame, end_frame, amp1, amp2, phi2
