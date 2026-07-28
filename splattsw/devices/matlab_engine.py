@@ -71,7 +71,7 @@ def main():
     matlab_eng = MatlabEngine()
 
     Pyro4.Daemon.serveSimple( {matlab_eng: "matlab_engine"},
-             host="193.206.155.220", port=9090, ns=False, verbose=True)
+             host="192.168.34.22", port=9090, ns=False, verbose=True)
 
 
 if __name__=="__main__":

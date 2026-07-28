@@ -18,7 +18,7 @@ from splattsw.devices.utility import *
 
 class WebDAQ(object):
     
-    def __init__(self, host_address="193.206.154.195"): #, **keywords):
+    def __init__(self, host_address="192.168.34.61"): #, **keywords):
         # Start a session so the password (if any) will be used throughout
         self._s = Session()
         # user = keywords.pop('user','admin')

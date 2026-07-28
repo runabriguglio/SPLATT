@@ -7,7 +7,7 @@ from splattsw.devices.devices_scpi import SCPI
 
 class WaveGenerator(SCPI):
 
-    def __init__(self, IP:str='192.168.0.100', port:int=5555, TIMEOUT=2):
+    def __init__(self, IP:str='192.168.34.62', port:int=5555, TIMEOUT=2):
 
         super().__init__(IP,port,TIMEOUT)
         # self.name = device_name
