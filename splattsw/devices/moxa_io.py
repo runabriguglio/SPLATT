@@ -16,7 +16,7 @@ def save_meas(meas_value, fpath, tn):
 
 class Moxa_ai0(Moxa):
 
-    def __init__(self, ip = '192.168.43.72', nchannels:int = 8,
+    def __init__(self, ip = '192.168.34.72', nchannels:int = 8,
                 api_addr_ext = '/api/slot/0/io/ai',
                 valuestr = 'aiValueScaled', valueid = 'ai'):
 
@@ -32,7 +32,7 @@ class Moxa_ai0(Moxa):
 
 class Moxa_pt0(Moxa):
 
-    def __init__(self, ip = '192.168.43.70', nchannels:int = 6,
+    def __init__(self, ip = '192.168.34.70', nchannels:int = 6,
                 api_addr_ext = '/api/slot/0/io/rtd',
                 valuestr = 'rtdValueScaled', valueid = 'rtd'):
 
@@ -42,7 +42,7 @@ class Moxa_pt0(Moxa):
 
 class Moxa_pt1(Moxa):
 
-    def __init__(self, ip = '192.168.43.71', nchannels:int = 6,
+    def __init__(self, ip = '192.168.34.71', nchannels:int = 6,
                 api_addr_ext = '/api/slot/0/io/rtd',
                 valuestr = 'rtdValueScaled', valueid = 'rtd'):
 
@@ -51,7 +51,7 @@ class Moxa_pt1(Moxa):
 
 class Moxa_di0(Moxa):
 
-    def __init__(self, ip = '192.168.43.73', nchannels:int = 16,
+    def __init__(self, ip = '192.168.34.73', nchannels:int = 16,
                 api_addr_ext = '/api/slot/0/io/di',
                 valuestr = 'diValueScaled', valueid = 'di'):
 
