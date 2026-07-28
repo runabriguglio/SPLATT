@@ -26,7 +26,7 @@ class SPLATTDm(BaseDeformableMirror):
      SPLATT interface with M4 software.
      """
 
-     def __init__(self, ip:str = '193.206.155.220', port:int = 9090):
+     def __init__(self, ip:str = '192.168.34.22', port:int = 9090):
          """The Constructor"""
          self._dm            = SPLATTEngine(ip,port)
          self.nActs          = self._dm.nActs
@@ -113,7 +113,7 @@ class SPLATTDm(BaseDeformableMirror):
 
 class SPLATTEngine():
 
-    def __init__(self, ip:str = '193.206.155.220', port:int = 9090):
+    def __init__(self, ip:str = '192.168.34.22', port:int = 9090):
 
         import Pyro4
         self._eng = Pyro4.Proxy(f"PYRO:matlab_engine@{ip}:{port}")
